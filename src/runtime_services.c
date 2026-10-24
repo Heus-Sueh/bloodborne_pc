@@ -6,7 +6,7 @@
  * Every entry here is an explicit contract; unknown functions still stop. */
 #define _GNU_SOURCE
 #include "runtime.h"
-#include "gpu/bbgpu.h"
+#include "gpu/bbhost.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -245,7 +245,7 @@ static ABI int32_t ime_init(const ImeParam *param, const void *extended) {
     utf16_to_utf8(param->title,128,prompt,sizeof(prompt));
     const char *preset=getenv("BB_IME_TEXT");
     if (preset) { ime_complete(0,preset); return 0; }
-    if (!bbgpu_text_input_begin(initial,prompt[0] ? prompt : "Text")) {
+    if (!bbhost_text_input_begin(initial,prompt[0] ? prompt : "Text")) {
         const char *name=getenv("BB_USER_NAME");
         ime_complete(0,name ? name : initial[0] ? initial : "Hunter");
     } else printf("Runtime: ImeDialog opened: type in the game window, Enter to confirm, Esc to cancel\n");
@@ -254,7 +254,7 @@ static ABI int32_t ime_init(const ImeParam *param, const void *extended) {
 static ABI int32_t ime_status(void) {
     if (ime.running) {
         char text[512];
-        int state=bbgpu_text_input_poll(text,sizeof(text));
+        int state=bbhost_text_input_poll(text,sizeof(text));
         if (state) ime_complete(state==1 ? 0 : 1,text);
     }
     return ime.running ? 1 : ime.finished ? 2 : 0; /* Running / Finished / None */
@@ -466,7 +466,10 @@ static const RuntimeExport exports[]={
     {"sceDiscMapIsRequestOnHDD",discmap_on_hdd}, {"sceDiscMap_8A828CAEE7EDD5E9",discmap_8a82},
     {"sceVoiceInit",ok_void}, {"sceVoiceEnd",ok_void},
 };
+void runtime_services_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
 uintptr_t runtime_services_resolve(const char *name) {
     const uintptr_t online=runtime_net_resolve(name); /* BB_ONLINE=1: the online module first */
-    return online ? online : RUNTIME_LOOKUP(exports,name);
+    return online ? online : runtime_registry_resolve(name, EXPORT_FUNCTION);
 }

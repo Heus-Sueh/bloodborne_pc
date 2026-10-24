@@ -1,0 +1,309 @@
+<rml>
+<head>
+    <title>Bloodborne PC Launcher</title>
+    <link type="text/rcss" href="style.rcss"/>
+</head>
+<body data-model="launcher">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+        <div class="brand">
+            <div class="brand-title">BLOODBORNE</div>
+            <div class="brand-subtitle">NATIVE PC PORT</div>
+            <div class="brand-divider"></div>
+        </div>
+
+        <div class="nav-menu">
+            <button class="nav-item" data-class-active="active_tab == 'play'" data-event-click="set_tab('play')">
+                The Hunt
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'graphics'" data-event-click="set_tab('graphics')">
+                Display &amp; Graphics
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'controls'" data-event-click="set_tab('controls')">
+                Controls &amp; Input
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'online'" data-event-click="set_tab('online')">
+                Network &amp; Online
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="meta-label">ARCHITECTURE</div>
+            <div class="meta-value">C++20 · SDL3 · Vulkan</div>
+        </div>
+    </div>
+
+    <!-- MAIN VIEWPORT -->
+    <div id="content">
+
+        <!-- TAB: PLAY -->
+        <div class="tab-pane" data-if="active_tab == 'play'">
+            <div class="pane-header">
+                <div class="pane-title">Game Installation &amp; Launch</div>
+                <div class="pane-desc">Configure directory paths and essential settings before venturing into Yharnam.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">INSTALLATION PATHS</div>
+                
+                <div class="setting-row">
+                    <div class="col-info" data-event-click="choose_game_dir">
+                        <div class="field-title interactive-title">Game Directory</div>
+                        <div class="field-desc">Folder containing eboot.bin and dvdroot_ps4 files</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-path" data-value="game_dir" data-event-change="save" data-event-click="choose_game_dir" placeholder="/path/to/CUSA03173" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info" data-event-click="choose_user_dir">
+                        <div class="field-title interactive-title">Saves &amp; Data Path</div>
+                        <div class="field-desc">Location for character saves, settings, and shader caches</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-path" data-value="user_dir" data-event-change="save" data-event-click="choose_user_dir" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info" data-event-click="choose_mods_dir">
+                        <div class="field-title interactive-title">Modifications Path</div>
+                        <div class="field-desc">Virtual filesystem overlay directory for mods</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-path" data-value="mods_dir" data-event-change="save" data-event-click="choose_mods_dir" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">QUICK PRESETS</div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Output Target Resolution</div>
+                        <div class="field-desc">Rendering canvas and display presentation size</div>
+                    </div>
+                    <div class="col-control">
+                        <div class="seg-group">
+                            <button class="seg-btn" data-class-selected="output_res == '1280x720'" data-event-click="set_resolution('1280x720')">720p</button>
+                            <button class="seg-btn" data-class-selected="output_res == '1920x1080'" data-event-click="set_resolution('1920x1080')">1080p</button>
+                            <button class="seg-btn" data-class-selected="output_res == '2560x1440'" data-event-click="set_resolution('2560x1440')">1440p</button>
+                            <button class="seg-btn" data-class-selected="output_res == '3840x2160'" data-event-click="set_resolution('3840x2160')">4K UHD</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Multiplayer Pool</div>
+                        <div class="field-desc">Summoning network and server community backend</div>
+                    </div>
+                    <div class="col-control">
+                        <div class="seg-group">
+                            <button class="seg-btn" data-class-selected="online_pool == 'offline'" data-event-click="set_pool('offline')">Offline</button>
+                            <button class="seg-btn" data-class-selected="online_pool == 'seamless'" data-event-click="set_pool('seamless')">Seamless Hunt</button>
+                            <button class="seg-btn" data-class-selected="online_pool == 'huntersdream'" data-event-click="set_pool('huntersdream')">The Hunter's Dream</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: GRAPHICS -->
+        <div class="tab-pane" data-if="active_tab == 'graphics'">
+            <div class="pane-header">
+                <div class="pane-title">Display &amp; Graphics Pipeline</div>
+                <div class="pane-desc">Tune Vulkan rasterization, resolution upscaling, and presentation sync.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">RESOLUTION UPSCALER</div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Upscaling Reconstruction</div>
+                        <div class="field-desc">Spatial or temporal reconstruction filters for high refresh rates</div>
+                    </div>
+                    <div class="col-control">
+                        <div class="seg-group">
+                            <button class="seg-btn" data-class-selected="upscaler == 'native'" data-event-click="set_upscaler('native')">Native</button>
+                            <button class="seg-btn" data-class-selected="upscaler == 'fsr'" data-event-click="set_upscaler('fsr')">FSR 1.0</button>
+                            <button class="seg-btn" data-class-selected="upscaler == 'fsr411'" data-event-click="set_upscaler('fsr411')">FSR 4.1</button>
+                            <button class="seg-btn" data-class-selected="upscaler == 'dlss'" data-event-click="set_upscaler('dlss')">DLSS</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">WINDOW &amp; PRESENTATION</div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Exclusive Fullscreen</div>
+                        <div class="field-desc">Take full control of the display monitor</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="checkbox" class="input-checkbox" data-checked="fullscreen" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Borderless Window Mode</div>
+                        <div class="field-desc">Run as a borderless window matching current desktop size</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="checkbox" class="input-checkbox" data-checked="borderless" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Vertical Sync (VSync)</div>
+                        <div class="field-desc">Eliminate screen tearing by synchronizing presentation</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="checkbox" class="input-checkbox" data-checked="vsync" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Framerate Limit</div>
+                        <div class="field-desc">Target framerate cap (60, 120, or 0 for uncapped)</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-short" data-value="fps_limit" data-event-change="save" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CONTROLS -->
+        <div class="tab-pane" data-if="active_tab == 'controls'">
+            <div class="pane-header">
+                <div class="pane-title">Controls &amp; Input Binding</div>
+                <div class="pane-desc">Direct hardware input translation and camera motion settings.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">NATIVE MOUSE CAMERA</div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Mouse Look Hook</div>
+                        <div class="field-desc">Control in-game camera orientation using relative mouse movement</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="checkbox" class="input-checkbox" data-checked="mouse_look" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Invert Vertical Look (Pitch)</div>
+                        <div class="field-desc">Reverse vertical camera axis for mouse control</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="checkbox" class="input-checkbox" data-checked="mouse_invert_y" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Mouse Sensitivity Multiplier</div>
+                        <div class="field-desc">Camera turning multiplier (default: 1.0)</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-short" data-value="mouse_sensitivity" data-event-change="save" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: ONLINE -->
+        <div class="tab-pane" data-if="active_tab == 'online'">
+            <div class="pane-header">
+                <div class="pane-title">Network &amp; Multiplayer Infrastructure</div>
+                <div class="pane-desc">Configure server endpoints for online summoning and messaging pools.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">SERVER CONNECTION</div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Matchmaking Server Host</div>
+                        <div class="field-desc">Domain or IPv4 endpoint for the online backend</div>
+                    </div>
+                    <div class="col-control">
+                        <input type="text" class="input-text input-path" data-value="online_server" data-event-change="save" />
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="col-info">
+                        <div class="field-title">Active Server Network</div>
+                        <div class="field-desc">Select community server pool protocol</div>
+                    </div>
+                    <div class="col-control">
+                        <div class="seg-group">
+                            <button class="seg-btn" data-class-selected="online_pool == 'offline'" data-event-click="set_pool('offline')">Offline</button>
+                            <button class="seg-btn" data-class-selected="online_pool == 'seamless'" data-event-click="set_pool('seamless')">Seamless Hunt</button>
+                            <button class="seg-btn" data-class-selected="online_pool == 'huntersdream'" data-event-click="set_pool('huntersdream')">The Hunter's Dream</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- COLLAPSIBLE CONSOLE DRAWER -->
+    <div id="console-drawer" data-if="is_console_open">
+        <div class="console-header">
+            <div class="console-title-area">
+                <span class="console-prompt">❯_</span>
+                <span class="console-heading">SYSTEM CONSOLE &amp; INITIALIZATION LOG</span>
+                <span class="console-status-pill" data-class-running="is_game_running">
+                    {{ is_game_running ? 'RUNNING' : 'STOPPED' }}
+                </span>
+            </div>
+            <div class="console-actions">
+                <button class="console-action-btn stop-btn" data-if="is_game_running" data-event-click="stop_game">STOP</button>
+                <button class="console-action-btn" data-event-click="copy_log">{{ copy_btn_text }}</button>
+                <button class="console-action-btn" data-event-click="save_log">SAVE</button>
+                <button class="console-action-btn" data-event-click="clear_log">CLEAR</button>
+                <button class="console-action-btn close-btn" data-event-click="toggle_console">✕</button>
+            </div>
+        </div>
+        <div id="console-scroll-body" class="console-body">
+            <div class="console-text">{{ console_log }}</div>
+        </div>
+    </div>
+
+    <!-- PERSISTENT FOOTER -->
+    <div id="footer">
+        <div class="status-box">
+            <span class="status-dot" data-class-valid="is_valid" data-class-invalid="!is_valid"></span>
+            <span class="status-msg" data-class-valid="is_valid" data-class-invalid="!is_valid">{{ status_text }}</span>
+        </div>
+
+        <div class="footer-actions">
+            <button class="console-trigger" data-class-active="is_console_open" data-event-click="toggle_console">
+                <span class="console-dot" data-class-running="is_game_running"></span>
+                Console Log
+            </button>
+
+            <button class="hunt-button" data-class-disabled="!is_valid" data-event-click="play">
+                {{ is_game_running ? 'RESTART HUNT' : 'START THE HUNT' }}
+            </button>
+        </div>
+    </div>
+
+</body>
+</rml>

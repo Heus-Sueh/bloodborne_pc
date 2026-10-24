@@ -267,5 +267,8 @@ static const RuntimeExport exports[]={
     {"sceAudioOutSetVolume",audio_volume}, {"sceAudioOutGetPortState",audio_state},
     {"sceAudioOutGetLastOutputTime",audio_last_time},
 };
-uintptr_t runtime_audio_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
+void runtime_audio_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_audio_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 void runtime_audio_report(void) { printf("Runtime: audio ports opened=%zu, buffers output=%zu\n",ports_opened,buffers_out); }

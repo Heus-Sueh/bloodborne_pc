@@ -69,6 +69,7 @@ static ABI void *guest_tls_get_addr(const uint64_t *index) {
 
 void runtime_start(uint64_t flags) {
     capabilities = flags;
+    runtime_registry_init();
     if (!(flags & 1)) return;
 #ifdef _WIN32
     unsigned int halves[2];
@@ -205,100 +206,50 @@ static ABI __attribute__((noreturn)) void guest_libc_exit(int status) {
     exit(status);
 }
 uintptr_t runtime_libc_base;
+static const char *progname = "eboot.bin";
+static int32_t need_libc_internal = 1;
+
+static const RuntimeExport libc_data_exports[] = {
+    {"f7uOxY9mM1U", (void *)&stack_canary},
+    {"ZT4ODD2Ts9o", (void *)&need_libc_internal},
+    {"__progname", (void *)&progname},
+};
+
+static const RuntimeExport libc_func_exports[] = {
+    {"bzQExy189ZI", (void *)init_env},
+    {"8G2LB+A3rzg", (void *)guest_atexit},
+    {"tsvEmnenz48", (void *)guest_cxa_atexit},
+    {"uMei1W9uyNo", (void *)guest_libc_exit},
+    {"H2e8t5ScQGc", (void *)guest_finalize},
+    {"3GPpjQdAMTw", (void *)guard_acquire},
+    {"9rAeANT2tyE", (void *)guard_release},
+    {"2emaaluWzUw", (void *)guard_abort},
+    {"Ou3iL1abvng", (void *)stack_fail},
+    {"8zTFvBIAIN8", (void *)guest_memset},
+    {"Q3VBxCXhUHs", (void *)guest_memcpy},
+    {"+P6FRGH4LfA", (void *)guest_memmove},
+    {"DfivPArhucg", (void *)guest_memcmp},
+    {"j4ViWNHEgww", (void *)guest_strlen},
+    {"vNe1w4diLCs", (void *)guest_tls_get_addr},
+    {"959qrazPIrg", (void *)guest_procparam},
+    {"p5EcQeEeJAE", (void *)guest_set_heap_api},
+};
+
+void runtime_libc_register(void) {
+    runtime_register_data_exports(libc_data_exports, sizeof(libc_data_exports) / sizeof(libc_data_exports[0]));
+    runtime_register_exports(libc_func_exports, sizeof(libc_func_exports) / sizeof(libc_func_exports[0]));
+}
+
 uintptr_t runtime_resolve(const char *name, int is_data) {
     if (!(capabilities & 1)) return 0;
-    if (is_data) {
-        static int32_t need_libc_internal = 1; /* SDK marker variable referenced by Fios2 */
-        if (runtime_nid_is(name, "f7uOxY9mM1U")) return (uintptr_t)&stack_canary;
-        if (runtime_nid_is(name, "ZT4ODD2Ts9o")) return (uintptr_t)&need_libc_internal;
-        /* The program's name (libc's error messages). */
-        static const char *progname = "eboot.bin";
-        const char *symbol = runtime_symbol(name);
-        if (symbol && !strcmp(symbol, "__progname")) return (uintptr_t)&progname;
-        return 0;
-    }
-    /* Exact scoped imports for CUSA03173; the suffix identifies library/module. */
-    if (runtime_nid_is(name, "bzQExy189ZI")) return (uintptr_t)init_env;
-    if (runtime_nid_is(name, "8G2LB+A3rzg")) return (uintptr_t)guest_atexit;
-    if (runtime_nid_is(name, "tsvEmnenz48")) return (uintptr_t)guest_cxa_atexit;
-    if (runtime_nid_is(name, "uMei1W9uyNo")) return (uintptr_t)guest_libc_exit;
-    /* Not imported by the current eboot, exposed for ABI tests/future use. */
-    if (runtime_nid_is(name, "H2e8t5ScQGc")) return (uintptr_t)guest_finalize;
-    if (runtime_nid_is(name, "3GPpjQdAMTw")) return (uintptr_t)guard_acquire;
-    if (runtime_nid_is(name, "9rAeANT2tyE")) return (uintptr_t)guard_release;
-    if (runtime_nid_is(name, "2emaaluWzUw")) return (uintptr_t)guard_abort;
-    if (runtime_nid_is(name, "Ou3iL1abvng")) return (uintptr_t)stack_fail;
-    if (runtime_nid_is(name, "8zTFvBIAIN8")) return (uintptr_t)guest_memset;
-    if (runtime_nid_is(name, "Q3VBxCXhUHs")) return (uintptr_t)guest_memcpy;
-    if (runtime_nid_is(name, "+P6FRGH4LfA")) return (uintptr_t)guest_memmove;
-    if (runtime_nid_is(name, "DfivPArhucg")) return (uintptr_t)guest_memcmp;
-    if (runtime_nid_is(name, "j4ViWNHEgww")) return (uintptr_t)guest_strlen;
-    if (runtime_nid_is(name, "vNe1w4diLCs")) return (uintptr_t)guest_tls_get_addr;
-    if (runtime_nid_is(name, "959qrazPIrg")) return (uintptr_t)guest_procparam;
-    if (runtime_nid_is(name, "p5EcQeEeJAE")) return (uintptr_t)guest_set_heap_api;
-    uintptr_t mutex = runtime_mutex_resolve(name);
-    if (mutex) return mutex;
-    uintptr_t thread = runtime_thread_resolve(name);
-    if (thread) return thread;
-    uintptr_t content=runtime_content_resolve(name);
-    if (content) return content;
-    uintptr_t timer = runtime_time_resolve(name);
-    if (timer) return timer;
-    uintptr_t sema = runtime_sema_resolve(name);
-    if (sema) return sema;
-    uintptr_t rwlock = runtime_rwlock_resolve(name);
-    if (rwlock) return rwlock;
-    uintptr_t memory = runtime_memory_resolve(name);
-    if (memory) return memory;
-    uintptr_t kernel = runtime_kernel_resolve(name);
-    if (kernel) return kernel;
-    uintptr_t services = runtime_services_resolve(name);
-    if (services) return services;
-    uintptr_t ajm = runtime_ajm_resolve(name);
-    if (ajm) return ajm;
-    uintptr_t audio = runtime_audio_resolve(name);
-    if (audio) return audio;
-    uintptr_t pad = runtime_pad_resolve(name);
-    if (pad) return pad;
-    uintptr_t rtc = runtime_rtc_resolve(name);
-    if (rtc) return rtc;
-    uintptr_t save = runtime_savedata_resolve(name);
-    if (save) return save;
-    uintptr_t file = runtime_file_resolve(name);
-    if (file) return file;
-    uintptr_t toypad = runtime_toypad_resolve(name);
-    if (toypad) return toypad;
-    uintptr_t ngs2 = runtime_ngs2_resolve(name);
-    if (ngs2) return ngs2;
-    uintptr_t compat = runtime_compat_resolve(name);
-    if (compat) return compat;
-    return bbgpu_resolve(name);
-}
-static const struct { const char *nid, *symbol; } import_names[]={
-#include "import_names.inc"
-#include "import_names_extra.inc"
-};
-/* Symbol name for an import (NID, with or without its library/module suffix), or NULL when it is
- * not known. The NID alone decides: it is the hash of the symbol's name, whatever library a game
- * imports it from. */
-const char *runtime_symbol(const char *nid) {
-    const size_t length=strcspn(nid,"#");
-    for (size_t i=0;i<sizeof(import_names)/sizeof(*import_names);++i) {
-        const char *entry=import_names[i].nid;
-        if (!strncmp(nid,entry,length) && (entry[length]=='#' || entry[length]==0))
-            return import_names[i].symbol;
-    }
-    return NULL;
-}
-/* Same symbol name means same contract whether imported from libkernel or
- * libScePosix, so newer modules resolve by name through runtime_symbol. */
-uintptr_t runtime_lookup(const RuntimeExport *table,size_t count,const char *nid) {
-    const char *symbol=runtime_symbol(nid);
-    if (!symbol) return 0;
-    for (size_t i=0;i<count;++i) if (!strcmp(symbol,table[i].name)) return (uintptr_t)table[i].function;
+    runtime_registry_init();
+    uintptr_t target = runtime_registry_resolve(name, is_data);
+    if (target) return target;
+    if (!is_data) return bbgpu_resolve(name);
     return 0;
 }
+
 const char *runtime_import_name(const char *name) {
-    const char *symbol=runtime_symbol(name);
+    const char *symbol = runtime_symbol(name);
     return symbol ? symbol : "name not resolved; see analysis.json import_name_hints";
 }

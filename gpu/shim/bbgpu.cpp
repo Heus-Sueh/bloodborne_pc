@@ -39,6 +39,7 @@
 extern "C" {
 // runtime_memory.c
 int runtime_memory_is_mapped(uintptr_t address, uint64_t size);
+int runtime_memory_check_mapped(uintptr_t address, uint64_t size);
 int runtime_memory_write_backing(uintptr_t address, const void* data, uint64_t size);
 void runtime_memory_read_backing(uintptr_t address, void* data, uint64_t size);
 uint64_t runtime_memory_clamp(uintptr_t address, uint64_t size);
@@ -46,6 +47,14 @@ int runtime_memory_region(uintptr_t address, uintptr_t* start, uintptr_t* end, i
 const uint64_t* runtime_memory_generation(void);
 void runtime_memory_gpu_protect(uintptr_t address, uint64_t size, int read, int write);
 typedef void (*RuntimeGpuRange)(uintptr_t address, uint64_t size);
+struct RuntimeMemoryCoherenceHooks {
+    RuntimeGpuRange map;
+    RuntimeGpuRange unmap;
+    RuntimeGpuRange invalidate;
+    RuntimeGpuRange note_write;
+    RuntimeGpuRange cpu_write;
+};
+void runtime_memory_set_coherence_hooks(const RuntimeMemoryCoherenceHooks* hooks);
 // runtime_kernel.c: one clock for guest and GPU timestamps
 uint64_t runtime_process_time_us(void);
 uint64_t runtime_process_time_counter(void);
@@ -81,56 +90,32 @@ namespace Core {
 void MemoryManager::SetRasterizer(Vulkan::Rasterizer* rasterizer_) {
     rasterizer = rasterizer_;
     // Existing guest mappings are replayed by the runtime when hooks are installed.
-    runtime_memory_set_gpu_hooks(
-        [](uintptr_t address, uint64_t size) {
+    const RuntimeMemoryCoherenceHooks hooks{
+        .map = [](uintptr_t address, uint64_t size) {
             auto* r = Memory::Instance()->GetRasterizer();
             r->RegisterMemory(address, size);
             r->MapMemory(address, size);
         },
-        [](uintptr_t address, uint64_t size) { Memory::Instance()->GetRasterizer()->UnmapMemory(address, size); },
-        [](uintptr_t address, uint64_t size) {
+        .unmap = [](uintptr_t address, uint64_t size) { Memory::Instance()->GetRasterizer()->UnmapMemory(address, size); },
+        .invalidate = [](uintptr_t address, uint64_t size) {
             Memory::Instance()->GetRasterizer()->InvalidateMemory(address, size);
-        });
-    // bbport: data written into GPU memory by a path the GPU side hears of (file reads, the game's
-    // resource loaders): invalidated, and an asset (it may keep a VRAM copy).
-    runtime_memory_set_note_write_hook([](uintptr_t address, uint64_t size) {
-        Memory::Instance()->GetRasterizer()->NoteAssetWrite(address, size);
-    });
-    // bbport: the game's libc copies (memcpy, memset, memmove) over pages the caches watch.
-    runtime_memory_set_cpu_write_hook([](uintptr_t address, uint64_t size) {
-        Memory::Instance()->GetRasterizer()->OnCpuWrite(address, size);
-    });
+        },
+        .note_write = [](uintptr_t address, uint64_t size) {
+            Memory::Instance()->GetRasterizer()->NoteAssetWrite(address, size);
+        },
+        .cpu_write = [](uintptr_t address, uint64_t size) {
+            Memory::Instance()->GetRasterizer()->OnCpuWrite(address, size);
+        },
+    };
+    runtime_memory_set_coherence_hooks(&hooks);
 }
 void MemoryManager::InvalidateMemory(VAddr address, u64 size) {
     if (rasterizer) rasterizer->InvalidateMemory(address, size);
 }
 namespace {
-// bbport: the mapped region of the last lookup, per thread, valid for the mapping table generation
-// it was read at. The GPU command thread clamps and copies thousands of constant ranges a frame,
-// nearly all within the region of the one before: two calls into the runtime each (~5% of it).
-struct RegionCache {
-    u64 generation = 1; // odd: invalid
-    uintptr_t start = 0, end = 0;
-};
-thread_local RegionCache region_cache;
-
+// bbport: fast cached region check encapsulated inside the runtime's memory module.
 bool CachedMapped(VAddr address, u64 size) {
-    static const uint64_t* const generation_ptr = runtime_memory_generation();
-    const u64 generation = __atomic_load_n(generation_ptr, __ATOMIC_ACQUIRE);
-    if (generation & 1) {
-        return false; // being changed
-    }
-    auto& cache = region_cache;
-    if (cache.generation == generation && address >= cache.start && address + size <= cache.end) {
-        return true;
-    }
-    uintptr_t start = 0, end = 0;
-    int mapped = 0;
-    if (!runtime_memory_region(address, &start, &end, &mapped) || !mapped) {
-        return false;
-    }
-    cache = {generation, start, end};
-    return address + size <= end;
+    return runtime_memory_check_mapped(address, size) != 0;
 }
 } // namespace
 
@@ -321,10 +306,13 @@ extern "C" int bbgpu_handle_fault(void* ucontext, void* address) {
     return BbFreeCheck::OnStaleTrapFault(reinterpret_cast<std::uint64_t>(address)) ? 1 : 0;
 }
 
-extern "C" void bbgpu_patch_image(unsigned char* image, uint64_t size) {
+extern "C" void bbhook_patch_image(unsigned char* image, uint64_t size) {
     BbGnmHooks::PatchImage(image, size);
     BbGameMenu::PatchImage(image, size);
     BbFrameRate::PatchImage(image, size);
+}
+extern "C" void bbgpu_patch_image(unsigned char* image, uint64_t size) {
+    bbhook_patch_image(image, size);
 }
 
 extern "C" unsigned bbgpu_symbol_count(void) {
@@ -337,11 +325,14 @@ int* PS4_SYSV_ABI __Error() {
 }
 } // namespace Libraries::Kernel
 
-extern "C" int bbgpu_overlay_captures_input(void) {
+extern "C" int bbhost_overlay_captures_input(void) {
     return BbOverlay::CapturesInput() ? 1 : 0;
 }
+extern "C" int bbgpu_overlay_captures_input(void) {
+    return bbhost_overlay_captures_input();
+}
 
-extern "C" void bbgpu_mouse_take(double* dx, double* dy, int* wheel_up, int* wheel_down) {
+extern "C" void bbhost_mouse_take(double* dx, double* dy, int* wheel_up, int* wheel_down) {
     double x = 0, y = 0;
     int up = 0, down = 0;
     if (g_window) {
@@ -352,43 +343,67 @@ extern "C" void bbgpu_mouse_take(double* dx, double* dy, int* wheel_up, int* whe
     *wheel_up = up;
     *wheel_down = down;
 }
-
-extern "C" int bbgpu_mouse_captured(void) {
-    return g_window && g_window->MouseCaptured() ? 1 : 0;
+extern "C" void bbgpu_mouse_take(double* dx, double* dy, int* wheel_up, int* wheel_down) {
+    bbhost_mouse_take(dx, dy, wheel_up, wheel_down);
 }
 
-extern "C" void bbgpu_mouse_capture(void) {
+extern "C" int bbhost_mouse_captured(void) {
+    return g_window && g_window->MouseCaptured() ? 1 : 0;
+}
+extern "C" int bbgpu_mouse_captured(void) {
+    return bbhost_mouse_captured();
+}
+
+extern "C" void bbhost_mouse_capture(void) {
     if (g_window) {
         g_window->RequestMouseCapture();
     }
 }
+extern "C" void bbgpu_mouse_capture(void) {
+    bbhost_mouse_capture();
+}
 
-extern "C" uint64_t bbgpu_camera_state(void) {
+extern "C" uint64_t bbhook_camera_state(void) {
     return BbGuestHooks::CameraState();
 }
-
-extern "C" int bbgpu_free_camera(void) {
-    return BbGuestHooks::FreeCameraActive() ? 1 : 0;
+extern "C" uint64_t bbgpu_camera_state(void) {
+    return bbhook_camera_state();
 }
 
-extern "C" int bbgpu_camera_look(float yaw, float pitch) {
+extern "C" int bbhook_free_camera(void) {
+    return BbGuestHooks::FreeCameraActive() ? 1 : 0;
+}
+extern "C" int bbgpu_free_camera(void) {
+    return bbhook_free_camera();
+}
+
+extern "C" int bbhook_camera_look(float yaw, float pitch) {
     if (!BbGuestHooks::CameraLookAvailable()) {
         return 0;
     }
     return BbGuestHooks::CameraLookAdd(pitch, yaw) ? 1 : 0;
 }
-
-extern "C" void bbgpu_mouse_look_enable(int enabled) {
-    Frontend::WindowSDL::EnableMouseLook(enabled != 0);
+extern "C" int bbgpu_camera_look(float yaw, float pitch) {
+    return bbhook_camera_look(yaw, pitch);
 }
 
-extern "C" int bbgpu_text_input_begin(const char* initial, const char* prompt) {
+extern "C" void bbhost_mouse_look_enable(int enabled) {
+    Frontend::WindowSDL::EnableMouseLook(enabled != 0);
+}
+extern "C" void bbgpu_mouse_look_enable(int enabled) {
+    bbhost_mouse_look_enable(enabled);
+}
+
+extern "C" int bbhost_text_input_begin(const char* initial, const char* prompt) {
     if (!g_window) return 0;
     g_window->BeginTextInput(initial ? initial : "", prompt ? prompt : "Text");
     return 1;
 }
+extern "C" int bbgpu_text_input_begin(const char* initial, const char* prompt) {
+    return bbhost_text_input_begin(initial, prompt);
+}
 
-extern "C" int bbgpu_text_input_poll(char* out, uint64_t size) {
+extern "C" int bbhost_text_input_poll(char* out, uint64_t size) {
     if (!g_window) return 2;
     std::string text;
     const int state = g_window->PollTextInput(text);
@@ -398,4 +413,7 @@ extern "C" int bbgpu_text_input_poll(char* out, uint64_t size) {
         out[n] = 0;
     }
     return state;
+}
+extern "C" int bbgpu_text_input_poll(char* out, uint64_t size) {
+    return bbhost_text_input_poll(out, size);
 }

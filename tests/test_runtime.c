@@ -1,9 +1,36 @@
 #define _GNU_SOURCE
 #include "runtime.h"
 #include <stdlib.h>
+#include <errno.h>
 
 /* The settings menu of the GPU library restarts through probe.c, which tests do not link. */
 void runtime_restart(void) { abort(); }
+__attribute__((weak)) uintptr_t bbgpu_resolve(const char *name) { (void)name; return 0; }
+__attribute__((weak)) int bbgpu_free_camera(void) { return 0; }
+__attribute__((weak)) int bbgpu_camera_look(float y, float p) { (void)y; (void)p; return 0; }
+__attribute__((weak)) void bbgpu_mouse_take(double *dx, double *dy, int *u, int *d) { if (dx) *dx = 0; if (dy) *dy = 0; if (u) *u = 0; if (d) *d = 0; }
+__attribute__((weak)) int bbgpu_mouse_captured(void) { return 0; }
+__attribute__((weak)) int bbgpu_overlay_captures_input(void) { return 0; }
+__attribute__((weak)) int bbgpu_pointer_wanted(void) { return 0; }
+__attribute__((weak)) void bbgpu_filter_pad(uint32_t *b, const uint8_t *s) { (void)b; (void)s; }
+__attribute__((weak)) void bbgpu_mouse_look_enable(int e) { (void)e; }
+__attribute__((weak)) void bbgpu_mouse_capture(void) {}
+__attribute__((weak)) uint64_t bbgpu_camera_state(void) { return 0; }
+__attribute__((weak)) int bbgpu_text_input_poll(char *o, uint64_t s) { (void)o; (void)s; return 0; }
+__attribute__((weak)) int bbgpu_text_input_begin(const char *i, const char *p) { (void)i; (void)p; return 0; }
+__attribute__((weak)) int bbhook_free_camera(void) { return 0; }
+__attribute__((weak)) int bbhook_camera_look(float y, float p) { (void)y; (void)p; return 0; }
+__attribute__((weak)) uint64_t bbhook_camera_state(void) { return 0; }
+__attribute__((weak)) void bbhook_patch_image(unsigned char *image, uint64_t size) { (void)image; (void)size; }
+__attribute__((weak)) void bbhost_mouse_take(double *dx, double *dy, int *u, int *d) { if (dx) *dx = 0; if (dy) *dy = 0; if (u) *u = 0; if (d) *d = 0; }
+__attribute__((weak)) int bbhost_mouse_captured(void) { return 0; }
+__attribute__((weak)) int bbhost_overlay_captures_input(void) { return 0; }
+__attribute__((weak)) int bbhost_pointer_wanted(void) { return 0; }
+__attribute__((weak)) void bbhost_filter_pad(uint32_t *b, const uint8_t *s) { (void)b; (void)s; }
+__attribute__((weak)) void bbhost_mouse_look_enable(int e) { (void)e; }
+__attribute__((weak)) void bbhost_mouse_capture(void) {}
+__attribute__((weak)) int bbhost_text_input_poll(char *o, uint64_t s) { (void)o; (void)s; return 0; }
+__attribute__((weak)) int bbhost_text_input_begin(const char *i, const char *p) { (void)i; (void)p; return 0; }
 #include <assert.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -392,6 +419,62 @@ static void rw_timeouts(void) {
     assert(rw_unlock(&f.lock)==0);
     fixture_destroy(&f);
 }
+static void test_registry_and_errors(void) {
+    /* Test canonical OrbisErrorAdapter */
+    assert(orbis_error_from_errno(0) == 0);
+    assert(orbis_error_from_errno(EINVAL) == ORBIS_EINVAL);
+    assert(orbis_error_from_errno(EINVAL) == (int32_t)(0x80020000 | 22));
+    assert(orbis_error_from_errno(ENOMEM) == ORBIS_ENOMEM);
+    assert(orbis_error_from_errno(EBUSY) == ORBIS_EBUSY);
+    assert(orbis_error_from_errno(EPERM) == ORBIS_EPERM);
+    assert(orbis_error_from_errno(EAGAIN) == ORBIS_EAGAIN);
+    assert(orbis_error_from_timed(ETIMEDOUT) == ORBIS_ETIMEDOUT);
+    assert(orbis_error_from_timed(ETIMEDOUT) == (int32_t)(0x80020000 | 60));
+    assert(runtime_guest_errno(EINVAL) == 22);
+    assert(runtime_guest_errno(ETIMEDOUT) == 60);
+
+    /* Test SymbolRegistry dynamic registration & O(1) resolution */
+    static int dummy_func_val = 123;
+    static int dummy_data_val = 456;
+    static const RuntimeExport test_func_exports[] = {
+        {"test_dummy_function#lib#mod", (void *)&dummy_func_val},
+    };
+    static const RuntimeExport test_data_exports[] = {
+        {"test_dummy_data#lib#mod", (void *)&dummy_data_val},
+    };
+    runtime_register_exports(test_func_exports, 1);
+    runtime_register_data_exports(test_data_exports, 1);
+
+    assert(runtime_resolve("test_dummy_function#any#suffix", 0) == (uintptr_t)&dummy_func_val);
+    assert(runtime_resolve("test_dummy_function", 0) == (uintptr_t)&dummy_func_val);
+    assert(runtime_resolve("test_dummy_function", 1) == 0);
+
+    assert(runtime_resolve("test_dummy_data#any#suffix", 1) == (uintptr_t)&dummy_data_val);
+    assert(runtime_resolve("test_dummy_data", 1) == (uintptr_t)&dummy_data_val);
+    assert(runtime_resolve("test_dummy_data", 0) == 0);
+
+    assert(runtime_resolve("non_existent_symbol_12345", 0) == 0);
+    assert(runtime_resolve("non_existent_symbol_12345", 1) == 0);
+}
+
+static int g_test_hook_map_called = 0;
+static void test_hook_map(uintptr_t a, uint64_t s) { (void)a; (void)s; g_test_hook_map_called++; }
+
+static void test_memory_coherence(void) {
+    assert(runtime_memory_check_mapped(0xdeadbeef000ULL, 4096) == 0);
+    assert(runtime_memory_check_mapped(0, 0) == 1);
+
+    RuntimeMemoryCoherenceHooks hooks = {
+        .map = test_hook_map,
+        .unmap = NULL,
+        .invalidate = NULL,
+        .note_write = NULL,
+        .cpu_write = NULL,
+    };
+    runtime_memory_set_coherence_hooks(&hooks);
+    assert(g_test_hook_map_called >= 0);
+}
+
 int main(int argc,char **argv) {
     runtime_start(0); assert(runtime_resolve("bzQExy189ZI#q#q",0)==0);
     runtime_start(1);
@@ -418,6 +501,8 @@ int main(int argc,char **argv) {
     if (argc>1 && !strcmp(argv[1],"--rwlock-lifecycle")) { rw_lifecycle(); return 0; }
     if (argc>1 && !strcmp(argv[1],"--rwlock-concurrency")) { rw_concurrency(); return 0; }
     if (argc>1 && !strcmp(argv[1],"--rwlock-timeouts")) { rw_timeouts(); return 0; }
+    test_registry_and_errors();
+    test_memory_coherence();
     libc_support(); posix_mutexes(); wall_time(); exit_handlers(); guards(); mutexes(); direct_memory(); write_traps(); memory_primitives();
     rw_lifecycle(); rw_concurrency(); rw_timeouts();
     puts("PASS: callback lifecycle, guard ABI, mutex errors, shared direct memory, memory primitives, resolver scope");

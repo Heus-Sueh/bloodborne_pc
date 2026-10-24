@@ -13,11 +13,19 @@ fi
 if [[ -z ${CC:-} ]]; then echo 'Install GCC/Clang or set CC.' >&2; exit 1; fi
 # Dependencies come from pkg-config (Vulkan loader/headers, SDL3). On NixOS the
 # environment is provided by shell.nix; re-enter it automatically if needed.
-if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 && command -v cmake >/dev/null && command -v ninja >/dev/null; }; then
+if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 freetype2 && command -v cmake >/dev/null && command -v ninja >/dev/null; }; then
     if [[ -z ${BB_IN_NIX_SHELL:-} ]] && command -v nix-shell >/dev/null; then
         exec env BB_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash build.sh $*"
     fi
-    echo 'Need pkg-config with vulkan and sdl3, cmake and ninja (see shell.nix).' >&2; exit 1
+    echo 'Need pkg-config with vulkan, sdl3 and freetype2, cmake and ninja (see shell.nix).' >&2; exit 1
+fi
+if ! echo '#include <vulkan/vulkan.h>' | $CC -E - >/dev/null 2>&1; then
+    echo "Notice: System Vulkan headers (<vulkan/vulkan.h>) not installed."
+    echo "        Recommended for Arch/Omarchy: 'sudo pacman -S --needed vulkan-headers'"
+fi
+if ! echo '#include <boost/container/small_vector.hpp>' | $CC -E - >/dev/null 2>&1; then
+    echo "Notice: Boost development headers (<boost/...>) not installed."
+    echo "        Run on Arch/Omarchy: 'sudo pacman -S --needed boost robin-map zydis'"
 fi
 read -r -a includes <<< "$(pkg-config --cflags vulkan sdl3)"
 read -r -a libraries <<< "$(pkg-config --libs vulkan sdl3)"
@@ -32,7 +40,7 @@ mkdir -p pgo
 # Submodules (git clone --recursive, or: git submodule update --init) and this port's changes
 # to FSR-Vulkan (gpu/patches/fsr-vulkan), applied to its working tree once.
 if [[ ! -f gpu/third_party/fsr-vulkan/CMakeLists.txt || ! -f gpu/third_party/imgui/imgui.h ]]; then
-    git submodule update --init --recursive
+    git submodule update --init --recursive gpu/third_party/fsr-vulkan gpu/third_party/imgui
 fi
 # Issue #124: a checkout updated from an earlier version keeps that version's patch applied, and
 # the new one applies neither way ("patch does not apply"): the submodule's tree holds nothing but
@@ -46,7 +54,7 @@ fsr_patches_apply() {
 }
 if ! fsr_patches_apply --check 2>/dev/null; then
     echo 'FSR-Vulkan: an earlier version of the port changed it; resetting it and patching again'
-    git -C gpu/third_party/fsr-vulkan checkout -- .
+    git -C gpu/third_party/fsr-vulkan checkout -f HEAD
 fi
 fsr_patches_apply
 cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
@@ -54,7 +62,7 @@ cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pg
 grep '^-- Online module' out/gpu-cmake.log || true
 echo "GPU library: PGO $pgo, LTO ${BB_LTO:-ON}"
 # A failed GPU build must stop here: an older libbbgpu.so would otherwise be used silently.
-if ! ninja -C out/gpu bbgpu $(grep -q "^build bbnet:" out/gpu/build.ninja && echo bbnet) $(grep -q "^build bbnet20:" out/gpu/build.ninja && echo bbnet20) > out/gpu-build.log 2>&1; then
+if ! ninja -C out/gpu bbgpu $(grep -q "^build bbnet:" out/gpu/build.ninja && echo bbnet) > out/gpu-build.log 2>&1; then
     grep -v '^\[' out/gpu-build.log | tail -40 >&2
     echo 'GPU library build failed (full log: out/gpu-build.log)' >&2; exit 1
 fi
@@ -84,6 +92,29 @@ fi
 echo "Built $PWD/out/bb-probe"
 # GPU check for run.sh (live_resolution=auto) and the launcher's gamepad list (--gamepads).
 "$CC" -std=c11 -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
+# Native C++20 RmlUi launcher
+if [[ ! -f out/libRmlUi.a ]]; then
+    bash tools/build_rmlui.sh
+fi
+CXX=${CXX:-g++}
+read -r -a ft_includes <<< "$(pkg-config --cflags freetype2 2>/dev/null || true)"
+read -r -a ft_libs <<< "$(pkg-config --libs freetype2 2>/dev/null || true)"
+"$CXX" -std=c++20 -O2 -Wall -Wextra -pthread \
+    -DRMLUI_SDL_VERSION_MAJOR=3 \
+    -DRMLUI_FONT_ENGINE_FREETYPE \
+    -DRMLUI_NUM_MSAA_SAMPLES=0 \
+    -Ithird_party/RmlUi/Include \
+    -Ithird_party/RmlUi/Backends \
+    -Ilauncher/src \
+    "${includes[@]}" "${ft_includes[@]}" \
+    launcher/src/config_manager.cpp \
+    launcher/src/launcher_model.cpp \
+    launcher/src/main.cpp \
+    out/libRmlUi.a \
+    "${libraries[@]}" "${ft_libs[@]}" \
+    -lGL -lm \
+    -o out/bb-launcher
+echo "Built $PWD/out/bb-launcher"
 if [[ ${1:-} == --test ]]; then
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread "${includes[@]}" -I. -Isrc tests/test_pad.c "${libraries[@]}" -lm -o out/pad-test
     out/pad-test
@@ -97,4 +128,6 @@ if [[ ${1:-} == --test ]]; then
     out/online-test
     "$CC" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c src/runtime_content.c -o out/content-test
     out/content-test
+    "$CXX" -std=c++20 -O2 -Wall -Wextra -pthread -Ilauncher/src tests/test_launcher.cpp launcher/src/config_manager.cpp launcher/src/launcher_model.cpp out/libRmlUi.a -o out/launcher-test
+    out/launcher-test
 fi

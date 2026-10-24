@@ -81,6 +81,9 @@ static BbNetResolveFn module_resolve(void) {
         char *slash=strrchr(exe,'/');
         if (slash) *slash=0;
         snprintf(path,sizeof(path),"%s/gpu/libbbnet.so",exe);
+        if (access(path,F_OK)!=0) {
+            snprintf(path,sizeof(path),"%s/gpu/libbbnet20.so",exe);
+        }
     }
     /* RTLD_LOCAL: its C++ (network and NP libraries) stays out of the process's symbol scope. */
     void *module=dlopen(path,RTLD_NOW|RTLD_LOCAL);

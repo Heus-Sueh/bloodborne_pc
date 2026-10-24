@@ -4,6 +4,32 @@
 
 /* The settings menu of the GPU library restarts through probe.c, which tests do not link. */
 void runtime_restart(void) { abort(); }
+__attribute__((weak)) uintptr_t bbgpu_resolve(const char *name) { (void)name; return 0; }
+__attribute__((weak)) int bbgpu_free_camera(void) { return 0; }
+__attribute__((weak)) int bbgpu_camera_look(float y, float p) { (void)y; (void)p; return 0; }
+__attribute__((weak)) void bbgpu_mouse_take(double *dx, double *dy, int *u, int *d) { if (dx) *dx = 0; if (dy) *dy = 0; if (u) *u = 0; if (d) *d = 0; }
+__attribute__((weak)) int bbgpu_mouse_captured(void) { return 0; }
+__attribute__((weak)) int bbgpu_overlay_captures_input(void) { return 0; }
+__attribute__((weak)) int bbgpu_pointer_wanted(void) { return 0; }
+__attribute__((weak)) void bbgpu_filter_pad(uint32_t *b, const uint8_t *s) { (void)b; (void)s; }
+__attribute__((weak)) void bbgpu_mouse_look_enable(int e) { (void)e; }
+__attribute__((weak)) void bbgpu_mouse_capture(void) {}
+__attribute__((weak)) uint64_t bbgpu_camera_state(void) { return 0; }
+__attribute__((weak)) int bbgpu_text_input_poll(char *o, uint64_t s) { (void)o; (void)s; return 0; }
+__attribute__((weak)) int bbgpu_text_input_begin(const char *i, const char *p) { (void)i; (void)p; return 0; }
+__attribute__((weak)) int bbhook_free_camera(void) { return 0; }
+__attribute__((weak)) int bbhook_camera_look(float y, float p) { (void)y; (void)p; return 0; }
+__attribute__((weak)) uint64_t bbhook_camera_state(void) { return 0; }
+__attribute__((weak)) void bbhook_patch_image(unsigned char *image, uint64_t size) { (void)image; (void)size; }
+__attribute__((weak)) void bbhost_mouse_take(double *dx, double *dy, int *u, int *d) { if (dx) *dx = 0; if (dy) *dy = 0; if (u) *u = 0; if (d) *d = 0; }
+__attribute__((weak)) int bbhost_mouse_captured(void) { return 0; }
+__attribute__((weak)) int bbhost_overlay_captures_input(void) { return 0; }
+__attribute__((weak)) int bbhost_pointer_wanted(void) { return 0; }
+__attribute__((weak)) void bbhost_filter_pad(uint32_t *b, const uint8_t *s) { (void)b; (void)s; }
+__attribute__((weak)) void bbhost_mouse_look_enable(int e) { (void)e; }
+__attribute__((weak)) void bbhost_mouse_capture(void) {}
+__attribute__((weak)) int bbhost_text_input_poll(char *o, uint64_t s) { (void)o; (void)s; return 0; }
+__attribute__((weak)) int bbhost_text_input_begin(const char *i, const char *p) { (void)i; (void)p; return 0; }
 #include <assert.h>
 #include <pthread.h>
 #include <stdint.h>

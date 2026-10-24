@@ -663,7 +663,10 @@ static const RuntimeExport exports[] = {
     {"sceUsbdSubmitTransfer", submit_transfer}, {"sceUsbdHandleEvents", handle_events},
 };
 
-uintptr_t runtime_toypad_resolve(const char *name) { return RUNTIME_LOOKUP(exports, name); }
+void runtime_toypad_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_toypad_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 
 void runtime_toypad_report(void) {
     if (commands) printf("Toy Pad: %zu commands (%zu answered empty)\n", commands, unknown_commands);

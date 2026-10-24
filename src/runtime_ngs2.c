@@ -713,7 +713,10 @@ static const RuntimeExport exports[] = {
     {"sceNgs2SystemSetGrainSamples", system_set_value},
 };
 
-uintptr_t runtime_ngs2_resolve(const char *name) { return RUNTIME_LOOKUP(exports, name); }
+void runtime_ngs2_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_ngs2_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 
 void runtime_ngs2_report(void) {
     printf("Runtime: NGS2 renders=%zu, blocks added=%zu, played=%zu, samplers out of blocks=%zu\n",

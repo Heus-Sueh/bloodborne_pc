@@ -4,15 +4,28 @@
 #include "../src/runtime_pad.c"
 
 static int capture;
-int bbgpu_overlay_captures_input(void) { return capture; }
-void bbgpu_mouse_take(double *dx, double *dy, int *up, int *down) { *dx=*dy=0; *up=*down=0; }
-int bbgpu_mouse_captured(void) { return 0; }
-void bbgpu_mouse_look_enable(int enabled) { (void)enabled; }
-void bbgpu_mouse_capture(void) {}
-int bbgpu_camera_look(float yaw, float pitch) { (void)yaw; (void)pitch; return 0; }
-void bbgpu_filter_pad(uint32_t *buttons, const uint8_t *sticks) { (void)buttons; (void)sticks; }
+int bbhost_overlay_captures_input(void) { return capture; }
+void bbhost_mouse_take(double *dx, double *dy, int *up, int *down) { *dx=*dy=0; *up=*down=0; }
+int bbhost_mouse_captured(void) { return 0; }
+void bbhost_mouse_look_enable(int enabled) { (void)enabled; }
+void bbhost_mouse_capture(void) {}
+int bbhook_camera_look(float yaw, float pitch) { (void)yaw; (void)pitch; return 0; }
+int bbhook_free_camera(void) { return 0; }
+int bbhost_pointer_wanted(void) { return 0; }
+void bbhost_filter_pad(uint32_t *buttons, const uint8_t *sticks) { (void)buttons; (void)sticks; }
+int bbgpu_overlay_captures_input(void) { return bbhost_overlay_captures_input(); }
+void bbgpu_mouse_take(double *dx, double *dy, int *up, int *down) { bbhost_mouse_take(dx, dy, up, down); }
+int bbgpu_mouse_captured(void) { return bbhost_mouse_captured(); }
+void bbgpu_mouse_look_enable(int enabled) { bbhost_mouse_look_enable(enabled); }
+void bbgpu_mouse_capture(void) { bbhost_mouse_capture(); }
+int bbgpu_camera_look(float yaw, float pitch) { return bbhook_camera_look(yaw, pitch); }
+int bbgpu_free_camera(void) { return bbhook_free_camera(); }
+int bbgpu_pointer_wanted(void) { return bbhost_pointer_wanted(); }
+void bbgpu_filter_pad(uint32_t *buttons, const uint8_t *sticks) { bbhost_filter_pad(buttons, sticks); }
 void runtime_re_watch_tick(const void *pad_buffer, uint64_t reads) { (void)pad_buffer; (void)reads; }
 uintptr_t runtime_libc_base;
+void runtime_register_exports(const RuntimeExport *table, size_t count) { (void)table; (void)count; }
+uintptr_t runtime_registry_resolve(const char *name, int is_data) { (void)name; (void)is_data; return 0; }
 uintptr_t runtime_lookup(const RuntimeExport *table, size_t count, const char *name) {
     (void)table; (void)count; (void)name;
     return 0;

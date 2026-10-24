@@ -17,7 +17,7 @@
 #ifndef _WIN32
 #include <asm/prctl.h>
 #endif
-#define ERR(n) ((int32_t)(UINT32_C(0x80020000)|(n)))
+#define ERR(n) ORBIS_ERR(n)
 #define ATTR_MAGIC UINT32_C(0x41545452)
 #define STACK_MARGIN (256*1024)
 #define MIN_STACK (64*1024)
@@ -388,31 +388,34 @@ int32_t runtime_thread_join_spawned(void *thread,void **result) {
     return posix(thread_join((GuestThread *)thread,result));
 }
 
+static const RuntimeExport thread_exports[] = {
+    {"aI+OeCz8xrQ#p#J", thread_self}, {"EotR8a3ASf4#I#J", thread_self},
+    {"9BcDykPmo1I#p#J", guest_error},
+    {"nsYoNRywwNg#p#J", attr_init}, {"62KCwEMmzcM#p#J", attr_destroy},
+    {"x1X76arYMxU#p#J", attr_get}, {"8+s5BzZjxSg#p#J", attr_affinity},
+    {"UTXzJbWhhTE#p#J", attr_set_stack}, {"-Wreprtu0Qs#p#J", attr_set_detach},
+    {"4+h9EzwKF4I#p#J", attr_set_policy}, {"DzES9hQF4f4#p#J", attr_set_param},
+    {"3qxgM4ezETA#p#J", attr_set_affinity}, {"eXbUSpEaTsA#p#J", attr_set_inherit},
+    {"JaRMy+QcpeU#p#J", attr_get_detach}, {"-fA+7ZlGDQs#p#J", attr_get_stack},
+    {"FXPWHNk8Of0#p#J", attr_get_param}, {"El+cQ20DynU#p#J", attr_set_guard},
+    {"6UgtwV+0zb4#p#J", thread_create}, {"onNY9Byn-W8#p#J", thread_join},
+    {"4qGrR6eoP9Y#p#J", thread_detach}, {"3kg7rT0NQIs#p#J", thread_exit},
+    {"T72hz6ffq08#p#J", thread_yield}, {"1tKyG7RlMJo#p#J", thread_get_prio},
+    {"W0Hpm2X0uPE#p#J", thread_set_prio}, {"bt3CTBKmGyI#p#J", thread_set_affinity}, {"rcrVFJsQWRY#p#J", thread_get_affinity},
+    {"GBUY7ywdULE#p#J", thread_rename}, {"3PtV6p3QNX4#p#J", thread_equal},
+    {"wtkt-teR1so#I#J", posix_attr_init}, {"zHchY8ft5pk#I#J", posix_attr_destroy},
+    {"E+tyo3lp5Lw#I#J", posix_attr_set_detach}, {"2Q0z6rnBrTE#I#J", posix_attr_set_stack},
+    {"euKRgm0Vn2M#I#J", posix_attr_set_param}, {"OxhIB8LB-PQ#I#J", posix_create},
+    {"Jmi+9w9u0E4#I#J", posix_create_name}, {"h9CcP3J0oVM#I#J", posix_join},
+    {"FJrT5LuUBAU#I#J", thread_exit},
+};
+
+void runtime_thread_register(void) {
+    runtime_register_exports(thread_exports, sizeof(thread_exports) / sizeof(thread_exports[0]));
+}
+
 uintptr_t runtime_thread_resolve(const char *name) {
-    static const struct { const char *nid; void *fn; } table[]={
-        {"aI+OeCz8xrQ#p#J",thread_self}, {"EotR8a3ASf4#I#J",thread_self},
-        {"9BcDykPmo1I#p#J",guest_error},
-        {"nsYoNRywwNg#p#J",attr_init}, {"62KCwEMmzcM#p#J",attr_destroy},
-        {"x1X76arYMxU#p#J",attr_get}, {"8+s5BzZjxSg#p#J",attr_affinity},
-        {"UTXzJbWhhTE#p#J",attr_set_stack}, {"-Wreprtu0Qs#p#J",attr_set_detach},
-        {"4+h9EzwKF4I#p#J",attr_set_policy}, {"DzES9hQF4f4#p#J",attr_set_param},
-        {"3qxgM4ezETA#p#J",attr_set_affinity}, {"eXbUSpEaTsA#p#J",attr_set_inherit},
-        {"JaRMy+QcpeU#p#J",attr_get_detach}, {"-fA+7ZlGDQs#p#J",attr_get_stack},
-        {"FXPWHNk8Of0#p#J",attr_get_param}, {"El+cQ20DynU#p#J",attr_set_guard},
-        {"6UgtwV+0zb4#p#J",thread_create}, {"onNY9Byn-W8#p#J",thread_join},
-        {"4qGrR6eoP9Y#p#J",thread_detach}, {"3kg7rT0NQIs#p#J",thread_exit},
-        {"T72hz6ffq08#p#J",thread_yield}, {"1tKyG7RlMJo#p#J",thread_get_prio},
-        {"W0Hpm2X0uPE#p#J",thread_set_prio}, {"bt3CTBKmGyI#p#J",thread_set_affinity}, {"rcrVFJsQWRY#p#J",thread_get_affinity},
-        {"GBUY7ywdULE#p#J",thread_rename}, {"3PtV6p3QNX4#p#J",thread_equal},
-        {"wtkt-teR1so#I#J",posix_attr_init}, {"zHchY8ft5pk#I#J",posix_attr_destroy},
-        {"E+tyo3lp5Lw#I#J",posix_attr_set_detach}, {"2Q0z6rnBrTE#I#J",posix_attr_set_stack},
-        {"euKRgm0Vn2M#I#J",posix_attr_set_param}, {"OxhIB8LB-PQ#I#J",posix_create},
-        {"Jmi+9w9u0E4#I#J",posix_create_name}, {"h9CcP3J0oVM#I#J",posix_join},
-        {"FJrT5LuUBAU#I#J",thread_exit},
-    };
-    for (size_t i=0;i<sizeof(table)/sizeof(*table);++i)
-        if (!strcmp(name,table[i].nid)) return (uintptr_t)table[i].fn;
-    return 0;
+    return runtime_registry_resolve(name, EXPORT_FUNCTION);
 }
 void runtime_thread_report(void) {
     pthread_mutex_lock(&lock);

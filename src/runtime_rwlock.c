@@ -23,21 +23,7 @@ typedef struct { int64_t seconds, nanoseconds; } GuestTime;
 static pthread_mutex_t registry_lock = PTHREAD_MUTEX_INITIALIZER;
 static Rwlock *registry;
 static size_t created, reads, writes, unlocks;
-static int32_t error(int e) {
-    if (!e) return 0;
-    unsigned code;
-    switch(e) {
-    case EPERM: code=1; break;
-    case EDEADLK: code=11; break;
-    case ENOMEM: code=12; break;
-    case EBUSY: code=16; break;
-    case EINVAL: code=22; break;
-    case EAGAIN: code=35; break;
-    case ETIMEDOUT: code=60; break;
-    default: fprintf(stderr,"STOP: unmapped rwlock error %d\n",e); exit(21);
-    }
-    return (int32_t)(UINT32_C(0x80020000)|code);
-}
+#define error(e) orbis_error_from_errno(e)
 /* All helpers ending in _locked require registry_lock. */
 static Rwlock *find_locked(Rwlock *handle) {
     for (Rwlock *r=registry; r; r=r->next) if (r==handle) return r;
@@ -142,17 +128,24 @@ static ABI int32_t rw_destroy(Rwlock **handle) {
     }
     pthread_mutex_unlock(&registry_lock); return error(e);
 }
+static const RuntimeExport rwlock_exports[] = {
+    {"6ULAa0fq4jA", (void*)rw_init},
+    {"BB+kb08Tl9A", (void*)rw_destroy},
+    {"Ox9i0c7L5w0", (void*)rw_read},
+    {"mqdNorrB+gI", (void*)rw_write},
+    {"XD3mDeybCnk", (void*)rw_tryread},
+    {"bIHoZCTomsI", (void*)rw_trywrite},
+    {"+L98PIbGttk", (void*)rw_unlock},
+    {"iPtZRWICjrM", (void*)rw_timedread},
+    {"adh--6nIqTk", (void*)rw_timedwrite},
+};
+
+void runtime_rwlock_register(void) {
+    runtime_register_exports(rwlock_exports, sizeof(rwlock_exports) / sizeof(rwlock_exports[0]));
+}
+
 uintptr_t runtime_rwlock_resolve(const char *name) {
-    if (runtime_nid_is(name, "6ULAa0fq4jA")) return (uintptr_t)rw_init;
-    if (runtime_nid_is(name, "BB+kb08Tl9A")) return (uintptr_t)rw_destroy;
-    if (runtime_nid_is(name, "Ox9i0c7L5w0")) return (uintptr_t)rw_read;
-    if (runtime_nid_is(name, "mqdNorrB+gI")) return (uintptr_t)rw_write;
-    if (runtime_nid_is(name, "XD3mDeybCnk")) return (uintptr_t)rw_tryread;
-    if (runtime_nid_is(name, "bIHoZCTomsI")) return (uintptr_t)rw_trywrite;
-    if (runtime_nid_is(name, "+L98PIbGttk")) return (uintptr_t)rw_unlock;
-    if (runtime_nid_is(name, "iPtZRWICjrM")) return (uintptr_t)rw_timedread;
-    if (runtime_nid_is(name, "adh--6nIqTk")) return (uintptr_t)rw_timedwrite;
-    return 0;
+    return runtime_registry_resolve(name, EXPORT_FUNCTION);
 }
 void runtime_rwlock_report(void) {
     pthread_mutex_lock(&registry_lock);

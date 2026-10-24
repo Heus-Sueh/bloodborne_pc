@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#define ERR(n) ((int32_t)(UINT32_C(0x80020000)|(n)))
+#define ERR(n) ORBIS_ERR(n)
 #define MAX_FILES 1024
 #define MAX_MOUNTS 64 /* app0, 16 save data slots, 16 add-ons and the rest */
 
@@ -757,7 +757,10 @@ static const RuntimeExport exports[]={
     {"sceKernelRmdir",sce_rmdir}, {"rmdir",posix_rmdir},
     {"sceKernelUnlink",sce_unlink}, {"unlink",posix_unlink},
 };
-uintptr_t runtime_file_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
+void runtime_file_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_file_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 /* Host-side helpers for other modules (e.g. SaveData, Fios). */
 int64_t runtime_file_open(const char *p,int f,int m) { return do_open(p,f,m); }
 int64_t runtime_file_close(int fd) { return do_close(fd); }

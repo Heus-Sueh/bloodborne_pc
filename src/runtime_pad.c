@@ -34,7 +34,8 @@
  * BB_PAD_CENTER_CAL=0 disables the measurement. */
 #define _GNU_SOURCE
 #include "runtime.h"
-#include "gpu/bbgpu.h"
+#include "gpu/bbhost.h"
+#include "gpu/bbhooks.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -589,7 +590,7 @@ static int keyboard_circle(const bool *k, uint64_t now, int menu) {
 
 static void apply_keyboard(PadData *d, const bool *k) {
     key_watch_start();
-    const int menu=bbgpu_pointer_wanted()!=0;
+    const int menu=bbhost_pointer_wanted()!=0;
     /* The way back in a game menu is Escape; Options opens the menu at other times. A press that
      * began outside a menu is Options for as long as it is held: the menu it opens must not take
      * the same press for its way back (it opened and closed at once). */
@@ -635,11 +636,11 @@ static uint8_t look_axis(float value, uint8_t stick, int deadzone) {
 #define MOUSE_RAD_PER_PIXEL 0.0015f
 static void apply_mouse_look(PadData *d, double dx, double dy, uint64_t now, int captured) {
     /* The free camera (patch) takes the mouse through the right stick below. */
-    if (captured && (dx!=0 || dy!=0) && !bbgpu_free_camera()) {
+    if (captured && (dx!=0 || dy!=0) && !bbhook_free_camera()) {
         const float k=MOUSE_RAD_PER_PIXEL*mouse_sensitivity;
         /* The camera's pitch grows as it rises (looking down): the mouse moving down (dy > 0)
            looks down, as the stick pushed down does. */
-        if (bbgpu_camera_look((float)dx*k,(float)(mouse_invert_y ? -dy : dy)*k)) dx=dy=0;
+        if (bbhook_camera_look((float)dx*k,(float)(mouse_invert_y ? -dy : dy)*k)) dx=dy=0;
     }
     float dt=look_last_us && now>look_last_us ? (float)(now-look_last_us) : 0.0f;
     look_last_us=now;
@@ -846,7 +847,7 @@ static int motion_on(void) {
 }
 static void set_sideways(int on) {
     motion.sideways=on; motion.yaw=motion.pitch=motion.prev_yaw=motion.prev_pitch=0.0f;
-    if (on) bbgpu_mouse_capture(); /* the mouse aims now: it must not leave the window */
+    if (on) bbhost_mouse_capture(); /* the mouse aims now: it must not leave the window */
     printf("Pad: motion: %s\n",on ? "spray can taken (controller sideways)" : "spray can put away");
 }
 /* The aim from screen directions: the controller is held rolled 90 degrees, so the turn that
@@ -1008,14 +1009,14 @@ static void sample_host(PadData *d) {
     motion.last_us=d->timestamp;
     motion.shaking=0;
     SDL_Gamepad *g=current_gamepad();
-    if (!bindings_ready) { load_bindings(); bindings_ready=1; bbgpu_mouse_look_enable(mouse_look); }
+    if (!bindings_ready) { load_bindings(); bindings_ready=1; bbhost_mouse_look_enable(mouse_look); }
     /* The mouse's motion and wheel since the last sample (always taken: none of it piles up while
      * the menu is open); it counts while the window holds the mouse. */
     double mouse_dx=0, mouse_dy=0;
     int wheel_up=0, wheel_down=0;
-    bbgpu_mouse_take(&mouse_dx,&mouse_dy,&wheel_up,&wheel_down);
-    const int captured=bbgpu_mouse_captured();
-    if (bbgpu_overlay_captures_input()) { apply_mouse_look(d,0,0,d->timestamp,0); return; } /* menu open: neutral input */
+    bbhost_mouse_take(&mouse_dx,&mouse_dy,&wheel_up,&wheel_down);
+    const int captured=bbhost_mouse_captured();
+    if (bbhost_overlay_captures_input()) { apply_mouse_look(d,0,0,d->timestamp,0); return; } /* menu open: neutral input */
     const bool *k=SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetKeyboardState(NULL) : NULL;
     mouse_buttons=captured && SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetMouseState(NULL,NULL) : 0;
     mouse_wheel_step(d->timestamp,captured ? wheel_up : 0,captured ? wheel_down : 0);
@@ -1202,7 +1203,7 @@ static void touch_ids(PadData *d) {
 }
 static void sample(PadData *d) {
     sample_host(d);
-    if (bbgpu_overlay_captures_input()) return;
+    if (bbhost_overlay_captures_input()) return;
     record_sample(d);
     read_inject();
     replay_sample(d);
@@ -1217,7 +1218,7 @@ static void sample(PadData *d) {
         apply_mouse_look(d,injected.mouse[0],injected.mouse[1],d->timestamp,1);
     /* Game modules (a menu pointer's presses). */
     const uint8_t sticks[4]={d->left_x,d->left_y,d->right_x,d->right_y};
-    bbgpu_filter_pad(&d->buttons,sticks);
+    bbhost_filter_pad(&d->buttons,sticks);
     touch_ids(d);
 }
 
@@ -1302,5 +1303,8 @@ static const RuntimeExport exports[]={
     {"scePadSetAngularVelocityDeadbandState",pad_ok_handle_flag}, {"scePadSetTiltCorrectionState",pad_ok_handle_flag},
     {"scePadSetMotionSensorState",pad_ok_handle_flag},
 };
-uintptr_t runtime_pad_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
+void runtime_pad_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_pad_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 void runtime_pad_report(void) { printf("Runtime: pad reads=%zu, gamepad=%s\n",reads,gamepad ? SDL_GetGamepadName(gamepad) : "none"); }

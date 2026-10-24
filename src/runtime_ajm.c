@@ -490,7 +490,10 @@ static const RuntimeExport exports[]={
     {"sceAjmBatchCancel",ajm_batch_cancel}, {"sceAjmBatchErrorDump",ajm_error_dump},
     {"sceAjmMemoryRegister",ajm_memory_register},
 };
-uintptr_t runtime_ajm_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
+void runtime_ajm_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+uintptr_t runtime_ajm_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 void runtime_ajm_report(void) {
     printf("Runtime: Ajm batches=%zu, jobs=%zu, ATRAC9 frames decoded=%zu\n",batches_run,jobs_run,frames_decoded);
 }

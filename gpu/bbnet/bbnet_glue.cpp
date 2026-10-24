@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// bbport online module (libbbnet.so): what the network and NP libraries from shadp2p need
-// from the rest of shadPS4, on top of the bbport runtime (BbNetHost), their registration and the
-// module's C interface (bbnet.h). From the Linux co-op fork of bbport, which took it from the
-// Windows port; the libraries are shadp2p's (a shadPS4 fork, GPL-2.0).
+// bbport co-op: what shadPS4 0.20.0's network and NP libraries need from the rest of
+// shadPS4, implemented on top of the bbport runtime, and their registration.
 
-#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -25,23 +22,13 @@
 #endif
 #include <windows.h>
 #else
-#include <sys/mman.h>
 #include <unistd.h>
 #endif
 
 #include "common/elf_info.h"
 #include "common/types.h"
 #include "core/emulator_settings.h"
-#include "core/bloodborne_re.h"
-#include "core/bbsc_cinematic.h"
-#include "bbgpu.h"
-#include <SDL3/SDL_events.h>
-#include "core/cpu_patches.h"
-#include "common/memory_patcher.h"
-#include "common/singleton.h"
-#include "core/bbsc_persistence.h"
-#include "core/file_format/psf.h"
-#include "games/game_profile.h"
+#include "core/memory.h"
 #include "core/debugger.h"
 #include "core/libraries/kernel/kernel.h"
 #include "core/libraries/kernel/memory.h"
@@ -56,9 +43,8 @@
 
 #include "core/libraries/network/http.h"
 #include "core/libraries/network/http2.h"
-#include "core/libraries/network/net.h"
+#include "core/libraries/net/net.h"
 #include "core/libraries/network/netctl.h"
-#include "core/libraries/network/ssl.h"
 #include "core/libraries/network/ssl2.h"
 #include "core/libraries/np/np_auth.h"
 #include "core/libraries/np/np_common.h"
@@ -68,17 +54,43 @@
 #include "core/libraries/np/np_party.h"
 #include "core/libraries/np/np_score/np_score.h"
 #include "core/libraries/np/np_signaling/np_signaling.h"
-#include "core/libraries/np/np_tus.h"
-#include "core/libraries/np/np_utility.h" // BBSC: sceNpLookupNpId online (3rd player and on)
+#include "core/libraries/np/np_tus/np_tus.h"
+#include "core/libraries/np/np_utility/np_utility.h"
 #include "core/libraries/np/np_web_api/np_web_api.h"
 #include "core/libraries/np/np_web_api2/np_web_api2.h"
+#include <algorithm>
+#include <sys/mman.h>
+#include <SDL3/SDL_events.h>
 
-#include "bbnet.h"
+#include "bbgpu.h"
+#include "common/memory_patcher.h"
+#include "common/singleton.h"
+#include "core/bbsc_cinematic.h"
+#include "core/bbsc_persistence.h"
+#include "core/bloodborne_re.h"
+#include "core/cpu_patches.h"
+#include "core/file_format/psf.h"
+#include "games/game_profile.h"
+#include "thd/thd.h"
+
+#include "bbnet/bbnet.h"
 
 namespace {
 /// The runtime's side (bbnet_init).
 BbNetHost g_host{};
 } // namespace
+
+// The Hunter's Dream backend reads game structures (the player's position for the live map):
+// only from mapped guest memory (bbport).
+namespace BbEngine {
+bool host_read_safe(const void* p, void* out, std::size_t n) {
+    if (!g_host.memory_is_mapped(reinterpret_cast<uintptr_t>(p), n)) {
+        return false;
+    }
+    std::memcpy(out, p, n);
+    return true;
+}
+} // namespace BbEngine
 
 // ---- Kernel ---------------------------------------------------------------------------------
 
@@ -298,10 +310,13 @@ int posix_pthread_create_name_np(PthreadT* thread, const PthreadAttrT* attr,
 int posix_pthread_join(PthreadT thread, void** ret) {
     return g_host.thread_join(thread, ret);
 }
+void posix_pthread_exit(void* status) {
+    g_host.thread_exit(status);
+}
 
 } // namespace Libraries::Kernel
 
-// ---- User and system service, debugger, Bloodborne helpers -------------------------------------
+// ---- User and system service, debugger ----------------------------------------------------------
 
 namespace Libraries::UserService {
 s32 PS4_SYSV_ABI sceUserServiceGetInitialUser(int* user_id) {
@@ -330,8 +345,6 @@ s32 GetCurrentPid() {
 }
 } // namespace Core::Debugger
 
-// Core::Bloodborne: BBSC's seamless co-op (shadps4/core/bloodborne_re.cpp).
-
 // ---- Notifications (log only for now) ------------------------------------------------------------
 
 namespace ImGui::ShadNetNotify {
@@ -350,6 +363,8 @@ KindDisplay DisplayOf(Kind kind) {
         return {"Friend", {0.9f, 0.4f, 0.4f, 1.0f}};
     case Kind::Online:
         return {"Online", {0.4f, 0.8f, 0.9f, 1.0f}};
+    case Kind::Warning:
+        return {"Warning", {0.95f, 0.6f, 0.2f, 1.0f}};
     default:
         return {"Info", {0.8f, 0.8f, 0.8f, 1.0f}};
     }
@@ -391,10 +406,10 @@ void Register() {}
 void Unregister() {}
 } // namespace ImGui::InvitationPrompt
 
-// ---- Game identity -------------------------------------------------------------------------------
+// ---- Game identity -----------------------------------------------------------------------------
 
-// ElfInfo lets shadPS4's Core::Emulator fill it in; this port has no emulator class, so the
-// same name is used here for that one job.
+// ElfInfo is filled in by shadPS4's Core::Emulator; this port has no emulator class, so the
+// same name is used here for that one job (bbport).
 namespace Core {
 class Emulator {
 public:
@@ -435,26 +450,10 @@ private:
 };
 } // namespace Core
 
-namespace {
-void Configure(const char* app0, const char* serial, const char* title, const char* app_ver) {
-    Core::Emulator::SetGame(app0, serial, title, app_ver);
-    // What BBSC reads of the game (param.sfo, the serial: shadPS4's PSF and memory patcher).
-    auto* psf = Common::Singleton<PSF>::Instance();
-    psf->app_ver = app_ver ? app_ver : "";
-    psf->title_id = serial ? serial : "";
-    psf->title = title ? title : "";
-    MemoryPatcher::g_game_serial = serial ? serial : "";
-    const auto& ids = Common::ElfInfo::Instance().GetNpCommIds();
-    std::printf("Co-op: %s, NP communication id %s%s\n", serial ? serial : "?",
-                ids.empty() ? "missing" : ids.front().c_str(),
-                EmulatorSettings.IsShadNetEnabled() ? "; online play on" : "");
-}
-} // namespace
+// ---- The module's C interface (bbnet.h) -------------------------------------------------------
 
-// ---- Registration and the C interface ------------------------------------------------------------
-
-// The module's own table (the port's libbbgpu keeps another one: this library's symbols are its
-// own, -Bsymbolic).
+// The module's own symbol table (libbbgpu keeps another one: this library's symbols are its own,
+// -Bsymbolic).
 namespace {
 struct Symbol {
     std::string nid;
@@ -464,12 +463,15 @@ std::vector<Symbol> g_symbols;
 } // namespace
 
 namespace Core::Loader {
-void SymbolsResolver::AddSymbol(const char* nid, const char*, const char*, SymbolType, u64 address) {
+void SymbolsResolver::AddSymbol(const char* nid, const char*, const char*, SymbolType,
+                                u64 address) {
     g_symbols.push_back({nid, address});
 }
 } // namespace Core::Loader
 
-extern "C" __attribute__((visibility("default"))) uintptr_t bbnet_resolve(const char* scoped_nid) {
+#define BBNET_EXPORT extern "C" __attribute__((visibility("default")))
+
+BBNET_EXPORT uintptr_t bbnet_resolve(const char* scoped_nid) {
     const char* hash = std::strchr(scoped_nid, '#');
     const size_t length = hash ? size_t(hash - scoped_nid) : std::strlen(scoped_nid);
     for (const auto& symbol : g_symbols) {
@@ -480,8 +482,12 @@ extern "C" __attribute__((visibility("default"))) uintptr_t bbnet_resolve(const 
     return 0;
 }
 
-extern "C" __attribute__((visibility("default"))) void bbnet_image_ready(std::uint64_t base,
-                                                                        std::uint64_t size) {
+BBNET_EXPORT void bbnet_image_mapped(uint8_t* image, uint64_t size) {
+    // The Hunter's Dream backend reads the game's code before the patches change it.
+    BbThd::SetImage(image, size);
+}
+
+BBNET_EXPORT void bbnet_image_ready(uint64_t base, uint64_t size) {
     MemoryPatcher::g_eboot_address = base;
     MemoryPatcher::g_eboot_image_size = size;
     // BBSC (Bloodborne seamless co-op): BB_BBSC=1 (the launcher's
@@ -563,38 +569,80 @@ extern "C" __attribute__((visibility("default"))) void bbnet_image_ready(std::ui
     Core::Bloodborne::InstallReverseEngineeringTrace();
 }
 
-extern "C" __attribute__((visibility("default"))) int bbnet_init(const BbNetHost* host) {
-    if (!host || host->abi != BBNET_ABI_VERSION || !host->thread_spawn || !host->thread_join) {
+namespace Libraries::Np::NpManager {
+void InitializeRuntime();
+}
+
+BBNET_EXPORT void bbnet_start(void) {
+    // The online session starts with the game (not at registration: the account and the
+    // game's SDK version are known only now).
+    if (BbThd::Enabled()) {
+        BbThd::Initialize();
+        return;
+    }
+    Libraries::Np::NpManager::InitializeRuntime();
+}
+
+BBNET_EXPORT int bbnet_init(const BbNetHost* host) {
+    if (!host || host->abi != BBNET_ABI_VERSION || !host->thread_spawn || !host->thread_join ||
+        !host->thread_exit || !host->memory_is_mapped) {
         std::printf("Online: the runtime and the online module are from different versions\n");
         return -1;
     }
     g_host = *host;
-    Configure(host->app0, host->serial, host->title, host->app_ver);
+    Core::Emulator::SetGame(host->app0, host->serial, host->title, host->app_ver);
+    // What BBSC reads of the game (param.sfo, the serial: shadPS4's PSF and memory patcher).
+    {
+        auto* psf = Common::Singleton<PSF>::Instance();
+        psf->app_ver = host->app_ver ? host->app_ver : "";
+        psf->title_id = host->serial ? host->serial : "";
+        psf->title = host->title ? host->title : "";
+        MemoryPatcher::g_game_serial = host->serial ? host->serial : "";
+    }
     // BBSC patches the game's code, some of it while the game runs: from now on the port's own
-    // code patches (the GPU side's hooks go in meanwhile) leave it writable (bbnet_image_ready).
+    // code patches leave it writable (bbnet_image_ready).
     if (const char* bbsc = std::getenv("BB_BBSC"); bbsc && bbsc[0] == '1') {
         Core::KeepGuestCodeWritable();
     }
+    const auto& ids = Common::ElfInfo::Instance().GetNpCommIds();
+    std::printf("Co-op: %s, NP communication id %s%s\n", host->serial ? host->serial : "?",
+                ids.empty() ? "missing" : ids.front().c_str(),
+                EmulatorSettings.IsConnectedToNetwork() ? "; online play on" : "");
     Core::Loader::SymbolsResolver resolver;
     Core::Loader::SymbolsResolver* sym = &resolver;
-    Libraries::Net::RegisterLib(sym);
-    Libraries::NetCtl::RegisterLib(sym);
-    Libraries::Http::RegisterLib(sym);
-    Libraries::Http2::RegisterLib(sym);
-    Libraries::Ssl::RegisterLib(sym);
-    Libraries::Ssl2::RegisterLib(sym);
-    Libraries::Np::NpAuth::RegisterLib(sym);
-    Libraries::Np::NpCommon::RegisterLib(sym);
-    Libraries::Np::NpManager::RegisterLib(sym);
-    Libraries::Np::NpMatching2::RegisterLib(sym);
-    Libraries::Np::NpPartner::RegisterLib(sym);
-    Libraries::Np::NpParty::RegisterLib(sym);
-    Libraries::Np::NpScore::RegisterLib(sym);
-    Libraries::Np::NpSignaling::RegisterLib(sym);
-    Libraries::Np::NpTus::RegisterLib(sym);
-    Libraries::Np::NpUtility::RegisterLib(sym);
-    Libraries::Np::NpWebApi::RegisterLib(sym);
-    Libraries::Np::NpWebApi2::RegisterLib(sym);
-    std::printf("Online: %zu network and PSN functions\n", g_symbols.size());
+    if (BbThd::Enabled()) {
+        // The Hunter's Dream: its NP and sceNet imports; the game's HTTP stays sceHttp's.
+        BbThd::Register(sym);
+        Libraries::Http::RegisterLib(sym);
+        Libraries::Http2::RegisterLib(sym);
+        Libraries::Ssl2::RegisterLib(sym);
+    } else {
+        Libraries::Net::RegisterLib(sym);
+        Libraries::NetCtl::RegisterLib(sym);
+        Libraries::Http::RegisterLib(sym);
+        Libraries::Http2::RegisterLib(sym);
+        // libSceSsl: not registered, as in shadPS4 (its loading is behind a title workaround).
+        Libraries::Ssl2::RegisterLib(sym);
+        Libraries::Np::NpAuth::RegisterLib(sym);
+        Libraries::Np::NpCommon::RegisterLib(sym);
+        Libraries::Np::NpManager::RegisterLib(sym);
+        Libraries::Np::NpMatching2::RegisterLib(sym);
+        Libraries::Np::NpPartner::RegisterLib(sym);
+        Libraries::Np::NpParty::RegisterLib(sym);
+        Libraries::Np::NpScore::RegisterLib(sym);
+        Libraries::Np::NpSignaling::RegisterLib(sym);
+        Libraries::Np::NpTus::RegisterLib(sym);
+        Libraries::Np::NpUtility::RegisterLib(sym);
+        Libraries::Np::NpWebApi::RegisterLib(sym);
+        Libraries::Np::NpWebApi2::RegisterLib(sym);
+    }
+    std::printf("Online: %zu network and PSN functions (%s)\n", g_symbols.size(),
+                BbThd::Enabled() ? "The Hunter's Dream" : "shadNet");
     return 0;
+}
+
+// The Hunter's Dream backend starts its dispatcher as a guest thread (thd_session.cpp).
+extern "C" int32_t runtime_thread_spawn(void** out, void* PS4_SYSV_ABI (*entry)(void*),
+                                        void* argument, uint64_t stack, const char* name) {
+    return g_host.thread_spawn(out, entry, argument, stack, name);
 }

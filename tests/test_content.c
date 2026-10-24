@@ -9,6 +9,9 @@
 /* The user folder add-ons are listed from (runtime_file.c in the game): a temporary one here. */
 static char user_dir[64]="/tmp/bbport-content-test-XXXXXX";
 const char *runtime_file_user_dir(void) { return user_dir; }
+int runtime_file_mount(const char *guest, const char *host) { (void)guest; (void)host; return 0; }
+void runtime_file_unmount(const char *guest) { (void)guest; }
+void runtime_register_exports(const RuntimeExport *table, size_t count) { (void)table; (void)count; }
 typedef int32_t (ABI *Module)(uint16_t);
 typedef int32_t (ABI *Init)(const void *,void *);
 typedef int32_t (ABI *Param)(uint32_t,int32_t *);

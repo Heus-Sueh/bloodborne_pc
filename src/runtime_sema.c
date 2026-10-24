@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
-#define ERR(n) ((int32_t)(UINT32_C(0x80020000)|(n)))
+#define ERR(n) ORBIS_ERR(n)
 typedef struct Waiter {
     int32_t need, result;
     int done;
@@ -162,14 +162,21 @@ unsigned runtime_sema_waiters(uint32_t id) {
     pthread_mutex_unlock(&lock);
     return n;
 }
+static const RuntimeExport sema_exports[] = {
+    {"188x57JYp0g", (void*)sem_create},
+    {"Zxa0VhQVTsk", (void*)sem_wait},
+    {"4czppHBiriw", (void*)sem_signal},
+    {"12wOHk8ywb0", (void*)sem_poll},
+    {"4DM06U2BNEY", (void*)sem_cancel},
+    {"R1Jvn8bSCW8", (void*)sem_delete},
+};
+
+void runtime_sema_register(void) {
+    runtime_register_exports(sema_exports, sizeof(sema_exports) / sizeof(sema_exports[0]));
+}
+
 uintptr_t runtime_sema_resolve(const char *name) {
-    if (runtime_nid_is(name, "188x57JYp0g")) return (uintptr_t)sem_create;
-    if (runtime_nid_is(name, "Zxa0VhQVTsk")) return (uintptr_t)sem_wait;
-    if (runtime_nid_is(name, "4czppHBiriw")) return (uintptr_t)sem_signal;
-    if (runtime_nid_is(name, "12wOHk8ywb0")) return (uintptr_t)sem_poll;
-    if (runtime_nid_is(name, "4DM06U2BNEY")) return (uintptr_t)sem_cancel;
-    if (runtime_nid_is(name, "R1Jvn8bSCW8")) return (uintptr_t)sem_delete;
-    return 0;
+    return runtime_registry_resolve(name, EXPORT_FUNCTION);
 }
 void runtime_sema_report(void) {
     pthread_mutex_lock(&lock);

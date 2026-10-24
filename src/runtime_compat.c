@@ -15,7 +15,7 @@
 #include <sys/random.h>
 #include <time.h>
 
-#define ERR(n) ((int32_t)(UINT32_C(0x80020000) | (n)))
+#define ERR(n) ORBIS_ERR(n)
 #define KERNEL_EINVAL ERR(22)
 #define KERNEL_ESRCH ERR(3)
 #define KERNEL_EBUSY ERR(16)
@@ -470,7 +470,11 @@ static const RuntimeExport exports[] = {
     {"sceNpWordFilterSanitizeComment", np_signed_out},
 };
 
-uintptr_t runtime_compat_resolve(const char *name) { return RUNTIME_LOOKUP(exports, name); }
+void runtime_compat_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
+
+uintptr_t runtime_compat_resolve(const char *name) { return runtime_registry_resolve(name, EXPORT_FUNCTION); }
 
 void runtime_compat_report(void) {
     printf("Runtime: event flags created=%zu, waits=%zu\n", flags_created, flag_waits);

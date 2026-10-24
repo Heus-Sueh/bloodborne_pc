@@ -219,16 +219,17 @@ fi
 # Online play (BB_ONLINE=1, launcher: Online; the online module gpu/bbnet): the game's own server
 # goes to the community server, summon signs to the shadNet WebAPI (scripts/online.py).
 if [[ ${BB_ONLINE:-0} == 1 && -f scripts/online.py ]]; then
-    # The shadPS4 0.20 module (gpu/bbnet20) answers both pools: Seamless Hunt (shadNet with BBSC) and
-    # The Hunter's Dream (BB_NET_BACKEND=thd, without BBSC). BB_NET_GEN=19: the older shadp2p module
-    # (gpu/bbnet) with BBSC, kept as a fallback.
-    export BB_NET_GEN=${BB_NET_GEN:-20}
+    # The unified online module (gpu/bbnet, libbbnet.so) answers both pools: Seamless Hunt (shadNet
+    # with BBSC) and The Hunter's Dream (BB_NET_BACKEND=thd, without BBSC).
     if [[ ${BB_NET_BACKEND:-} == thd ]]; then
-        BB_NET_GEN=20
         unset BB_BBSC
     fi
-    if [[ $BB_NET_GEN == 20 && -z ${BB_NET_MODULE:-} ]]; then
-        if [[ -n ${BB_PREBUILT:-} ]]; then BB_NET_MODULE=$PWD/bin/gpu/libbbnet20.so; else BB_NET_MODULE=$PWD/out/gpu/libbbnet20.so; fi
+    if [[ -z ${BB_NET_MODULE:-} ]]; then
+        if [[ -n ${BB_PREBUILT:-} ]]; then
+            BB_NET_MODULE=$PWD/bin/gpu/libbbnet.so
+        else
+            BB_NET_MODULE=$PWD/out/gpu/libbbnet.so
+        fi
         export BB_NET_MODULE
     fi
     export BB_SHADNET_SERVER=${BB_SHADNET_SERVER:-play.seamlesshunt.com:31313}

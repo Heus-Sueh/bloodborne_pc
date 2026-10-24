@@ -29,18 +29,21 @@ bool FilteredByModule(const SDL_Event* event, SDL_Window* window) {
 }
 } // namespace
 
-extern "C" void bbgpu_add_event_filter(BbGpuEventFilter filter) {
+extern "C" void bbhost_add_event_filter(BbHostEventFilter filter) {
     for (auto& slot : event_filters) {
-        BbGpuEventFilter expected = nullptr;
+        BbHostEventFilter expected = nullptr;
         if (slot.compare_exchange_strong(expected, filter)) {
             return;
         }
     }
 }
+extern "C" void bbgpu_add_event_filter(BbHostEventFilter filter) {
+    bbhost_add_event_filter(filter);
+}
 
 namespace {
-std::array<std::atomic<BbGpuPointerQuery>, 4> pointer_queries{};
-std::array<std::atomic<BbGpuPadFilter>, 4> pad_filters{};
+std::array<std::atomic<BbHostPointerQuery>, 4> pointer_queries{};
+std::array<std::atomic<BbHostPadFilter>, 4> pad_filters{};
 
 template <typename T>
 void AddTo(std::array<std::atomic<T>, 4>& slots, T value) {
@@ -53,30 +56,42 @@ void AddTo(std::array<std::atomic<T>, 4>& slots, T value) {
 }
 } // namespace
 
-extern "C" void bbgpu_add_pointer_query(BbGpuPointerQuery query) {
+extern "C" void bbhost_add_pointer_query(BbHostPointerQuery query) {
     AddTo(pointer_queries, query);
 }
+extern "C" void bbgpu_add_pointer_query(BbHostPointerQuery query) {
+    bbhost_add_pointer_query(query);
+}
 
-extern "C" int bbgpu_pointer_wanted(void) {
+extern "C" int bbhost_pointer_wanted(void) {
     for (const auto& slot : pointer_queries) {
-        const BbGpuPointerQuery query = slot.load(std::memory_order_acquire);
+        const BbHostPointerQuery query = slot.load(std::memory_order_acquire);
         if (query && query()) {
             return 1;
         }
     }
     return 0;
 }
-
-extern "C" void bbgpu_add_pad_filter(BbGpuPadFilter filter) {
-    AddTo(pad_filters, filter);
+extern "C" int bbgpu_pointer_wanted(void) {
+    return bbhost_pointer_wanted();
 }
 
-extern "C" void bbgpu_filter_pad(uint32_t* buttons, const uint8_t* sticks) {
+extern "C" void bbhost_add_pad_filter(BbHostPadFilter filter) {
+    AddTo(pad_filters, filter);
+}
+extern "C" void bbgpu_add_pad_filter(BbHostPadFilter filter) {
+    bbhost_add_pad_filter(filter);
+}
+
+extern "C" void bbhost_filter_pad(uint32_t* buttons, const uint8_t* sticks) {
     for (const auto& slot : pad_filters) {
-        if (const BbGpuPadFilter filter = slot.load(std::memory_order_acquire)) {
+        if (const BbHostPadFilter filter = slot.load(std::memory_order_acquire)) {
             filter(buttons, sticks);
         }
     }
+}
+extern "C" void bbgpu_filter_pad(uint32_t* buttons, const uint8_t* sticks) {
+    bbhost_filter_pad(buttons, sticks);
 }
 
 namespace Frontend {

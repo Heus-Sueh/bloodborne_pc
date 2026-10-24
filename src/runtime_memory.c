@@ -722,15 +722,15 @@ static const RuntimeExport exports[]={
     {"sceKernelDirectMemoryQuery",direct_query},
     {"sceKernelBatchMap",batch_map}, {"sceKernelBatchMap2",batch_map2},
     {"mmap",posix_mmap},
+    {"pO96TwzOm5E",direct_size}, {"rTXw65xmLIA",direct_allocate},
+    {"L-Q3LEjIbgA",direct_map}, {"MBuItvba6z8",direct_release},
+    {"cQke9UuBQOk",direct_unmap},
 };
+void runtime_memory_register(void) {
+    runtime_register_exports(exports, sizeof(exports) / sizeof(exports[0]));
+}
 uintptr_t runtime_memory_resolve(const char *name) {
-    /* Direct-memory NIDs are exercised by test_runtime.c before names are loaded. */
-    if (runtime_nid_is(name, "pO96TwzOm5E")) return (uintptr_t)direct_size;
-    if (runtime_nid_is(name, "rTXw65xmLIA")) return (uintptr_t)direct_allocate;
-    if (runtime_nid_is(name, "L-Q3LEjIbgA")) return (uintptr_t)direct_map;
-    if (runtime_nid_is(name, "MBuItvba6z8")) return (uintptr_t)direct_release;
-    if (runtime_nid_is(name, "cQke9UuBQOk")) return (uintptr_t)direct_unmap;
-    return RUNTIME_LOOKUP(exports,name);
+    return runtime_registry_resolve(name, EXPORT_FUNCTION);
 }
 /* Host-owned memory the guest can see (image, stacks, trampolines) lives in
  * [LOW_MIN, USER_MIN): PS4 code packs pointers into 40-bit fields. */
@@ -808,15 +808,39 @@ void runtime_memory_set_guest_chunk_allocator(int (*alloc)(uint64_t phys, uint64
     chunk_alloc=alloc;
     write_unlock();
 }
-void runtime_memory_set_gpu_hooks(GpuRange map, GpuRange unmap, GpuRange invalidate) {
+#define WATCH_LIMIT (1ull<<40)
+static _Atomic(uint64_t) *write_watch;
+static GpuRange hook_cpu_write;
+void runtime_memory_set_cpu_write_hook(GpuRange hook) {
+    if (!write_watch) {
+        void *bits=mmap(NULL,WATCH_LIMIT>>15,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
+        if (bits==MAP_FAILED) { perror("bbport: write watch bitmap"); return; }
+        write_watch=bits;
+    }
+    hook_cpu_write=hook;
+}
+
+void runtime_memory_set_coherence_hooks(const RuntimeMemoryCoherenceHooks *hooks) {
+    if (!hooks) return;
     const char *toggles=getenv("BB_TOGGLE_FILE");
     static pthread_t watcher;
     if (toggles && !watcher) pthread_create(&watcher,NULL,toggle_watcher,(void *)toggles);
     write_lock();
-    hook_map=map; hook_unmap=unmap; hook_invalidate=invalidate;
+    hook_map=hooks->map;
+    hook_unmap=hooks->unmap;
+    hook_invalidate=hooks->invalidate;
+    hook_note_write=hooks->note_write;
     for (size_t i=0;i<vma_count;++i) if (vmas[i].kind!=KIND_RESERVED) queue_hook(HOOK_MAP,vmas[i].start,vmas[i].end-vmas[i].start);
     write_unlock();
     flush_hooks();
+    if (hooks->cpu_write) {
+        runtime_memory_set_cpu_write_hook(hooks->cpu_write);
+    }
+}
+void runtime_memory_set_gpu_hooks(GpuRange map, GpuRange unmap, GpuRange invalidate) {
+    RuntimeMemoryCoherenceHooks h = { .map = map, .unmap = unmap, .invalidate = invalidate,
+                                      .note_write = hook_note_write, .cpu_write = hook_cpu_write };
+    runtime_memory_set_coherence_hooks(&h);
 }
 /* bbport: the CPU is about to write [address, address+size) without the guest's code doing it
  * (a file read into it): the GPU side is told first (Rasterizer::InvalidateMemory), for the parts
@@ -843,17 +867,6 @@ void runtime_memory_note_write(uintptr_t address, uint64_t size) {
  * side sets and clears them where it used to protect; the writers it cannot see coming (libc
  * imports, file reads, hooked game code) check them after writing and tell it, as a driver is
  * told of a resource update. */
-#define WATCH_LIMIT (1ull<<40)
-static _Atomic(uint64_t) *write_watch;
-static GpuRange hook_cpu_write;
-void runtime_memory_set_cpu_write_hook(GpuRange hook) {
-    if (!write_watch) {
-        void *bits=mmap(NULL,WATCH_LIMIT>>15,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,-1,0);
-        if (bits==MAP_FAILED) { perror("bbport: write watch bitmap"); return; }
-        write_watch=bits;
-    }
-    hook_cpu_write=hook;
-}
 void runtime_memory_set_write_watch(uintptr_t address, uint64_t size, int watch) {
     if (!write_watch || !size || address>=WATCH_LIMIT) return;
     uint64_t first=address>>12, last=(address+size-1)>>12;
@@ -1117,6 +1130,16 @@ int runtime_memory_is_mapped(uintptr_t address, uint64_t size) {
     int result=covered(address,address+size,0);
     read_unlock();
     return result;
+}
+/* Fast cached query whether [address, address+size) is mapped without leaking generation counters. */
+int runtime_memory_check_mapped(uintptr_t address, uint64_t size) {
+    if (!size) return 1;
+    const CachedRegion *c=(runtime_disabled_optimizations & 1) ? NULL : cached_region(address);
+    if (c && c->kind!=KIND_RESERVED && address>=c->start && address+size<=c->end) return 1;
+    uintptr_t start=0, end=0;
+    int mapped=0;
+    if (!runtime_memory_region(address, &start, &end, &mapped) || !mapped) return 0;
+    return (address + size <= end);
 }
 void runtime_memory_report(void) {
     printf("Runtime: direct memory allocations=%zu, maps=%zu, live=%" PRIu64 ", budget=%" PRIu64 "\n",

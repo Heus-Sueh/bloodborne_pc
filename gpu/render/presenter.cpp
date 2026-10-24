@@ -710,6 +710,9 @@ bool Presenter::PresentImage(Frame* frame, vk::Image source, bool last) {
 
 } // namespace Vulkan
 
-extern "C" float bbgpu_frame_aspect(void) {
+extern "C" float bbhost_frame_aspect(void) {
     return Vulkan::shown_aspect.load(std::memory_order_relaxed);
+}
+extern "C" float bbgpu_frame_aspect(void) {
+    return bbhost_frame_aspect();
 }

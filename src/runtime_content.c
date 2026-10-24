@@ -180,6 +180,22 @@ static ABI int32_t addon_info(uint32_t service,const char *label,void *info) {
     memcpy(info,&out,sizeof(out));
     return 0;
 }
+static const RuntimeExport content_exports[] = {
+    {"VANhIWcqYak", (void*)addon_mount},
+    {"3rHWaV-1KC4", (void*)addon_unmount},
+    {"m47juOmH0VE", (void*)addon_info},
+    {"g8cM39EUZ6o", (void*)module_load},
+    {"fMP5NHUOaMk", (void*)module_loaded},
+    {"eR2bZFAAU0Q", (void*)module_unload},
+    {"R9lA82OraNs", (void*)content_init},
+    {"99b82IKXpH4", (void*)param_int},
+    {"xnd8BJzAxmk", (void*)addon_list},
+};
+
+void runtime_content_register(void) {
+    runtime_register_exports(content_exports, sizeof(content_exports) / sizeof(content_exports[0]));
+}
+
 uintptr_t runtime_content_resolve(const char *name) {
     if (runtime_nid_is(name, "VANhIWcqYak")) return (uintptr_t)addon_mount;
     if (runtime_nid_is(name, "3rHWaV-1KC4")) return (uintptr_t)addon_unmount;

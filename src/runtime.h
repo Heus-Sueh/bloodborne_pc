@@ -1,10 +1,15 @@
 #ifndef BB_RUNTIME_H
 #define BB_RUNTIME_H
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <string.h>
 #include <time.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <setjmp.h>
+#include "runtime_error.h"
+#include "runtime_registry.h"
 /* Recovery point for speculative guest memory reads on this thread (probe.c fault handler). */
 extern __thread sigjmp_buf *runtime_fault_recover;
 /* Restarts the game (in-game settings menu, render resolution change). */
@@ -35,6 +40,19 @@ void runtime_memory_report(void);
 /* Reserves the guest's address range (Windows; probe.c, first thing). */
 void runtime_memory_reserve(void);
 int runtime_memory_is_mapped(uintptr_t address, uint64_t size);
+/* Fast cached check whether [address, address+size) is mapped (encapsulates table generation). */
+int runtime_memory_check_mapped(uintptr_t address, uint64_t size);
+
+/* Unified rasterizer coherence hooks */
+typedef struct RuntimeMemoryCoherenceHooks {
+    void (*map)(uintptr_t address, uint64_t size);
+    void (*unmap)(uintptr_t address, uint64_t size);
+    void (*invalidate)(uintptr_t address, uint64_t size);
+    void (*note_write)(uintptr_t address, uint64_t size);
+    void (*cpu_write)(uintptr_t address, uint64_t size);
+} RuntimeMemoryCoherenceHooks;
+void runtime_memory_set_coherence_hooks(const RuntimeMemoryCoherenceHooks *hooks);
+
 /* The CPU is about to write the range outside guest code (a file read): tells the GPU side. */
 void runtime_memory_note_write(uintptr_t address, uint64_t size);
 void runtime_memory_note_cpu_write(uintptr_t address, uint64_t size);
@@ -61,7 +79,6 @@ int32_t *runtime_errno(void);
 uintptr_t runtime_sema_resolve(const char *name);
 void runtime_sema_report(void);
 unsigned runtime_sema_waiters(uint32_t id);
-uintptr_t runtime_time_resolve(const char *name);
 void runtime_content_configure(const uint32_t values[5]);
 uintptr_t runtime_content_resolve(const char *name);
 void runtime_content_report(void);
@@ -72,10 +89,7 @@ static inline int runtime_nid_is(const char *name, const char *nid) {
     const size_t length = strcspn(name, "#");
     return length == strlen(nid) && !strncmp(name, nid, length);
 }
-typedef struct { const char *name; void *function; } RuntimeExport;
 #define RUNTIME_LOOKUP(table, nid) runtime_lookup(table, sizeof(table)/sizeof(*(table)), nid)
-const char *runtime_symbol(const char *nid);
-uintptr_t runtime_lookup(const RuntimeExport *table, size_t count, const char *nid);
 uintptr_t runtime_kernel_resolve(const char *name);
 uintptr_t runtime_file_resolve(const char *name);
 uintptr_t runtime_services_resolve(const char *name);

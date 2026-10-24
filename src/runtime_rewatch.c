@@ -151,13 +151,13 @@ void runtime_re_watch_report(void) { if (watch_started) watch_drain(1); }
 static uint64_t watch_requested;
 void runtime_re_watch(uint64_t address) { if (!watch_requested) watch_requested=address; }
 
-uint64_t bbgpu_camera_state(void);
+#include "gpu/bbhooks.h"
 
 void runtime_re_watch_tick(const void *pad_buffer, uint64_t reads) {
     /* BB_RE_WATCH_CAMSTATE=1: the current camera's aspect ratio (+0x54): who reads it. */
     static int camstate=-1;
     if (camstate<0) { const char *e=getenv("BB_RE_WATCH_CAMSTATE"); camstate=e && e[0]=='1'; }
-    if (camstate==1 && !watch_requested && bbgpu_camera_state()) runtime_re_watch(bbgpu_camera_state()+0x54);
+    if (camstate==1 && !watch_requested && bbhook_camera_state()) runtime_re_watch(bbhook_camera_state()+0x54);
     /* BB_RE_WATCH_AT=<reads>: not before that many pad reads (threads made later, entering the
        world, are not watched). */
     static long watch_at=-1;

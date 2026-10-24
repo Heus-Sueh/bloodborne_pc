@@ -1239,6 +1239,9 @@ void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
 
 } // namespace BbOverlay
 
-extern "C" void bbgpu_overlay_banner(const char* text) {
+extern "C" void bbhost_overlay_banner(const char* text) {
     BbOverlay::SetBanner(text);
+}
+extern "C" void bbgpu_overlay_banner(const char* text) {
+    bbhost_overlay_banner(text);
 }
