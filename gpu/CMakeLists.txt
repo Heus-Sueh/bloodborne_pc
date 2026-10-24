@@ -110,6 +110,19 @@ if(NOT miniz_FOUND)
     endif()
 endif()
 find_package(Zydis REQUIRED)
+find_path(XBYAK_INCLUDE_DIR xbyak/xbyak.h)
+if(XBYAK_INCLUDE_DIR)
+    add_library(xbyak INTERFACE IMPORTED)
+    target_include_directories(xbyak INTERFACE ${XBYAK_INCLUDE_DIR})
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+        xbyak
+        GIT_REPOSITORY https://github.com/herumi/xbyak.git
+        GIT_TAG v7.24
+    )
+    FetchContent_MakeAvailable(xbyak)
+endif()
 find_program(GLSLANG_COMPILER NAMES glslang glslangValidator REQUIRED)
 
 set(SIRIT_USE_SYSTEM_SPIRV_HEADERS OFF CACHE BOOL "" FORCE)
@@ -244,7 +257,7 @@ if (NOT WIN32)
 endif()
 target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable ffx-vulkan::fsr4-v07-vulkan)
 target_link_libraries(bbgpu PUBLIC Vulkan::Headers fmt::fmt Boost::headers magic_enum::magic_enum
-    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 PkgConfig::FFMPEG miniz::miniz Zydis::Zydis sirit)
+    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 PkgConfig::FFMPEG miniz::miniz Zydis::Zydis sirit xbyak)
 if (NOT WIN32)
     target_link_libraries(bbgpu PUBLIC PkgConfig::X11)
 endif()

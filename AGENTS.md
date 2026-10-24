@@ -86,4 +86,4 @@ When modifying `launcher/assets/launcher.rml` or `launcher/assets/style.rcss`:
 - **CMake Automated Fallbacks**:
   - `Vulkan-Headers`: Fetched via `FetchContent` if system headers are missing.
   - `VulkanMemoryAllocator`: Fetched via `FetchContent` if VMA is missing.
-  - `tsl-robin-map` and `magic_enum`: Automatically fetched if not provided by host.
+  - `tsl-robin-map`, `magic_enum`, and `xbyak`: Automatically fetched if not provided by host.

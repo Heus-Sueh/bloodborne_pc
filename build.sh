@@ -19,11 +19,12 @@ if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 freet
     fi
     echo 'Need pkg-config with vulkan, sdl3 and freetype2, cmake and ninja (see shell.nix).' >&2; exit 1
 fi
+CXX=${CXX:-g++}
 if ! echo '#include <vulkan/vulkan.h>' | $CC -E - >/dev/null 2>&1; then
     echo "Notice: System Vulkan headers (<vulkan/vulkan.h>) not installed."
     echo "        Recommended for Arch/Omarchy: 'sudo pacman -S --needed vulkan-headers'"
 fi
-if ! echo '#include <boost/container/small_vector.hpp>' | $CC -E - >/dev/null 2>&1; then
+if ! echo '#include <boost/container/small_vector.hpp>' | $CXX -x c++ -E - >/dev/null 2>&1; then
     echo "Notice: Boost development headers (<boost/...>) not installed."
     echo "        Run on Arch/Omarchy: 'sudo pacman -S --needed boost robin-map zydis'"
 fi

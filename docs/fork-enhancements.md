@@ -51,6 +51,6 @@ In this fork, the entire client launcher has been rewritten as a native, compile
 - **Automated `FetchContent` Fallbacks in CMake**:
   - Automatically fetches official Khronos `Vulkan-Headers` if missing on the host OS.
   - Automatically fetches `VulkanMemoryAllocator` (VMA) without requiring manual installation of AUR packages.
-  - Automatically fetches `tsl-robin-map` and `magic_enum` when not provided by system package managers.
+  - Automatically fetches `tsl-robin-map`, `magic_enum`, and `xbyak` when not provided by system package managers.
 - **Submodule Hardening**: `build.sh` updates only active GPU submodules (`fsr-vulkan`, `imgui`) without touching or conflicting with existing third-party directories.
 - **Proactive Dependency Diagnostics**: `build.sh` detects missing development headers (`<vulkan/vulkan.h>`, `<boost/...>`) and outputs clear, distro-specific package installation commands.
