@@ -114,6 +114,7 @@ if [[ -n ${scaled_output:-} ]]; then
             [[ $line =~ ^live_resolution=([01]|auto)$ ]] && live=${BASH_REMATCH[1]}
         done < "$BB_CONFIG"
     fi
+    [[ -z $live ]] && live=auto
     if [[ $live == auto ]]; then
         live=$("$caps" --live-resolution 2> >(while IFS= read -r line; do
             [[ $line == *MANGOHUD* ]] || printf '%s\n' "$line"; done >&2)) || live=0

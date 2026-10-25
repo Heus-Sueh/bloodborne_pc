@@ -181,11 +181,16 @@ bool ConfigManager::ValidateGameDirectory(const std::string &path) {
   fs::path p(path);
   if (!fs::exists(p) || !fs::is_directory(p))
     return false;
-  if (fs::exists(p / "eboot.bin") ||
-      fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
-    return true;
+  if (!fs::exists(p / "eboot.bin") &&
+      !fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
+    return false;
   }
-  return false;
+  // Base game assets check: ensure gxshader.shaderbnd.dcx exists
+  if (!fs::exists(p / "dvdroot_ps4" / "shader" / "gxshader.shaderbnd.dcx") &&
+      !fs::exists(p / "shader" / "gxshader.shaderbnd.dcx")) {
+    return false;
+  }
+  return true;
 }
 
 bool ConfigManager::ValidateFsr411(const std::string &directory,

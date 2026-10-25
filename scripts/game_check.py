@@ -80,6 +80,9 @@ def problem(game, image_hash=None):
     try:
         image_hash = image_hash or image_sha256(game)
         if image_hash == SUPPORTED_IMAGE:
+            essential_shaders = Path(game) / 'dvdroot_ps4/shader/gxshader.shaderbnd.dcx'
+            if not essential_shaders.is_file():
+                return 'missing_base_game', title, version
             return ('damaged_files', title, version) if broken_files(game) else None
     except (OSError, ValueError, IndexError, StopIteration, KeyError):
         return 'unreadable', title, version
@@ -96,6 +99,9 @@ def explain(kind, title, version):
     """What is wrong and what to do, for the log (English)."""
     found = f'Found {title} version {version} (sce_sys/param.sfo).'
     return {
+        'missing_base_game': f'{found} The base game files (dvdroot_ps4/shader, etc.) are missing. '
+                             'Only the 1.09 update appears to be extracted. Extract the base game dump (~28-31 GB) '
+                             'into this folder first, and then merge the 1.09 update over it.',
         'missing_update': f'{found} bbport needs the 1.09 update merged into the game folder: copy '
                           'everything from the dumped 1.09 update (e.g. CUSA03173-patch) into the '
                           'game folder, replacing files (eboot.bin and sce_sys too).',

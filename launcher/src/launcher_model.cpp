@@ -4,11 +4,14 @@
 #include <SDL3/SDL_dialog.h>
 #include <csignal>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
+
+namespace fs = std::filesystem;
 
 LauncherModel::LauncherModel(Rml::Context *context, SDL_Window *window)
     : context_(context), window_(window) {
@@ -257,9 +260,14 @@ void LauncherModel::UpdateValidationStatus() {
   if (settings.game_dir.empty()) {
     status_text = "No game folder selected. Please set game_dir in Settings.";
   } else if (is_valid) {
-    status_text = "Game folder verified (eboot.bin found). Ready to hunt.";
+    status_text = "Game folder verified (eboot.bin & shaders found). Ready to hunt.";
   } else {
-    status_text = "Invalid game folder (eboot.bin not found).";
+    fs::path p(settings.game_dir);
+    if (fs::exists(p / "eboot.bin") || fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
+      status_text = "Base assets missing (gxshader.shaderbnd.dcx). Merge base game with 1.09 update.";
+    } else {
+      status_text = "Invalid game folder (eboot.bin not found).";
+    }
   }
 
   if (model_handle_) {
