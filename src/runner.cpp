@@ -427,13 +427,15 @@ int main(int argc, char* argv[]) {
     }
 
     // 7. Launch execution layer
+    std::string timeout = GetEnvVar("BB_TIMEOUT", "0");
     std::vector<std::string> probe_cmd = {
         probe.string(),
         (out_dir / "boot-linked.bin").string(),
         "--content-profile", (out_dir / "content.bin").string(),
         "--patches", (out_dir / "patches.bin").string(),
         "--app0", active_game,
-        "--user", cfg.user_dir
+        "--user", cfg.user_dir,
+        "--timeout", timeout
     };
     for (const auto& a : cfg.extra_args) {
         probe_cmd.push_back(a);

@@ -454,7 +454,9 @@ int main(int argc, char **argv) {
     check_cpu();
     runtime_memory_reserve();
     int cpu_only = 0, strict_imports = 0;
-    unsigned timeout_seconds = 10;
+    unsigned timeout_seconds = 0;
+    const char *env_to = getenv("BB_TIMEOUT");
+    if (env_to && env_to[0]) timeout_seconds = (unsigned)strtoul(env_to, NULL, 10);
     const char *content_profile=NULL, *app0=NULL, *user_dir=NULL, *patch_file=NULL;
     for (int i = 2; i < argc; ++i) {
         if (!strcmp(argv[i], "--cpu-only")) cpu_only = 1;
