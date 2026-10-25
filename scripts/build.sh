@@ -161,6 +161,7 @@ echo "Built $PWD/out/bb-launcher"
 "$CXX" -std=c++23 -O2 -Wall -Wextra -pthread \
     -I. -Isrc \
     src/config_manager.cpp \
+    src/loader.cpp \
     src/runner.cpp \
     -o out/bb-runner
 echo "Built $PWD/out/bb-runner"
@@ -173,6 +174,8 @@ if [[ ${1:-} == --test ]]; then
     out/subsystems-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_vfs.cpp src/runtime_vfs.cpp -o out/vfs-test
     out/vfs-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_loader.cpp src/loader.cpp -o out/loader-test
+    out/loader-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc -I. tests/test_file_mods.c out/runtime_vfs.o -lstdc++ -o out/file-mods-test

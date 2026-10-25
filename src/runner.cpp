@@ -1,4 +1,5 @@
 #include "config_manager.h"
+#include "loader.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -261,29 +262,30 @@ int main(int argc, char* argv[]) {
   // 1. Resolve active game path (Native VFS handles mod layering in-memory)
   std::string active_game = game_abs.string();
 
-  // 2. Prepare ELF / SELF structure
-  std::cout << "[RUNNER] Inspecting eboot.bin (prepare.py)...\n";
-  if (RunCommand({python, "scripts/prepare.py", active_game, "--out", out_dir.string()}) != 0) {
-    std::cerr << "ERROR: Failed to prepare eboot image.\n";
-    return 1;
+  // 2. Prepare & link eboot.bin + system modules (native C++ ELF/SELF loader)
+  std::cout << "[RUNNER] Preparing and linking modules (native C++)...\n";
+  auto link_res = bb::loader::ModuleLinker::Link(active_game, out_dir.string());
+  if (!link_res.success) {
+    std::cout << "[RUNNER] Native link note (" << link_res.error_message
+              << "), trying prepare.py fallback...\n";
+    if (RunCommand({python, "scripts/prepare.py", active_game, "--out", out_dir.string()}) != 0 ||
+        RunCommand({python, "scripts/link_modules.py", active_game, "--out", out_dir.string()}) !=
+            0) {
+      std::cerr << "ERROR: Failed to prepare and link eboot image.\n";
+      return 1;
+    }
   }
 
-  // 3. Link modules (libc.prx + libSceFios2.prx) -> boot-linked.bin (BBPROBE5)
-  std::cout << "[RUNNER] Linking system modules (link_modules.py)...\n";
-  if (RunCommand({python, "scripts/link_modules.py", active_game, "--out", out_dir.string()}) !=
-      0) {
-    std::cerr << "ERROR: Failed to link system modules.\n";
-    return 1;
+  // 3. Generate AppContent profile (native C++)
+  if (!bb::loader::ContentProfile::Generate(active_game, out_dir / "content.bin", "full")) {
+    RunCommand({python,
+                "scripts/content_profile.py",
+                active_game,
+                "--out",
+                out_dir.string(),
+                "--sku",
+                "full"});
   }
-
-  // 4. Generate content profile
-  RunCommand({python,
-              "scripts/content_profile.py",
-              active_game,
-              "--out",
-              out_dir.string(),
-              "--sku",
-              "full"});
 
   // 5. Compile patches
   std::string config_path = ConfigManager::GetConfigPath();
