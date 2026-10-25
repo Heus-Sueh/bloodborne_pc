@@ -9,19 +9,19 @@ default:
 
 # Build native runtime, GPU library, and launcher
 build *ARGS:
-    {{ if os() == "windows" { "./run.bat --build-only " + ARGS } else { "./build.sh " + ARGS } }}
+    {{ if os() == "windows" { "./scripts/run.bat --build-only " + ARGS } else { "./scripts/build.sh " + ARGS } }}
 
 # Run comprehensive test suite
 test:
-    ./build.sh --test
+    ./scripts/build.sh --test
 
 # Run static analysis and style linting (clang-tidy & clang-format check)
 lint:
-    ./build.sh --lint
+    ./scripts/build.sh --lint
 
 # Format codebase according to C/C++ coding standards
 format:
-    ./build.sh --format
+    ./scripts/build.sh --format
 
 # Launch graphical launcher (RmlUi C++20 launcher)
 launcher:
@@ -29,7 +29,7 @@ launcher:
 
 # Run game directly
 run *ARGS:
-    {{ if os() == "windows" { "./run.bat " + ARGS } else { "./run.sh " + ARGS } }}
+    {{ if os() == "windows" { "./out/bb-runner.exe " + ARGS } else { "./out/bb-runner " + ARGS } }}
 
 # Extract PKG or ISO dump: just extract <file.pkg|file.iso> [output_dir]
 extract FILE OUT_DIR="":

@@ -413,7 +413,7 @@ static void apply_patches(const char *path, Segment *segments, uint64_t ns, cons
 volatile int runtime_restarting;
 void runtime_restart(void) {
     fflush(NULL);
-    puts("Runtime: restarting through run.sh");
+    puts("Runtime: restarting through scripts/run.sh");
     /* The GPU threads still run until exec: their Vulkan calls fail once the device fd is
      * closed below, and an assertion there must not end the process (exit 23) before exec. */
     runtime_restarting = 1;
@@ -430,7 +430,13 @@ void runtime_restart(void) {
     _exit(0);
 #else
     syscall(SYS_close_range, 3u, ~0u, 0u);
-    execlp("bash", "bash", "run.sh", (char *)NULL);
+    if (access("out/bb-runner", X_OK) == 0) {
+        execlp("./out/bb-runner", "./out/bb-runner", (char *)NULL);
+    } else if (access("scripts/run.sh", F_OK) == 0) {
+        execlp("bash", "bash", "scripts/run.sh", (char *)NULL);
+    } else {
+        execlp("bash", "bash", "run.sh", (char *)NULL);
+    }
     perror("runtime_restart: exec");
     _exit(1);
 #endif

@@ -88,7 +88,7 @@ In this fork, the entire client launcher has been rewritten as a native, compile
   - Native Win32 synchronization primitives (`src/host_sync.h`) replacing POSIX pthreads with SRW Locks and Condition Variables.
   - Win32 memory management and page protection (`src/win32_memory.c/.h`) using `VirtualAlloc2` and bottom-up memory mapping.
   - Win32 filesystem and runtime bridges (`src/win32_compat.c/.h`).
-  - Windows execution scripts (`run.bat`, `setup.bat`, `scripts/run_windows.py`).
+  - Windows execution scripts (`scripts/run.bat`, `scripts/run_windows.py`).
 
 ---
 
@@ -124,11 +124,11 @@ In this fork, the entire client launcher has been rewritten as a native, compile
 
 - **Windows CA Trust Verification**: Integrated dynamic Windows Root CA certificate validation (`gpu/bbnet/include/windows_trust.h`) via Schannel fallback, allowing secure online connectivity when host root stores are updated dynamically.
 - **Pad Route Replay Benchmark Fix**: Updated replay playback in `src/runtime_pad.c` to reload route files fresh on every replay start instead of caching once.
-  - Integrated `--lint` and `--format` modes in `build.sh` and `justfile`.
+  - Integrated `--lint` and `--format` modes in `scripts/build.sh` and `justfile`.
 
 - **Automated `FetchContent` Fallbacks in CMake**:
   - Automatically fetches official Khronos `Vulkan-Headers` if missing on the host OS.
   - Automatically fetches `VulkanMemoryAllocator` (VMA) without requiring manual installation of AUR packages.
   - Automatically fetches `tsl-robin-map`, `magic_enum`, and `xbyak` when not provided by system package managers.
-- **Submodule Hardening**: `build.sh` updates only active GPU submodules (`fsr-vulkan`, `imgui`) without touching or conflicting with existing third-party directories.
-- **Proactive Dependency Diagnostics**: `build.sh` detects missing development headers (`<vulkan/vulkan.h>`, `<boost/...>`) and outputs clear, distro-specific package installation commands.
+- **Submodule Hardening**: `scripts/build.sh` updates only active GPU submodules (`fsr-vulkan`, `imgui`) without touching or conflicting with existing third-party directories.
+- **Proactive Dependency Diagnostics**: `scripts/build.sh` detects missing development headers (`<vulkan/vulkan.h>`, `<boost/...>`) and outputs clear, distro-specific package installation commands.

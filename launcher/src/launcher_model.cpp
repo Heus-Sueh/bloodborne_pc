@@ -701,13 +701,13 @@ void LauncherModel::Launch() {
 
   AppendLogLine("=============================================================="
                 "==================");
-  AppendLogLine("[LAUNCH] Initializing Bloodborne PC Port via run.sh...");
+  AppendLogLine("[LAUNCH] Initializing Bloodborne PC Port via scripts/run.sh...");
   AppendLogLine("=============================================================="
                 "==================");
 
   ProcessHandle proc = ConfigManager::LaunchGameAsync(settings);
   if (proc.pid <= 0) {
-    AppendLogLine("[ERROR] Failed to start run.sh process.");
+    AppendLogLine("[ERROR] Failed to start run process (scripts/run.sh).");
     is_game_running = false;
     if (model_handle_)
       model_handle_.DirtyVariable("is_game_running");

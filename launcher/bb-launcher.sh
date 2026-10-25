@@ -4,6 +4,6 @@ here=$(cd -- "$(dirname -- "$0")" && pwd)
 root=$(cd -- "$here/.." && pwd)
 cd -- "$root"
 if [[ ! -x "$root/out/bb-launcher" ]]; then
-    bash "$root/build.sh"
+    bash "$root/scripts/build.sh"
 fi
 exec "$root/out/bb-launcher" "$@"

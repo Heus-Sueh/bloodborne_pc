@@ -19,8 +19,11 @@ bloodborne_pc/
 │   └── assets/          # RML templates, RCSS stylesheets, TrueType fonts
 ├── docs/                # Architecture documentation, ADRs, coding standards (100% English)
 ├── out/                 # Build artifacts directory (binaries, logs, temporary overlays)
-├── build.sh             # Unified compilation script
-└── run.sh               # Execution entry point
+├── scripts/             # Build and execution scripts, mods and patch linkers
+│   ├── build.sh         # Unified compilation script
+│   ├── run.sh           # Execution entry point (Linux)
+│   └── run.bat          # Execution entry point (Windows)
+└── flake.nix            # Declarative Nix flake environment
 ```
 
 ---
@@ -36,10 +39,10 @@ just lint
 just format
 
 # Or unified shell script
-./build.sh
-./build.sh --test
-./build.sh --lint
-./build.sh --format
+./scripts/build.sh
+./scripts/build.sh --test
+./scripts/build.sh --lint
+./scripts/build.sh --format
 
 # Extract game dumps (PKG / ISO)
 just extract /path/to/game.pkg ./games/CUSA03173
@@ -56,8 +59,8 @@ just launcher
 
 # Launch game directly (requires valid game directory in bbport.toml)
 just run
-# or: ./run.sh
-# or: run.bat (Windows)
+# or: ./scripts/run.sh
+# or: ./scripts/run.bat (Windows)
 ```
 
 ---

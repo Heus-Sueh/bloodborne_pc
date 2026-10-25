@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd -- "$(dirname -- "$0")"
+cd -- "$(dirname -- "$0")/.."
 if [[ ${1:-} == --software ]]; then
     shift
     if [[ -z ${VK_DRIVER_FILES:-} ]]; then
@@ -42,9 +42,13 @@ mkdir -p "$BB_GPU_USER_DIR"
 if [[ -z ${BB_FSR411_DIR:-} && ! -d fsr4_411 && -d $data/fsr4_411 ]]; then
     export BB_FSR411_DIR=$data/fsr4_411
 fi
-if [[ -z ${BB_PREBUILT:-} && -z ${BB_IN_NIX_SHELL:-} ]] && ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3; } && command -v nix-shell >/dev/null; then
+if [[ -z ${BB_PREBUILT:-} && -z ${BB_IN_NIX_SHELL:-} ]] && ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3; }; then
     args=''; if (( $# )); then args=$(printf '%q ' "$@"); fi
-    exec env BB_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash run.sh $args"
+    if command -v nix >/dev/null && [[ -f flake.nix ]]; then
+        exec env BB_IN_NIX_SHELL=1 nix develop --command bash scripts/run.sh $args
+    elif command -v nix-shell >/dev/null && [[ -f shell.nix ]]; then
+        exec env BB_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash scripts/run.sh $args"
+    fi
 fi
 # BB_SAVE_LOG=1 (launcher: "Save the log and statistics to a file"): this run's output and its
 # per-frame statistics also go to $data/logs/<time>.log, .frames.csv and .readbacks.csv.
@@ -85,7 +89,6 @@ if [[ $game != "$(realpath "$original_game")" ]]; then
     trap '"$PYTHON" -c '\''import shutil,sys; shutil.rmtree(sys.argv[1])'\'' "$mod_game"' EXIT
 fi
 "$PYTHON" scripts/prepare.py "$game" --out "$out"
-"$PYTHON" scripts/link_libc.py "$game" --out "$out"
 "$PYTHON" scripts/link_modules.py "$game" --out "$out"
 "$PYTHON" scripts/content_profile.py "$game" --out "$out" --sku "${BB_CONTENT_SKU:-full}"
 # Sizes chosen below for the previous launch are recomputed after an in-game restart.
@@ -222,7 +225,7 @@ fi
 if [[ -n ${BB_PREBUILT:-} ]]; then
     probe=${BB_PROBE:-bin/bb-probe}
 else
-    bash build.sh
+    bash scripts/build.sh
     probe=${BB_PROBE:-out/bb-probe}  # BB_PROBE: a wrapper (gdb) around it
 fi
 # Online play (BB_ONLINE=1, launcher: Online; the online module gpu/bbnet): the game's own server

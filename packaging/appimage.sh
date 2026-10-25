@@ -6,7 +6,7 @@
 # Data (generated files, saves, bbport.ini): ~/.local/share/bbport (BB_DATA_DIR).
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
-[[ -f out/bb-probe && -f out/gpu/libbbgpu.so ]] || { echo 'Build first: bash build.sh' >&2; exit 1; }
+[[ -f out/bb-probe && -f out/gpu/libbbgpu.so ]] || { echo 'Build first: bash scripts/build.sh' >&2; exit 1; }
 root=$PWD
 # The libraries' store paths: for each library a binary needs (NEEDED), the RUNPATH directory it
 # is found in (their closures come along). Not every RUNPATH entry: built in nix-shell, the

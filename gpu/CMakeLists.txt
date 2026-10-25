@@ -353,7 +353,7 @@ add_executable(fsr4-bench EXCLUDE_FROM_ALL tools/fsr4_bench.cpp
 target_include_directories(fsr4-bench PRIVATE upscale/fsr411)
 target_link_libraries(fsr4-bench PRIVATE ffx-vulkan::fsr4-v07-vulkan ffx-vulkan::fsr4-v07-assets Vulkan::Vulkan)
 
-# bbport online module (gpu/bbnet, libbbnet.so): built when its libraries are there (shell.nix);
+# bbport online module (gpu/bbnet, libbbnet.so): built when its libraries are there (flake.nix);
 # BB_NET=OFF leaves it out. Without it the port plays offline.
 option(BB_NET "Build the online module (shadNet)" ON)
 if (BB_NET)
@@ -379,7 +379,7 @@ if (BB_NET)
             list(APPEND missing miniupnpc)
         endif()
         list(JOIN missing ", " missing)
-        message(STATUS "Online module: off (missing: ${missing}; shell.nix lists the packages)")
+        message(STATUS "Online module: off (missing: ${missing}; flake.nix lists the packages)")
     endif()
 endif()
 

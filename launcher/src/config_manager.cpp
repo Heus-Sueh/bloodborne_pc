@@ -300,8 +300,14 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
     dup2(write_end.Get(), STDERR_FILENO);
     write_end.Reset();
 
-    execlp("bash", "bash", "run.sh", (char*)nullptr);
-    std::perror("execlp bash run.sh failed");
+    if (std::filesystem::exists("out/bb-runner")) {
+      execlp("./out/bb-runner", "./out/bb-runner", (char*)nullptr);
+    } else if (std::filesystem::exists("scripts/run.sh")) {
+      execlp("bash", "bash", "scripts/run.sh", (char*)nullptr);
+    } else {
+      execlp("bash", "bash", "run.sh", (char*)nullptr);
+    }
+    std::perror("execlp native runner failed");
     _exit(127);
   } else if (pid > 0) {
     write_end.Reset();

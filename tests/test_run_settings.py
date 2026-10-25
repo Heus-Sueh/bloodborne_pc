@@ -50,6 +50,9 @@ class RestartResolutionTests(unittest.TestCase):
                 '    config.write_text("upscaler=fsr3\\npreset=4\\noutput_res="+'
                 '("1280x720" if stage==0 else "1920x1080")+"\\n")\n'
                 '    os.environ["BB_TEST_STAGE"]=str(stage+1)\n'
+                'if (pathlib.Path("scripts/run.sh")).is_file():\n'
+                '    os.execlp("bash", "bash", "scripts/run.sh")\n'
+                'else:\n'
                 '    os.execlp("bash", "bash", "run.sh")\n')
             probe.chmod(0o755)
             env = dict(os.environ, BB_PREBUILT='1', BB_PROBE=str(probe), PYTHON=str(python),
@@ -67,7 +70,8 @@ class RestartResolutionTests(unittest.TestCase):
                 for name in ('bash', 'dirname', 'mkdir', 'realpath'):
                     (tools / name).symlink_to(shutil.which(name))
                 env['PATH'] = str(tools)
-            subprocess.run([shutil.which('bash'), 'run.sh'], cwd=ROOT, env=env,
+            run_script = 'scripts/run.sh' if (ROOT / 'scripts/run.sh').is_file() else 'run.sh'
+            subprocess.run([shutil.which('bash'), run_script], cwd=ROOT, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
             return [json.loads(line) for line in (data / 'environments').read_text().splitlines()]
 

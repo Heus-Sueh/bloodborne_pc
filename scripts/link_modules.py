@@ -18,7 +18,16 @@ import re
 import struct
 from prepare import parse_self, span, unpack
 import import_scopes
-from link_libc import encode_id
+
+
+def encode_id(value):
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-'
+    result = alphabet[value & 63]
+    value >>= 6
+    while value:
+        result = alphabet[value & 63] + result
+        value >>= 6
+    return result
 
 DEFAULT_MODULES = ('libc.prx', 'libSceFios2.prx')
 # `mov r64, fs:[0]` (the thread pointer, initial-exec TLS): FS prefix, REX.W (+R for r8-r15),

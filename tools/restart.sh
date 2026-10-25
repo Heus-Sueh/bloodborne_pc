@@ -32,7 +32,7 @@ $T/stop_own.sh; sleep 1
 # path), with only the present rate (BB_FPS_PRINT) and a fixed wait for the level.
 stats=${BB_FRAME_STATS:-1}
 BB_SKIP_NETWORK_CHOICE=${BB_SKIP_NETWORK_CHOICE:-1} BB_PAD_FILE=$PWD/out/pad BB_PRESENT_DUMP_TRIGGER=$PWD/out/present_trigger BB_FINAL_DUMP_TRIGGER=$PWD/out/final_trigger BB_DUMP_DIR=$PWD/out/present BB_FRAME_STATS=$stats BB_FPS_PRINT=$((1 - stats)) BB_TOGGLE_FILE=$PWD/out/toggles BB_FPS_LIMIT=${BB_FPS_LIMIT:-0} \
-    ${CPUS:+taskset -c $CPUS} setsid stdbuf -oL -eL bash run.sh "$@" > out/session.log 2>&1 < /dev/null &
+    ${CPUS:+taskset -c $CPUS} setsid stdbuf -oL -eL bash scripts/run.sh "$@" > out/session.log 2>&1 < /dev/null &
 # The game's process (run.sh starts it after preparing the files): the only bb-probe now.
 for i in $(seq 1 120); do
     sleep 0.5

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd -- "$(dirname -- "$0")"
+cd -- "$(dirname -- "$0")/.."
 mkdir -p out
 if [[ ${1:-} == --lint || ${1:-} == --format ]]; then
     if [[ ${1:-} == --format ]]; then
@@ -23,19 +23,17 @@ if [[ -z ${CC:-} ]]; then
     fi
 fi
 if [[ -z ${CC:-} ]]; then echo 'Install GCC/Clang or set CC.' >&2; exit 1; fi
-# Add local tool fallback paths if cmake or ninja are not in PATH
-if ! command -v cmake >/dev/null || ! command -v ninja >/dev/null; then
-    for p in /home/heus/.cache/uv/archive-v0/*/cmake/data/bin /home/heus/.cache/uv/archive-v0/*/ninja-*.data/scripts /home/heus/.local/share/mise/installs/cmake/*/bin /home/heus/.local/share/mise/installs/ninja/*; do
-        if [[ -d $p ]]; then export PATH="$p:$PATH"; fi
-    done
-fi
 # Dependencies come from pkg-config (Vulkan loader/headers, SDL3). On NixOS the
-# environment is provided by shell.nix; re-enter it automatically if needed.
+# environment is provided by flake.nix; re-enter it automatically if needed.
 if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 freetype2 && command -v cmake >/dev/null && command -v ninja >/dev/null; }; then
-    if [[ -z ${BB_IN_NIX_SHELL:-} ]] && command -v nix-shell >/dev/null; then
-        exec env BB_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash build.sh $*"
+    if [[ -z ${BB_IN_NIX_SHELL:-} ]]; then
+        if command -v nix >/dev/null && [[ -f flake.nix ]]; then
+            exec env BB_IN_NIX_SHELL=1 nix develop --command bash scripts/build.sh "$@"
+        elif command -v nix-shell >/dev/null && [[ -f shell.nix ]]; then
+            exec env BB_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash scripts/build.sh $*"
+        fi
     fi
-    echo 'Need pkg-config with vulkan, sdl3 and freetype2, cmake and ninja (see shell.nix).' >&2; exit 1
+    echo 'Need pkg-config with vulkan, sdl3 and freetype2, cmake and ninja (see flake.nix).' >&2; exit 1
 fi
 CXX=${CXX:-g++}
 if ! echo '#include <vulkan/vulkan.h>' | $CC -E - >/dev/null 2>&1; then
@@ -158,6 +156,12 @@ read -r -a ft_libs <<< "$(pkg-config --libs freetype2 2>/dev/null || true)"
     -lGL -lm \
     -o out/bb-launcher
 echo "Built $PWD/out/bb-launcher"
+# Native C++23 game runner
+"$CXX" -std=c++23 -O2 -Wall -Wextra -pthread \
+    -I. -Isrc \
+    src/runner.cpp \
+    -o out/bb-runner
+echo "Built $PWD/out/bb-runner"
 if [[ ${1:-} == --test ]]; then
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread "${includes[@]}" -I. -Isrc tests/test_pad.c "${libraries[@]}" -lm -o out/pad-test
     out/pad-test

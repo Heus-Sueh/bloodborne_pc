@@ -80,7 +80,7 @@ Or launch the game directly:
 ```bash
 just run
 # or
-./run.sh
+./scripts/run.sh
 ```
 
 ---
@@ -152,19 +152,19 @@ pacman -S --needed mingw-w64-clang-x86_64-clang \
 ```bash
 # Build native runtime, GPU translation layer, and launcher
 just build
-# or: ./build.sh
+# or: ./scripts/build.sh
 
 # Run comprehensive test suite
 just test
-# or: ./build.sh --test
+# or: ./scripts/build.sh --test
 
 # Run static analysis and formatting check
 just lint
-# or: ./build.sh --lint
+# or: ./scripts/build.sh --lint
 
 # Automatically format C/C++ files
 just format
-# or: ./build.sh --format
+# or: ./scripts/build.sh --format
 ```
 
 ---
@@ -177,7 +177,7 @@ This fork introduces significant architectural, usability, and quality improveme
 - 📦 **Integrated PKG & ISO Extraction:** Built-in userspace extraction for PS4 PKG archives (AES-128-XTS PFS decryption based on [ShadPs4Plus](https://github.com/AzaharPlus/shadPS4Plus) and [ShadPKG](https://github.com/seregonwar/ShadPKG)) and ISO disc images (`bsdtar` / `7z`).
 - ⚙️ **TOML Configuration Format:** Fully migrated from legacy `.ini` to typed `.toml` (`bbport.toml`).
 - 🛠️ **Cross-Platform Justfile:** Unified build, test, lint, format, run, and extraction recipes via `just`.
-- 🪟 **Preliminary Windows Support:** Win32 synchronization layer (`src/host_sync.h`), virtual memory management (`src/win32_memory.c/.h`), and Windows launchers (`run.bat`, `setup.bat`).
+- 🪟 **Preliminary Windows Support:** Win32 synchronization layer (`src/host_sync.h`), virtual memory management (`src/win32_memory.c/.h`), and Windows launcher (`scripts/run.bat`).
 - 📐 **Adaptive Tiling Layout:** Fully responsive UI designed for tiling window managers (Hyprland, Sway, i3) with native OS file dialogs and live log streaming.
 - 🛡️ **Coding Standards & Static Analysis:** Enforces modern RAII and C++ guidelines (`cpp-coding-standards`, `.clang-format`, `.clang-tidy`).
 - 🌐 **100% English Documentation:** Cleaned and standardized all documentation and comments in English.
