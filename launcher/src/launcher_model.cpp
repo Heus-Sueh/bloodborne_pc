@@ -54,6 +54,9 @@ void LauncherModel::BindModel() {
   constructor.Bind("active_tab", &active_tab);
   constructor.Bind("status_text", &status_text);
   constructor.Bind("is_valid", &is_valid);
+  constructor.Bind("game_version", &game_version);
+  constructor.Bind("game_title_id", &game_title_id);
+  constructor.Bind("is_update_needed", &is_update_needed);
   constructor.Bind("console_log", &console_log);
   constructor.Bind("is_console_open", &is_console_open);
   constructor.Bind("is_game_running", &is_game_running);
@@ -148,6 +151,11 @@ void LauncherModel::BindModel() {
   constructor.BindEventCallback("extract_dump",
                                 [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
                                   ChooseDumpToExtract();
+                                });
+
+  constructor.BindEventCallback("install_update",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ChooseUpdateToInstall();
                                 });
 
   model_handle_ = constructor.GetModelHandle();
@@ -311,6 +319,57 @@ void LauncherModel::ChooseDumpToExtract() {
       this, window_, filters, 2, nullptr, false);
 }
 
+void LauncherModel::ChooseUpdateToInstall() {
+  if (is_extracting || is_game_running) {
+    return;
+  }
+  if (settings.game_dir.empty()) {
+    status_text = "Please set or extract your base game folder first.";
+    AppendLogLine(
+        "[UPDATE] Error: No game directory configured. Please set or extract base game first.");
+    if (model_handle_)
+      model_handle_.DirtyVariable("status_text");
+    return;
+  }
+
+  static const SDL_DialogFileFilter filters[] = {{"PlayStation 4 Update Package (*.pkg)", "pkg"},
+                                                 {"All Files", "*"}};
+
+  SDL_ShowOpenFileDialog(
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
+        if (!self)
+          return;
+
+        std::string chosen_file;
+        if (filelist && *filelist) {
+          chosen_file = *filelist;
+        }
+
+        if (chosen_file.empty()) {
+          RunFileDialogFallback("Select Bloodborne Update 1.09 Package (.pkg)",
+                                "PS4 Update (*.pkg) | *.pkg", [self](const std::string& path) {
+                                  if (!path.empty()) {
+                                    self->StartUpdateInstallation(path);
+                                  }
+                                });
+          return;
+        }
+
+        self->StartUpdateInstallation(chosen_file);
+      },
+      this, window_, filters, 2, nullptr, false);
+}
+
+void LauncherModel::StartUpdateInstallation(const std::string& update_pkg_path) {
+  if (is_extracting || is_game_running)
+    return;
+  AppendLogLine("[UPDATE] Initializing Update 1.09 installation...");
+  AppendLogLine("[UPDATE] Patch file: " + update_pkg_path);
+  AppendLogLine("[UPDATE] Target game directory: " + settings.game_dir);
+  StartExtraction(update_pkg_path, settings.game_dir);
+}
+
 void LauncherModel::ChooseExtractionDestination(const std::string& dump_path) {
   if (is_extracting || is_game_running)
     return;
@@ -446,10 +505,22 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
 
 void LauncherModel::UpdateValidationStatus() {
   is_valid = ConfigManager::ValidateGameDirectory(settings.game_dir);
+  game_version = ConfigManager::GetGameVersion(settings.game_dir);
+  game_title_id = ConfigManager::GetTitleId(settings.game_dir);
+  is_update_needed = false;
+
   if (settings.game_dir.empty()) {
-    status_text = "No game folder selected. Please set game_dir in Settings.";
+    status_text = "No game folder selected. Please set game_dir or extract a game dump.";
   } else if (is_valid) {
-    status_text = "Game folder verified (eboot.bin & shaders found). Ready to hunt.";
+    if (!game_version.empty() && game_version != "01.09") {
+      is_update_needed = true;
+      std::string id_str = game_title_id.empty() ? "" : ("[" + game_title_id + "] ");
+      status_text = id_str + "v" + game_version +
+                    " detected. Update 1.09 is required! Please click 'APPLY UPDATE 1.09'.";
+    } else {
+      std::string id_str = game_title_id.empty() ? "" : ("[" + game_title_id + "] ");
+      status_text = "Bloodborne " + id_str + "v01.09 verified. Ready to hunt.";
+    }
   } else {
     fs::path p(settings.game_dir);
     if (fs::exists(p / "eboot.bin") || fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
@@ -462,6 +533,9 @@ void LauncherModel::UpdateValidationStatus() {
 
   if (model_handle_) {
     model_handle_.DirtyVariable("is_valid");
+    model_handle_.DirtyVariable("game_version");
+    model_handle_.DirtyVariable("game_title_id");
+    model_handle_.DirtyVariable("is_update_needed");
     model_handle_.DirtyVariable("status_text");
   }
 }
@@ -685,6 +759,16 @@ void LauncherModel::Update() {
 void LauncherModel::Launch() {
   if (!is_valid) {
     status_text = "Cannot launch: please set a valid game folder first.";
+    if (model_handle_)
+      model_handle_.DirtyVariable("status_text");
+    return;
+  }
+
+  if (is_update_needed) {
+    status_text = "Cannot launch: Update 1.09 required (detected v" + game_version +
+                  "). Please click 'APPLY UPDATE 1.09'.";
+    AppendLogLine("[LAUNCH] Error: Bloodborne Update 1.09 is required. Detected version is v" +
+                  game_version + ".");
     if (model_handle_)
       model_handle_.DirtyVariable("status_text");
     return;

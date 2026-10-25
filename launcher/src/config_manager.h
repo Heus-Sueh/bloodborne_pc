@@ -68,6 +68,9 @@ public:
   static LauncherSettings Load();
   static bool Save(const LauncherSettings& settings);
   static bool ValidateGameDirectory(const std::string& path);
+  static std::string GetGameVersion(const std::string& path);
+  static std::string GetTitleId(const std::string& path);
+  static bool IsUpdate109(const std::string& path);
   static bool ValidateFsr411(const std::string& directory, const std::string& output, int preset);
   static int LaunchGame(const LauncherSettings& settings);
   static ProcessHandle LaunchGameAsync(const LauncherSettings& settings);

@@ -26,6 +26,8 @@ public:
   void ChooseDumpToExtract();
   void ChooseExtractionDestination(const std::string& dump_path);
   void StartExtraction(const std::string& dump_path, const std::string& out_dir);
+  void ChooseUpdateToInstall();
+  void StartUpdateInstallation(const std::string& update_pkg_path);
 
   void ToggleConsole();
   void ClearLog();
@@ -46,7 +48,10 @@ public:
   std::string status_text;
   std::string console_log;
   std::string copy_btn_text = "COPY";
+  std::string game_version;
+  std::string game_title_id;
   bool is_valid = false;
+  bool is_update_needed = false;
   bool should_close_ = false;
   bool is_console_open = false;
   bool is_game_running = false;

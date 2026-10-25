@@ -50,7 +50,7 @@
                 <div class="setting-row">
                     <div class="col-info" data-event-click="choose_game_dir">
                         <div class="field-title interactive-title">Game Directory</div>
-                        <div class="field-desc">Folder containing eboot.bin and dvdroot_ps4 files</div>
+                        <div class="field-desc">Folder containing eboot.bin and dvdroot_ps4 files <span class="badge-version" data-if="game_version != ''">v{{ game_version }}</span></div>
                     </div>
                     <div class="col-control">
                         <input type="text" class="input-text input-path" data-value="game_dir" data-event-change="save" data-event-click="choose_game_dir" placeholder="/path/to/CUSA03173" />
@@ -79,17 +79,35 @@
 
                 <div class="setting-row">
                     <div class="col-info" data-event-click="extract_dump">
-                        <div class="field-title interactive-title">Install / Extract Dump</div>
-                        <div class="field-desc">Decrypt and unpack PS4 game dump (.pkg or .iso) directly</div>
+                        <div class="field-title interactive-title">Install / Extract Base Game</div>
+                        <div class="field-desc">Decrypt and unpack PS4 base game dump (.pkg or .iso) directly</div>
                     </div>
                     <div class="col-control">
                         <button class="action-btn" data-event-click="extract_dump" data-class-disabled="is_extracting || is_game_running">EXTRACT (PKG / ISO)</button>
                     </div>
                 </div>
 
+                <div class="setting-row">
+                    <div class="col-info" data-event-click="install_update">
+                        <div class="field-title interactive-title">Install Update 1.09 (Patch PKG)</div>
+                        <div class="field-desc">Apply Bloodborne 1.09 update patch (.pkg) directly to game folder</div>
+                    </div>
+                    <div class="col-control">
+                        <button class="action-btn action-btn-update" data-event-click="install_update" data-class-disabled="is_extracting || is_game_running">APPLY UPDATE 1.09</button>
+                    </div>
+                </div>
+
+                <div class="update-alert-card" data-if="is_update_needed">
+                    <div class="update-alert-header">
+                        <div class="update-alert-tag">UPDATE 1.09 REQUIRED</div>
+                        <div class="update-alert-info">Detected: v{{ game_version }}</div>
+                    </div>
+                    <div class="update-alert-desc">The execution layer requires Bloodborne 1.09. Click 'APPLY UPDATE 1.09' to select and merge your update patch PKG into this folder.</div>
+                </div>
+
                 <div class="extract-progress-card" data-if="is_extracting">
                     <div class="extract-header-row">
-                        <div class="extract-label">EXTRACTING GAME DUMP</div>
+                        <div class="extract-label">EXTRACTING / APPLYING UPDATE</div>
                         <div class="extract-percent">{{ extract_progress_pct }}%</div>
                     </div>
                     <div class="progress-bar-track">

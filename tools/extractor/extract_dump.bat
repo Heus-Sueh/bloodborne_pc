@@ -51,6 +51,13 @@ if /i "%EXT%"==".pkg" (
 
 :check_result
 echo ================================================================================
+for %%T in (CUSA03173 CUSA00900 CUSA00207 CUSA00208 CUSA00299 CUSA01363 CUSA03179 CUSA03014 CUSA03023) do (
+    if exist "%DEST_DIR%\%%T\eboot.bin" if exist "%DEST_DIR%\eboot.bin" (
+        echo [EXTRACT] Merging nested update files ^(%%T^) into game root...
+        xcopy /y /e /q "%DEST_DIR%\%%T\*" "%DEST_DIR%\"
+        rd /s /q "%DEST_DIR%\%%T"
+    )
+)
 if exist "%DEST_DIR%\eboot.bin" (
     echo [EXTRACT] SUCCESS: Found eboot.bin in %DEST_DIR%
 ) else if exist "%DEST_DIR%\CUSA03173\eboot.bin" (

@@ -120,7 +120,7 @@ elif [[ $IS_PKG -eq 1 ]]; then
 
     echo "[EXTRACT] Executing: $PKG_EXTRACTOR \"$SOURCE_FILE\" \"$DEST_DIR\""
     echo "[PROGRESS] 10|Analyzing PKG and decrypting PFS partition..."
-    "$PKG_EXTRACTOR" "$SOURCE_FILE" "$DEST_DIR" 2>&1 | tr '\r' '\n' | awk '
+    printf '\n' | "$PKG_EXTRACTOR" "$SOURCE_FILE" "$DEST_DIR" 2>&1 | tr '\r' '\n' | awk '
     /Extracting file [0-9]+ of [0-9]+/ {
         for (i=1; i<=NF; i++) {
             if ($i == "file") cur = $(i+1)
@@ -140,8 +140,16 @@ else
     exit 1
 fi
 
-# Locate extracted game root if nested under CUSA03173
+# Locate extracted game root if nested under CUSA03173 or merge nested update
 FINAL_GAME_DIR="$DEST_DIR"
+for title in CUSA03173 CUSA00900 CUSA00207 CUSA00208 CUSA00299 CUSA01363 CUSA03179 CUSA03014 CUSA03023; do
+    if [[ -d "$DEST_DIR/$title" && -f "$DEST_DIR/eboot.bin" && "$DEST_DIR" != *"/$title" ]]; then
+        echo "[EXTRACT] Merging nested update files ($title) into game root..."
+        cp -rf "$DEST_DIR/$title/"* "$DEST_DIR/"
+        rm -rf "$DEST_DIR/$title"
+    fi
+done
+
 if [[ -f "$DEST_DIR/CUSA03173/eboot.bin" ]]; then
     FINAL_GAME_DIR="$DEST_DIR/CUSA03173"
 elif [[ ! -f "$DEST_DIR/eboot.bin" ]]; then

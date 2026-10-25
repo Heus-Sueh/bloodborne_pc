@@ -62,10 +62,86 @@ void test_config_save_load() {
   std::cout << "PASS: test_config_save_load\n";
 }
 
+void test_game_version() {
+  assert(ConfigManager::GetGameVersion("").empty());
+  assert(ConfigManager::GetTitleId("").empty());
+  assert(!ConfigManager::IsUpdate109(""));
+
+  fs::path tmp = fs::temp_directory_path() / "bbport_test_version";
+  fs::create_directories(tmp / "sce_sys");
+
+  // Create a minimal mock param.sfo with APP_VER=01.09 and TITLE_ID=CUSA03173
+  // PSF header (20 bytes): magic "\0PSF" (4), version (4), key_table_offset (4), val_table_offset
+  // (4), count (4)
+  std::string sfo_data;
+  sfo_data.append("\0PSF", 4);
+  uint32_t ver = 0x00000101;
+  uint32_t key_off = 20 + 2 * 16; // 2 entries * 16 bytes each
+  std::string keys;
+  keys.append("APP_VER\0", 8);
+  keys.append("TITLE_ID\0", 9);
+  while (keys.size() % 4 != 0)
+    keys.push_back('\0');
+  uint32_t val_off = key_off + keys.size();
+  uint32_t count = 2;
+
+  sfo_data.append(reinterpret_cast<const char*>(&ver), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&key_off), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&val_off), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&count), 4);
+
+  std::string val1 = "01.09";
+  val1.push_back('\0');
+  std::string val2 = "CUSA03173";
+  val2.push_back('\0');
+
+  // Entry 0: APP_VER
+  uint16_t e0_key_off = 0;
+  uint16_t e0_fmt = 0x0204; // string
+  uint32_t e0_len = val1.size();
+  uint32_t e0_max_len = val1.size();
+  uint32_t e0_val_off = 0;
+  sfo_data.append(reinterpret_cast<const char*>(&e0_key_off), 2);
+  sfo_data.append(reinterpret_cast<const char*>(&e0_fmt), 2);
+  sfo_data.append(reinterpret_cast<const char*>(&e0_len), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&e0_max_len), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&e0_val_off), 4);
+
+  // Entry 1: TITLE_ID
+  uint16_t e1_key_off = 8;
+  uint16_t e1_fmt = 0x0204;
+  uint32_t e1_len = val2.size();
+  uint32_t e1_max_len = val2.size();
+  uint32_t e1_val_off = val1.size();
+  sfo_data.append(reinterpret_cast<const char*>(&e1_key_off), 2);
+  sfo_data.append(reinterpret_cast<const char*>(&e1_fmt), 2);
+  sfo_data.append(reinterpret_cast<const char*>(&e1_len), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&e1_max_len), 4);
+  sfo_data.append(reinterpret_cast<const char*>(&e1_val_off), 4);
+
+  // Key table
+  sfo_data.append(keys);
+  // Value table
+  sfo_data.append(val1);
+  sfo_data.append(val2);
+
+  std::ofstream sfo_file(tmp / "sce_sys" / "param.sfo", std::ios::binary);
+  sfo_file.write(sfo_data.data(), sfo_data.size());
+  sfo_file.close();
+
+  assert(ConfigManager::GetGameVersion(tmp.string()) == "01.09");
+  assert(ConfigManager::GetTitleId(tmp.string()) == "CUSA03173");
+  assert(ConfigManager::IsUpdate109(tmp.string()) == true);
+
+  fs::remove_all(tmp);
+  std::cout << "PASS: test_game_version\n";
+}
+
 int main() {
   test_default_config();
   test_validation();
   test_config_save_load();
+  test_game_version();
   std::cout << "All launcher tests passed successfully.\n";
   return 0;
 }

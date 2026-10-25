@@ -218,6 +218,84 @@ bool ConfigManager::ValidateGameDirectory(const std::string& path) {
   return true;
 }
 
+static int ReadSfoString(const fs::path& sfo_path, const char* key, char* out, size_t out_size) {
+  FILE* f = fopen(sfo_path.string().c_str(), "rb");
+  if (!f)
+    return 0;
+  unsigned char data[65536];
+  size_t n = fread(data, 1, sizeof(data), f);
+  fclose(f);
+  if (n < 20 || memcmp(data, "\0PSF", 4) != 0)
+    return 0;
+
+  uint32_t keys_offset, values_offset, count;
+  memcpy(&keys_offset, data + 8, 4);
+  memcpy(&values_offset, data + 12, 4);
+  memcpy(&count, data + 16, 4);
+
+  for (uint32_t i = 0; i < count && 20 + i * 16 + 16 <= n; ++i) {
+    const unsigned char* e = data + 20 + i * 16;
+    uint16_t key_off, format;
+    uint32_t length, offset;
+    memcpy(&key_off, e, 2);
+    memcpy(&format, e + 2, 2);
+    memcpy(&length, e + 4, 4);
+    memcpy(&offset, e + 12, 4);
+
+    if (keys_offset + key_off >= n || values_offset + offset + length > n)
+      continue;
+    const char* entry_key = (const char*)data + keys_offset + key_off;
+    if (strncmp(entry_key, key, n - (keys_offset + key_off)) != 0)
+      continue;
+
+    if (out && out_size > 0) {
+      size_t copy = (length < out_size - 1) ? length : (out_size - 1);
+      memcpy(out, data + values_offset + offset, copy);
+      out[copy] = '\0';
+      size_t actual_len = strlen(out);
+      while (actual_len > 0 && (out[actual_len - 1] == '\r' || out[actual_len - 1] == '\n' ||
+                                out[actual_len - 1] == ' ')) {
+        out[--actual_len] = '\0';
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+std::string ConfigManager::GetGameVersion(const std::string& path) {
+  if (path.empty())
+    return "";
+  fs::path p(path);
+  char ver[32] = {0};
+  if (ReadSfoString(p / "sce_sys" / "param.sfo", "APP_VER", ver, sizeof(ver))) {
+    return ver;
+  }
+  if (ReadSfoString(p / "dvdroot_ps4" / "sce_sys" / "param.sfo", "APP_VER", ver, sizeof(ver))) {
+    return ver;
+  }
+  return "";
+}
+
+std::string ConfigManager::GetTitleId(const std::string& path) {
+  if (path.empty())
+    return "";
+  fs::path p(path);
+  char title[32] = {0};
+  if (ReadSfoString(p / "sce_sys" / "param.sfo", "TITLE_ID", title, sizeof(title))) {
+    return title;
+  }
+  if (ReadSfoString(p / "dvdroot_ps4" / "sce_sys" / "param.sfo", "TITLE_ID", title,
+                    sizeof(title))) {
+    return title;
+  }
+  return "";
+}
+
+bool ConfigManager::IsUpdate109(const std::string& path) {
+  return GetGameVersion(path) == "01.09";
+}
+
 bool ConfigManager::ValidateFsr411(const std::string& directory, const std::string& output,
                                    int preset) {
   int w = 1920;
