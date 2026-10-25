@@ -4,11 +4,11 @@ This document details the features, architectural overhauls, and resilience impr
 
 ---
 
-## 1. 100% Native C++20 / SDL3 / RmlUi Launcher
+## 1. 100% Native C++23 / SDL3 / RmlUi Launcher
 
 The previous launcher implementation relied on Python scripts (`bbport_launcher.py`), external GUI bindings (PyQt/Tkinter), and interpreted subprocess management. 
 
-In this fork, the entire client launcher has been rewritten as a native, compiled C++20 binary:
+In this fork, the entire client launcher has been rewritten as a native, compiled C++23 binary:
 - **Zero Python Runtime Dependencies**: The launcher runs natively with `out/bb-launcher`, eliminating Python virtual environments, pip packages, and interpreter startup latency.
 - **SDL3 & Modern OpenGL Backend**: Window creation, input handling, and presentation run directly via SDL3 and OpenGL 3.3 Core.
 - **RmlUi 6.x Reactive Data Binding**: UI layout is defined in clean RML markup (`launcher/assets/launcher.rml`) and RCSS stylesheets (`launcher/assets/style.rcss`), bound directly to C++ view model properties via `Rml::DataModelHandle`.

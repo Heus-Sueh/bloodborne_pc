@@ -12,7 +12,7 @@ The codebase is organized into explicit, decoupled functional domains:
 bloodborne_pc/
 ├── src/                 # Native C11/C++23 Runtime Layer
 ├── core/                # C++23 Core Translation Engine (GPU, Vulkan, bbnet, upscalers)
-├── launcher/            # C++20 Client Launcher (SDL3, OpenGL 3.3, RmlUi 6.x)
+├── launcher/            # C++23 Client Launcher (SDL3, OpenGL 3.3, RmlUi 6.x)
 ├── tests/               # CTest automated test suites
 ├── tools/               # Offline extractors, diagnostic scripts, dump inspection
 ├── scripts/             # Deployment, packaging, and execution helpers
@@ -32,7 +32,7 @@ bloodborne_pc/
 
 - **`launcher/` (Client GUI)**:
   - Native standalone graphical client for game configuration, audio/display settings, save profiles, and process streaming.
-  - Standard: Modern **C++20** (`-std=c++20`). Zero Python/external runtime dependencies.
+  - Standard: Modern **C++23** (`-std=c++23`). Zero Python/external runtime dependencies.
 
 - **`tests/` (Verification Suites)**:
   - Automated integration, unit, and behavioral tests executed via CTest.

@@ -157,13 +157,13 @@ set_target_properties(bb-runner PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED
 target_include_directories(bb-runner PRIVATE . src)
 target_link_libraries(bb-runner PRIVATE Threads::Threads)
 
-# 3. bb-launcher (Native C++20 UI launcher)
+# 3. bb-launcher (Native C++23 UI launcher)
 add_executable(bb-launcher
     src/config_manager.cpp
     launcher/src/launcher_model.cpp
     launcher/src/main.cpp
 )
-set_target_properties(bb-launcher PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+set_target_properties(bb-launcher PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
 target_include_directories(bb-launcher PRIVATE . src launcher/src)
 target_link_libraries(bb-launcher PRIVATE
     rmlui
@@ -264,7 +264,7 @@ target_link_libraries(content-test PRIVATE Threads::Threads)
 add_test(NAME content COMMAND content-test)
 
 add_executable(launcher-test tests/test_launcher.cpp src/config_manager.cpp)
-set_target_properties(launcher-test PROPERTIES CXX_STANDARD 20)
+set_target_properties(launcher-test PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
 target_include_directories(launcher-test PRIVATE . src launcher/src)
 target_link_libraries(launcher-test PRIVATE Threads::Threads)
 add_test(NAME launcher COMMAND launcher-test)

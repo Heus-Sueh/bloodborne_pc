@@ -1,13 +1,13 @@
 # C++ & C Coding Standards
 
-This document establishes the architecture conventions, memory safety guidelines, and code quality standards for the **Bloodborne PC Native Port** codebase across the C11 runtime layer, C++23 GPU translation subsystem, and C++20 SDL3/RmlUi client launcher.
+This document establishes the architecture conventions, memory safety guidelines, and code quality standards for the **Bloodborne PC Native Port** codebase across the C11 runtime layer, C++23 GPU translation subsystem, and C++23 SDL3/RmlUi client launcher.
 
 ---
 
 ## 1. Language Standards & Dialects
 
 - **Core Runtime (`src/`)**: Written in strict **C11** (`-std=c11`). Focuses on zero-overhead OS virtualization, low-level POSIX/Linux syscall bridges, high-frequency synchronization, and flat memory image loading.
-- **Client Launcher (`launcher/`)**: Written in **C++20** (`-std=c++20`). Integrates SDL3 windowing, OpenGL 3.3 Core rendering context, and RmlUi reactive UI data models.
+- **Client Launcher (`launcher/`)**: Written in **C++23** (`-std=c++23`). Integrates SDL3 windowing, OpenGL 3.3 Core rendering context, and RmlUi reactive UI data models.
 - **Core Translation Engine (`core/`)**: Written in **C++23** (`-std=c++23`). Uses modern standard library features, standard algorithms, and Vulkan 1.3 abstractions.
 
 ---

@@ -12,7 +12,7 @@ bloodborne_pc/
 ├── core/                # C++23 Core Translation Engine (GNM/PM4 command processor, Vulkan translation, FSR/DLSS, bbnet)
 │   ├── bbnet/           # Online multiplayer subsystem (shadNet client, HTTPS, UPnP, BBSC seamless co-op)
 │   └── third_party/     # Submodules (fsr-vulkan, imgui, sirit)
-├── launcher/            # C++20 Client Launcher (SDL3, OpenGL 3.3 Core, RmlUi 6.x)
+├── launcher/            # C++23 Client Launcher (SDL3, OpenGL 3.3 Core, RmlUi 6.x)
 │   ├── src/             # Launcher controller, model, config persistence, process pipe streaming
 │   └── assets/          # RML templates, RCSS stylesheets, TrueType fonts
 ├── docs/                # Architecture documentation, ADRs, coding standards (100% English)
@@ -116,7 +116,7 @@ The purpose of architecture work is to make the next change easier, the behavior
 
 - **Runtime (`src/`):** Hybrid **C11** (`-std=c11`) / modern **C++23** (`-std=c++23`). Low-level PS4 guest ABI interception, syscall bridges, and assembly trampolines are strict C11 (`sysv_abi` / `extern "C"` where appropriate). Runtime subsystems, PAL, and high-level services use modern C++23.
 - **Core Translation Engine (`core/`):** Modern **C++23** (`-std=c++23`).
-- **Launcher (`launcher/`):** Modern **C++20** (`-std=c++20`). Zero Python dependencies.
+- **Launcher (`launcher/`):** Modern **C++23** (`-std=c++23`). Zero Python dependencies.
 - **Documentation:** All documentation must be maintained in **English**. Do not create or commit localized `.ru.md` or non-English files.
 
 Apply C++ rules only to C++ code. Do not introduce C++ constructs into strict C11 files, change guest ABI contracts casually, or apply C++ ownership guidance to C code without translating it into an appropriate C design. Preserve the language standard already required by each target; do not raise a target's standard just to use a newer feature.

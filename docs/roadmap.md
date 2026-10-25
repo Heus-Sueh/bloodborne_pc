@@ -15,7 +15,7 @@ This document outlines the milestones and roadmap for the native PC execution la
    - Built-in temporal motion vector synthesis for AMD FSR 3.1, FSR 4.x, and DLSS.
 
 3. **Modern PC Client & Launcher** (Complete)
-   - Rewritten launcher architecture in C++20, SDL3, and RmlUi.
+   - Rewritten launcher architecture in C++23, SDL3, and RmlUi.
    - Fully responsive, DPI-aware interface with native folder selection and real-time process monitoring.
    - Virtual filesystem overlay for mod loading and seamless configuration persistence.
 

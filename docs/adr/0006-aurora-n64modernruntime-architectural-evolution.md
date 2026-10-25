@@ -52,7 +52,7 @@ We adopt proven architectural patterns from two landmark modern console compatib
 4. **Preserve Language & Toolchain Boundaries**:
    - Runtime core (`src/`): Strict **C11** (`-std=c11`).
    - GPU translation (`gpu/`): Modern **C++23** (`-std=c++23`).
-   - Launcher client (`launcher/`): Modern **C++20** (`-std=c++20`).
+   - Launcher client (`launcher/`): Modern **C++23** (`-std=c++23`).
 
 ## Consequences
 

@@ -184,7 +184,7 @@ just format
 
 This fork introduces significant architectural, usability, and quality improvements:
 
-- 🚀 **100% Native C++20 / SDL3 / RmlUi Launcher:** Replaced all legacy Python GUI scripts with a compiled, instant-launch native client (`out/bb-launcher`).
+- 🚀 **100% Native C++23 / SDL3 / RmlUi Launcher:** Replaced all legacy Python GUI scripts with a compiled, instant-launch native client (`out/bb-launcher`).
 - 📦 **Integrated PKG & ISO Extraction:** Built-in userspace extraction for PS4 PKG archives (AES-128-XTS PFS decryption based on [ShadPs4Plus](https://github.com/AzaharPlus/shadPS4Plus) and [ShadPKG](https://github.com/seregonwar/ShadPKG)) and ISO disc images (`bsdtar` / `7z`).
 - ⚙️ **TOML Configuration Format:** Fully migrated from legacy `.ini` to typed `.toml` (`bbport.toml`).
 - 🛠️ **Cross-Platform Justfile:** Unified build, test, lint, format, run, and extraction recipes via `just`.
@@ -202,7 +202,7 @@ See [`docs/fork-enhancements.md`](docs/fork-enhancements.md) for full technical 
 All contributions must follow our coding conventions:
 - **C11** for low-level runtime components (`src/`).
 - **C++23** for GPU translation and networking (`core/`).
-- **C++20** for client launcher applications (`launcher/`).
+- **C++23** for client launcher applications (`launcher/`).
 - Strict RAII for system resources, explicit synchronization, and zero raw owning pointers.
 
 Refer to [`docs/cpp-coding-standards.md`](docs/cpp-coding-standards.md) and [`AGENTS.md`](AGENTS.md).

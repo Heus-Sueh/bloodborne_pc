@@ -17,7 +17,7 @@ The architectural layout incorporates design principles inspired by **Aurora** (
 ```
 ┌────────────────────────────────────────────────────────┐
 │                   Launcher Frontend                     │
-│       (C++20, SDL3, RmlUi 6.x, bbport.toml, VFS UI)     │
+│       (C++23, SDL3, RmlUi 6.x, bbport.toml, VFS UI)     │
 └───────────────────────────┬────────────────────────────┘
                             │
 ┌───────────────────────────▼────────────────────────────┐
@@ -100,5 +100,5 @@ The PAL resides in `src/platform/` and exposes a pure C11 API:
 
 1. **C11 Strictness**: The runtime layer (`src/`) must strictly compile under `-std=c11` without C++ dependencies.
 2. **C++23 Modernity**: The core translation engine (`core/`) utilizes modern C++23 features (concepts, ranges, std::span, modules where applicable).
-3. **C++20 Launcher**: The graphical client (`launcher/`) utilizes modern C++20 with SDL3 and RmlUi 6.x.
+3. **C++23 Launcher**: The graphical client (`launcher/`) utilizes modern C++23 with SDL3 and RmlUi 6.x.
 4. **Documentation Integrity**: All technical documentation, code comments, and ADRs are maintained in 100% English.

@@ -17,7 +17,7 @@ Definitive guidelines for clean, high-performance, and memory-safe C++ (C++20/C+
 
 Projects often feature distinct subsystem tiers with varying language standards:
 - **Core Native Runtime**: Strict **C11** (`-std=c11`). Focuses on flat memory image virtualization, low-overhead POSIX/Linux syscall wrappers, and zero-overhead execution.
-- **Client Application / UI**: Modern **C++20** (`-std=c++20`). Combines platform windowing (SDL3, GLFW), OpenGL/Vulkan contexts, and reactive UI models (e.g. RmlUi).
+- **Client Application / UI**: Modern **C++23** (`-std=c++23`). Combines platform windowing (SDL3, GLFW), OpenGL/Vulkan contexts, and reactive UI models (e.g. RmlUi).
 - **GPU Translation / High-Performance Subsystems**: Modern **C++23** (`-std=c++23`). Leverages standard library improvements, standard concepts, ranges, and Vulkan 1.3 features.
 
 ### Guidelines:
