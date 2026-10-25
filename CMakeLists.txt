@@ -66,12 +66,12 @@ target_link_libraries(rmlui PUBLIC
 set(RUNTIME_C_SOURCES
     src/runtime_host.c
     src/runtime_thread.c
-    src/runtime.c
 )
 
 set(RUNTIME_CPP_SOURCES
     src/config_manager.cpp
     src/loader.cpp
+    src/runtime.cpp
     src/runtime_ajm.cpp
     src/runtime_audio.cpp
     src/runtime_compat.cpp
