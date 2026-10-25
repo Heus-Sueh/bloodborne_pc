@@ -25,7 +25,7 @@ format:
 
 # Launch graphical launcher (RmlUi C++20 launcher)
 launcher:
-    {{ if os() == "windows" { "./out/bb-launcher.exe" } else { "./launcher/bb-launcher.sh" } }}
+    {{ if os() == "windows" { "./out/bb-launcher.exe" } else { "./out/bb-launcher" } }}
 
 # Run game directly
 run *ARGS:

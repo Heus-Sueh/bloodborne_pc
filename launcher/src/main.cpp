@@ -3,7 +3,7 @@
 #endif
 
 #include "config_manager.hpp"
-#include "launcher_model.h"
+#include "launcher_model.hpp"
 #include <RmlUi/Core.h>
 #include <RmlUi_Include_GL3.h>
 #include <RmlUi_Platform_SDL.h>

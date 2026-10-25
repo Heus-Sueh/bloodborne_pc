@@ -1,4 +1,4 @@
-#include "launcher_model.h"
+#include "launcher_model.hpp"
 #include <RmlUi/Core/Element.h>
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_dialog.h>

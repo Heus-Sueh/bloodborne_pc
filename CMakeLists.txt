@@ -274,6 +274,7 @@ find_program(CLANG_FORMAT_BIN clang-format)
 if(CLANG_FORMAT_BIN)
     file(GLOB FORMAT_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/launcher/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/launcher/src/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/launcher/src/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_launcher.cpp"
     )
