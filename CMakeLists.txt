@@ -71,7 +71,6 @@ set(RUNTIME_C_SOURCES
     src/runtime_ngs2.c
     src/runtime_pad.c
     src/runtime_thread.c
-    src/runtime_toypad.c
     src/runtime.c
 )
 
@@ -94,6 +93,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_sema.cpp
     src/runtime_services.cpp
     src/runtime_subsystems.cpp
+    src/runtime_toypad.cpp
     src/runtime_vfs.cpp
 )
 
