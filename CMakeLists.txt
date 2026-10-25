@@ -64,7 +64,6 @@ target_link_libraries(rmlui PUBLIC
 
 # Runtime Subsystems & Services
 set(RUNTIME_C_SOURCES
-    src/runtime_file.c
     src/runtime_host.c
     src/runtime_memory.c
     src/runtime_pad.c
@@ -80,6 +79,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_compat.cpp
     src/runtime_content.cpp
     src/runtime_error.cpp
+    src/runtime_file.cpp
     src/runtime_kernel.cpp
     src/runtime_mutex.cpp
     src/runtime_net.cpp
@@ -237,8 +237,8 @@ target_include_directories(runtime-test PRIVATE . src)
 target_link_libraries(runtime-test PRIVATE bbruntime bbgpu atrac9 PkgConfig::SDL3 PkgConfig::Vulkan Threads::Threads m ${CMAKE_DL_LIBS})
 add_test(NAME runtime COMMAND runtime-test)
 
-add_executable(file-mods-test tests/test_file_mods.c src/runtime_vfs.cpp)
-set_target_properties(file-mods-test PROPERTIES C_STANDARD 11)
+add_executable(file-mods-test tests/test_file_mods.cpp src/runtime_vfs.cpp)
+set_target_properties(file-mods-test PROPERTIES CXX_STANDARD 23)
 set_source_files_properties(src/runtime_vfs.cpp PROPERTIES LANGUAGE CXX CXX_STANDARD 23)
 target_include_directories(file-mods-test PRIVATE . src)
 target_link_libraries(file-mods-test PRIVATE Threads::Threads)
