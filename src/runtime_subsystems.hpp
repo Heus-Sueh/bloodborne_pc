@@ -14,6 +14,7 @@ enum class SubsystemId : uint8_t {
     VFS,
     Input,
     Audio,
+    SaveData,
     Count
 };
 

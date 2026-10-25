@@ -170,12 +170,14 @@ if [[ ${1:-} == --test ]]; then
     out/pad-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_platform.cpp src/runtime_platform.cpp -o out/platform-test
     out/platform-test
-    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.cpp src/runtime_subsystems.cpp -o out/subsystems-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.cpp src/runtime_subsystems.cpp src/runtime_savedata.cpp -o out/subsystems-test
     out/subsystems-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_vfs.cpp src/runtime_vfs.cpp -o out/vfs-test
     out/vfs-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_loader.cpp src/loader.cpp -o out/loader-test
     out/loader-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_savedata.cpp src/runtime_savedata.cpp -o out/savedata-test
+    out/savedata-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc -I. tests/test_file_mods.c out/runtime_vfs.o -lstdc++ -o out/file-mods-test

@@ -1,4 +1,5 @@
 #include "runtime_subsystems.hpp"
+#include "runtime.h"
 #include <cassert>
 #include <iostream>
 
@@ -7,6 +8,11 @@ extern "C" {
 void runtime_memory_reserve(void) {}
 void runtime_memory_report(void) {}
 void runtime_mutex_report(void) {}
+const char* runtime_file_user_dir(void) { return "/tmp"; }
+int runtime_file_mount(const char*, const char*) { return 0; }
+void runtime_file_unmount(const char*) {}
+void runtime_register_exports(const RuntimeExport*, size_t) {}
+uintptr_t runtime_registry_resolve(const char*, int) { return 0; }
 }
 
 int main() {

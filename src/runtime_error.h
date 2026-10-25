@@ -49,6 +49,10 @@ enum {
     ORBIS_ECANCELED = ORBIS_ERR(85),
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Convert host errno to guest FreeBSD errno (1..85) */
 int32_t runtime_guest_errno(int host_errno);
 
@@ -59,5 +63,9 @@ int32_t orbis_error_from_errno(int host_errno);
 static inline int32_t orbis_error_from_timed(int status) {
     return orbis_error_from_errno(status);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

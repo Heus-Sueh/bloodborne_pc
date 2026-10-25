@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include "runtime_error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum ExportKind {
     EXPORT_FUNCTION = 0,
     EXPORT_DATA = 1,
@@ -32,5 +36,9 @@ const char *runtime_symbol(const char *nid);
 
 /* Lookup helper for specific tables */
 uintptr_t runtime_lookup(const RuntimeExport *table, size_t count, const char *nid);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

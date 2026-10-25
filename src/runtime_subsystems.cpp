@@ -1,4 +1,5 @@
 #include "runtime_subsystems.hpp"
+#include "runtime_savedata.hpp"
 #include <iostream>
 #include <ranges>
 
@@ -57,6 +58,14 @@ SubsystemManager::SubsystemManager() {
         .init = [](uint64_t) { return 0; },
         .shutdown = []() {},
         .dump_stats = []() {},
+        .status = SubsystemStatus::Uninitialized,
+    };
+
+    subsystems_[static_cast<size_t>(SubsystemId::SaveData)] = SubsystemContract{
+        .name = "SaveData",
+        .init = [](uint64_t) { return 0; },
+        .shutdown = []() { bb::savedata::SaveDataManager::Instance().Reset(); },
+        .dump_stats = []() { bb::savedata::SaveDataManager::Instance().Report(); },
         .status = SubsystemStatus::Uninitialized,
     };
 }

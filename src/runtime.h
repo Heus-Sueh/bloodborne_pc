@@ -10,6 +10,10 @@
 #include <setjmp.h>
 #include "runtime_error.h"
 #include "runtime_registry.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* Recovery point for speculative guest memory reads on this thread (probe.c fault handler). */
 extern __thread sigjmp_buf *runtime_fault_recover;
 /* Restarts the game (in-game settings menu, render resolution change). */
@@ -147,4 +151,9 @@ void runtime_ngs2_report(void);
 uintptr_t runtime_toypad_resolve(const char *name);
 void runtime_toypad_lights(uint32_t out[3]);
 void runtime_toypad_report(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
