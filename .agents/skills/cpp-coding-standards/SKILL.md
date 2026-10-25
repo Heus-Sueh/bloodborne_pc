@@ -3,7 +3,7 @@ name: cpp-coding-standards
 description: >-
   C++ & C coding standards for modern C++20/C++23 subsystems and C11 low-level runtimes:
   resource management (RAII), handle ownership, concurrency & thread synchronization,
-  clean dialect boundaries, RmlUi UI conventions, and static analysis tooling.
+  clean dialect boundaries, and static analysis tooling.
   Use when writing, refactoring, or auditing C++ or C code.
 ---
 
@@ -101,28 +101,7 @@ Projects often feature distinct subsystem tiers with varying language standards:
 
 ---
 
-## 4. UI Architecture & RmlUi Guidelines
-
-When implementing or modifying native UI with RmlUi:
-1. **Universal Block Reset**:
-   RmlUi has no default user-agent stylesheet; elements default to `display: inline`. Structural elements must have:
-   ```css
-   div, p, h1, h2, h3, h4, section, header, footer { display: block; box-sizing: border-box; }
-   ```
-2. **Single-String Font Families**:
-   RCSS `font-family` accepts only a single string identifier (e.g. `font-family: Noto Sans;`), never comma-separated lists.
-3. **Strict XML Validation**:
-   All RML tags must be explicitly closed (e.g., `<input type="text" />`, `<br/>`, `<img src="..." />`).
-4. **Data Binding**:
-   Always notify the data model when updating fields bound to the UI:
-   ```cpp
-   settings.output_res = new_resolution;
-   model_handle_.DirtyVariable("output_res");
-   ```
-
----
-
-## 5. Naming & Formatting Conventions
+## 4. Naming & Formatting Conventions
 
 - **Types, Structs & Classes**: `PascalCase` (e.g., `LauncherModel`, `ConfigManager`).
 - **Public Domain Functions & Methods**: `PascalCase` (`LaunchGame`, `ValidateGameDirectory`).
@@ -134,7 +113,7 @@ When implementing or modifying native UI with RmlUi:
 
 ---
 
-## 6. Static Analysis & Linting
+## 5. Static Analysis & Linting
 
 Projects should provide automated validation commands:
 ```bash
