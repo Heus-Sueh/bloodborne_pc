@@ -18,7 +18,15 @@ fi
 data=${BB_DATA_DIR:-.}
 out=$data/out
 mkdir -p "$out"
-export BB_CONFIG=${BB_CONFIG:-$data/bbport.ini}
+if [[ -z ${BB_CONFIG:-} ]]; then
+    if [[ -f $data/bbport.toml ]]; then
+        export BB_CONFIG=$data/bbport.toml
+    elif [[ -f $data/bbport.ini ]]; then
+        export BB_CONFIG=$data/bbport.ini
+    else
+        export BB_CONFIG=$data/bbport.toml
+    fi
+fi
 # GPU paths are initialized when libbbgpu is loaded, before bbgpu_init receives --user.
 # Select the same user directory now, including for an AppImage or a separate save profile.
 export BB_GPU_USER_DIR=${BB_GPU_USER_DIR:-${BB_USER_DIR:-$data/user}}
@@ -111,7 +119,7 @@ if [[ -n ${scaled_output:-} ]]; then
     # Bash builtins only: the AppImage's PATH has no sed/grep (a missing one ended run.sh silently).
     if [[ -z $live && -f $BB_CONFIG ]]; then
         while IFS= read -r line || [[ -n $line ]]; do
-            [[ $line =~ ^live_resolution=([01]|auto)$ ]] && live=${BASH_REMATCH[1]}
+            [[ $line =~ ^live_resolution[[:space:]]*=[[:space:]]*[\"\']?([01]|auto)[\"\']? ]] && live=${BASH_REMATCH[1]}
         done < "$BB_CONFIG"
     fi
     [[ -z $live ]] && live=auto

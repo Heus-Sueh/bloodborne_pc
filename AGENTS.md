@@ -29,25 +29,35 @@ bloodborne_pc/
 
 ### Building the Project
 ```bash
-# Build the native launcher and GPU runtime
+# Using Justfile (cross-platform runner)
+just build
+just test
+just lint
+just format
+
+# Or unified shell script
 ./build.sh
-
-# Run unit tests
 ./build.sh --test
+./build.sh --lint
+./build.sh --format
 
-# Run launcher standalone test
-./out/launcher-test
+# Extract game dumps (PKG / ISO)
+just extract /path/to/game.pkg ./games/CUSA03173
+# or
+./tools/extractor/extract_dump.sh /path/to/game.pkg ./games/CUSA03173
 ```
 
 ### Running the Launcher & Game
 ```bash
 # Launch the native graphical interface
-./launcher/bb-launcher.sh
-# or
-./out/bb-launcher
+just launcher
+# or: ./launcher/bb-launcher.sh
+# or: ./out/bb-launcher
 
-# Launch game directly (requires valid game directory with eboot.bin)
-./run.sh
+# Launch game directly (requires valid game directory in bbport.toml)
+just run
+# or: ./run.sh
+# or: run.bat (Windows)
 ```
 
 ---

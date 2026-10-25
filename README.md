@@ -1,69 +1,123 @@
-# Bloodborne PC Port
+<div align="center">
+  <h1>Bloodborne PC Port</h1>
+  <p><strong>Native Linux &amp; Windows Execution Layer for Bloodborne (PS4)</strong></p>
 
-[![Language](https://img.shields.io/badge/Language-C11%20%2F%20C%2B%2B20%20%2F%20C%2B%2B23-blue.svg)](docs/cpp-coding-standards.md)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20x86--64-orange.svg)]()
-[![Graphics](https://img.shields.io/badge/Graphics-Vulkan%201.3-red.svg)]()
-[![UI](https://img.shields.io/badge/Launcher-SDL3%20%2B%20RmlUi-green.svg)]()
+  <p align="center">
+    <a href="docs/cpp-coding-standards.md">Coding Standards</a>
+    •
+    <a href="docs/fork-enhancements.md">Fork Enhancements</a>
+    •
+    <a href="AGENTS.md">Agent Guidelines</a>
+    •
+    <a href="bbport.toml.example">Config Template</a>
+  </p>
 
-A native, high-performance Linux PC port of *Bloodborne* (PlayStation 4, CUSA03173 / CUSA00900, update 1.09). 
-
-The game's original x86-64 executable executes directly on host hardware without CPU emulation or instruction translation layers. System calls and OS services are fulfilled by a dedicated native C11 runtime, while PS4 GPU command buffers (GNM/PM4) are translated on-the-fly into native Vulkan 1.3 commands.
+  <p align="center">
+    <img src="https://img.shields.io/badge/Language-C11%20%2F%20C%2B%2B20%20%2F%20C%2B%2B23-blue.svg" alt="Language" />
+    <img src="https://img.shields.io/badge/Platform-Linux%20x86--64%20%7C%20Windows-orange.svg" alt="Platform" />
+    <img src="https://img.shields.io/badge/Graphics-Vulkan%201.3-red.svg" alt="Vulkan" />
+    <img src="https://img.shields.io/badge/Launcher-SDL3%20%2B%20RmlUi-green.svg" alt="Launcher" />
+    <img src="https://img.shields.io/badge/Config-TOML-purple.svg" alt="TOML" />
+  </p>
+</div>
 
 ---
 
+# Overview
+
+**Bloodborne PC** is an x86-64 native execution layer for *Bloodborne* (PlayStation 4, CUSA03173 / CUSA00900, update 1.09).
+
+Unlike traditional emulators, the game's original x86-64 machine code executes directly on host CPU cores without instruction translation or JIT compilation. PS4 system libraries and POSIX/kernel interfaces are bridged by a lightweight native C11 runtime, while PS4 GPU command buffers (GNM/PM4) are dynamically translated into modern Vulkan 1.3 commands.
+
 > [!IMPORTANT]
-> **No copyrighted assets are provided.** You must supply your own legally obtained dump of *Bloodborne* with update 1.09 (any retail SKU, such as US CUSA00900 or EU GOTY CUSA03173).
+> **No copyrighted assets are provided.** You must supply your own legally obtained dump of *Bloodborne* with update 1.09 (retail CUSA00900 or GOTY CUSA03173).
 > This project is an independent community development and is not affiliated with Sony Interactive Entertainment, FromSoftware, or AMD.
 
 > [!IMPORTANT]
-> **Graphics Requirements:** Requires an x86-64 Linux environment with a GPU supporting **Vulkan 1.3+** (AMD RDNA/GCN, NVIDIA Pascal+, or modern Intel Arc/Iris Xe).
+> **Hardware Requirements:** Requires an x86-64 CPU and a GPU with full **Vulkan 1.3** support (AMD RDNA/GCN, NVIDIA Pascal or newer, Intel Arc / Iris Xe).
 
 ---
 
-## Setup & Quick Start
+# Setup & Installation
 
-1. **Dump Your Game:** Dump your legally purchased copy of *Bloodborne* (version 1.09) from your PS4 console. The directory must contain `eboot.bin` and the `dvdroot_ps4/` asset folder.
-2. **Build or Download the Launcher:**
-   ```bash
-   ./build.sh
-   ./launcher/bb-launcher.sh
-   ```
-3. **Configure Paths:** In the launcher interface, click **Game Directory** to select your dumped game folder using the native system folder chooser.
-4. **Hunt:** Click **START THE HUNT** to launch into Yharnam!
+### 1. Dump Your Game
+
+You must dump your own legally acquired copy of *Bloodborne* from your PlayStation 4 console. Both raw folder dumps, Fake Packages (`.pkg`), and disc images (`.iso`) are supported.
+
+The target directory structure must contain:
+```text
+CUSA03173/
+├── eboot.bin
+├── dvdroot_ps4/
+│   ├── shader/
+│   │   └── gxshader.shaderbnd.dcx
+│   └── ...
+└── sce_sys/
+```
+
+### 2. Built-in Dump Extraction (PKG & ISO)
+
+You can extract your `.pkg` or `.iso` dump directly through the graphical launcher or via the CLI:
+
+- **Via Launcher**: In the **The Hunt** tab, click **EXTRACT (PKG / ISO)**, select your game dump, and the launcher will decrypt, unpack, and configure the game directory automatically.
+- **Via Justfile**:
+  ```bash
+  just extract /path/to/Bloodborne.pkg ./games/CUSA03173
+  # or
+  just extract /path/to/Bloodborne.iso ./games/CUSA03173
+  ```
+
+### 3. Launching
+
+Start the graphical launcher:
+```bash
+just launcher
+# or
+./launcher/bb-launcher.sh
+```
+
+Or launch the game directly:
+```bash
+just run
+# or
+./run.sh
+```
 
 ---
 
-## Features & Enhancements
+# Configuration
 
-- **Direct Native Execution:** Zero CPU emulation overhead. The game's x86-64 machine code runs at native speed directly on host CPU cores.
-- **Decoupled Multi-Threaded GPU Pipeline:** GNM/PM4 command buffer decoding and Vulkan draw recording are distributed across parallel worker threads, eliminating single-core bottlenecks.
-- **Unlocked Framerate:** In-engine simulation hooks synchronize physics to actual frame deltas (~90 FPS at 4K, ~150 FPS at 1440p on modern GPUs; toggle 30 FPS cap anytime with **F3**).
-- **Arbitrary Aspect Ratios:** Seamless live support for 16:9, 16:10, 21:9, and 32:9 ultrawide with HUD anchoring and cinematic adaptation.
-- **Full Keyboard & Mouse Camera Control:** Direct mouse look turning, context-sensitive cursor in menus, Dark Souls III style bindings, and dynamic PlayStation/Xbox controller prompts.
-- **Temporal Motion Reconstruction:** Built-in motion vector generation pipeline feeding AMD FSR 3.1, FSR 4 (INT8/FP8), and NVIDIA DLSS.
-- **Online Multiplayer & Seamless Co-op:** Built-in support for **Seamless Hunt** (BBSC co-op for up to 5 hunters) and **The Hunter's Dream** pools.
-- **Virtual Mod Filesystem:** Case-insensitive mod overlay (`mods/`) that seamlessly overrides game assets without touching the original dump.
+All configuration is stored in typed, modern **TOML** format (`bbport.toml`). The launcher automatically creates and maintains this file.
+
+```toml
+# Bloodborne PC Port Configuration
+game_dir = "/path/to/CUSA03173"
+user_dir = "user"
+mods_dir = "mods"
+output_res = "2560x1440"
+live_resolution = "auto"
+fullscreen = false
+borderless = false
+vsync = true
+fps_limit = 60
+upscaler = "fsr"
+preset = 0
+online_pool = "offline"
+online_server = "play.seamlesshunt.com:31313"
+mouse_look = true
+mouse_sensitivity = 1.0
+mouse_invert_y = false
+```
+
+See [`bbport.toml.example`](bbport.toml.example) for a full list of configuration keys.
 
 ---
 
-## Fork Enhancements & Additions
+# Building
 
-This fork introduces a major modern overhaul to the user interface, system integration, and build reliability:
+This project utilizes a unified cross-platform workflow powered by [`just`](https://github.com/casey/just) and `build.sh`.
 
-- 🚀 **100% Native C++20 / SDL3 / RmlUi Launcher:** Completely replaced all legacy Python launcher dependencies (`bbport_launcher.py`, PyQt/Tkinter) with a compiled, instant-launch native client (`out/bb-launcher`).
-- 📐 **Adaptive, Tiling-Friendly Layout:** Responsive layout engineered with proportional table-cell scaling that seamlessly handles window resizing, 4K scaling, and tiling window managers (Hyprland, Sway, i3).
-- 📁 **Native OS Folder Choosers:** Integrated `SDL_ShowOpenFolderDialog` (with zenity fallback) allowing one-click directory selection by clicking directly on path labels and textboxes.
-- 💻 **Interactive Collapsible Console Drawer:** Integrated live terminal drawer streaming process stdout and stderr in real-time through non-blocking UNIX pipes.
-- 📋 **Integrated Log Actions:** One-click log copying with transient visual confirmation (`COPIED!`), native file save dialogs, and log clearing.
-- 🛡️ **Resilient CMake Build System:** Added automatic `FetchContent` fallbacks for Khronos `Vulkan-Headers`, `VulkanMemoryAllocator` (VMA), `tsl-robin-map`, and `magic_enum`, enabling smooth builds even on minimal Linux installations.
-
-See [docs/fork-enhancements.md](docs/fork-enhancements.md) for full technical architectural details.
-
----
-
-## Building from Source
-
-### 1. Install Dependencies
+### Dependencies
 
 #### Arch Linux / Omarchy:
 ```bash
@@ -81,39 +135,71 @@ sudo apt-get update && sudo apt-get install -y \
     libavcodec-dev libavformat-dev libprotobuf-dev libminiupnpc-dev
 ```
 
-#### NixOS:
-Run inside the provided environment:
+#### Windows (MSYS2 CLANG64):
+Install [MSYS2](https://www.msys2.org/) and run from the `CLANG64` environment:
 ```bash
-nix-shell --run "./build.sh"
+pacman -S --needed mingw-w64-clang-x86_64-clang \
+    mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-ninja \
+    mingw-w64-clang-x86_64-pkgconf mingw-w64-clang-x86_64-vulkan-loader \
+    mingw-w64-clang-x86_64-sdl3 mingw-w64-clang-x86_64-freetype \
+    mingw-w64-clang-x86_64-boost mingw-w64-clang-x86_64-robin-map \
+    mingw-w64-clang-x86_64-zydis mingw-w64-clang-x86_64-xxhash \
+    mingw-w64-clang-x86_64-ffmpeg
 ```
 
-### 2. Compile
+### Build Commands
 
 ```bash
-# Compile client launcher, GPU layer, and runtime
-./build.sh
+# Build native runtime, GPU translation layer, and launcher
+just build
+# or: ./build.sh
 
-# Run automated unit test suite
-./build.sh --test
+# Run comprehensive test suite
+just test
+# or: ./build.sh --test
+
+# Run static analysis and formatting check
+just lint
+# or: ./build.sh --lint
+
+# Automatically format C/C++ files
+just format
+# or: ./build.sh --format
 ```
 
 ---
 
-## Documentation
+# Fork Enhancements & Additions
 
-- [AGENTS.md](AGENTS.md) — Autonomous agent instructions and architecture guidelines.
-- [C++ & C Coding Standards](docs/cpp-coding-standards.md) — Coding conventions, RAII rules, and RmlUi guidelines.
-- [Fork Enhancements](docs/fork-enhancements.md) — Complete overview of additions in this fork.
-- [Modifications Guide](docs/MODS.md) — Virtual filesystem layout and mod installation.
-- [Motion Vector Architecture](docs/motion_vectors.md) — Mathematical reconstruction of motion vectors.
-- [Parallel GPU Pipeline](docs/parallel_gpu.md) — Design notes on multi-threaded PM4 decoding.
-- [Temporal Upscaler Pipeline](docs/upscaler.md) — Temporal AA, FSR 3.1/4, and DLSS integration.
+This fork introduces significant architectural, usability, and quality improvements:
+
+- 🚀 **100% Native C++20 / SDL3 / RmlUi Launcher:** Replaced all legacy Python GUI scripts with a compiled, instant-launch native client (`out/bb-launcher`).
+- 📦 **Integrated PKG & ISO Extraction:** Built-in userspace extraction for PS4 PKG archives (AES-128-XTS PFS decryption based on [ShadPs4Plus](https://github.com/AzaharPlus/shadPS4Plus) and [ShadPKG](https://github.com/seregonwar/ShadPKG)) and ISO disc images (`bsdtar` / `7z`).
+- ⚙️ **TOML Configuration Format:** Fully migrated from legacy `.ini` to typed `.toml` (`bbport.toml`).
+- 🛠️ **Cross-Platform Justfile:** Unified build, test, lint, format, run, and extraction recipes via `just`.
+- 🪟 **Preliminary Windows Support:** Win32 synchronization layer (`src/host_sync.h`), virtual memory management (`src/win32_memory.c/.h`), and Windows launchers (`run.bat`, `setup.bat`).
+- 📐 **Adaptive Tiling Layout:** Fully responsive UI designed for tiling window managers (Hyprland, Sway, i3) with native OS file dialogs and live log streaming.
+- 🛡️ **Coding Standards & Static Analysis:** Enforces modern RAII and C++ guidelines (`cpp-coding-standards`, `.clang-format`, `.clang-tidy`).
+- 🌐 **100% English Documentation:** Cleaned and standardized all documentation and comments in English.
+
+See [`docs/fork-enhancements.md`](docs/fork-enhancements.md) for full technical documentation.
 
 ---
 
-## Credits & Acknowledgements
+# Coding Standards
 
-- **FromSoftware & Sony Interactive Entertainment** for creating *Bloodborne*.
-- The **shadPS4** development team for pioneer research in PS4 GPU translation.
-- The **BBSC & Seamless Hunt** community for online co-op protocol developments.
-- Inspired by modern native game decompilation projects like [Dusklight](https://github.com/TwilitRealm/dusklight).
+All contributions must follow our coding conventions:
+- **C11** for low-level runtime components (`src/`).
+- **C++23** for GPU translation and networking (`gpu/`).
+- **C++20** for client launcher applications (`launcher/`).
+- Strict RAII for system resources, explicit synchronization, and zero raw owning pointers.
+
+Refer to [`docs/cpp-coding-standards.md`](docs/cpp-coding-standards.md) and [`AGENTS.md`](AGENTS.md).
+
+---
+
+# Credits & License
+
+- Based on the native Linux execution layer for Bloodborne and the shadPS4 translation project.
+- PKG extraction methodology derived from [ShadPs4Plus](https://github.com/AzaharPlus/shadPS4Plus) and [ShadPKG](https://github.com/seregonwar/ShadPKG).
+- Licensed under the **GNU General Public License v2.0 or later** (GPL-2.0-or-later).

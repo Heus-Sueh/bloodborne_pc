@@ -1,0 +1,17 @@
+# Bloodborne PC Port Configuration
+game_dir = ""
+user_dir = "user"
+mods_dir = "mods"
+output_res = "1920x1080"
+live_resolution = "auto"
+fullscreen = false
+borderless = false
+vsync = true
+fps_limit = 60
+upscaler = "fsr"
+preset = 0
+online_pool = "offline"
+online_server = "play.seamlesshunt.com:31313"
+mouse_look = true
+mouse_sensitivity = 1.0
+mouse_invert_y = false

@@ -42,6 +42,18 @@ if ! echo '#include <boost/container/small_vector.hpp>' | $CXX -x c++ -E - >/dev
 fi
 read -r -a includes <<< "$(pkg-config --cflags vulkan sdl3)"
 read -r -a libraries <<< "$(pkg-config --libs vulkan sdl3)"
+# Windows: MSYS2 CLANG64 shell. The GPU library is static there, the runtime adds its
+# Win32 files (src/win32_*.c), runs without pthreads, and the executable keeps a console
+# and bottom-up addresses (guest-visible host memory must stay below 1 TiB).
+windows=
+case $(uname -s) in MINGW*|MSYS*|CYGWIN*) windows=1 ;; esac
+cstd=(-std=c11)
+threads=(-pthread)
+if [[ -n $windows ]]; then
+    threads=()
+    libraries=("${libraries[@]/-mwindows/-mconsole}")
+    cstd=(-std=gnu11 -D_FILE_OFFSET_BITS=64 -D_WIN32_WINNT=0x0A00)
+fi
 # GPU library (shadPS4 video core + drivers), built by CMake into out/gpu/libbbgpu.so.
 # BB_PGO: generate (instrumented build that writes pgo/ while the game runs), use, off.
 # Default: use the profile in pgo/ when there is one. BB_LTO=OFF disables link-time optimization.
@@ -93,6 +105,12 @@ fi
 # $ORIGIN/gpu: packaged copies keep the library next to the binary without patching it.
 gpu=(-Lout/gpu -lbbgpu -Wl,-rpath,'$ORIGIN/gpu' -Wl,-rpath,"$PWD/out/gpu" -rdynamic)
 runtime=(src/runtime*.c)
+link=(-no-pie)
+if [[ -n $windows ]]; then
+    mapfile -t gpu < out/gpu/bbgpu_link.txt
+    runtime+=(src/win32_*.c)
+    link=(-Wl,--disable-dynamicbase,--disable-high-entropy-va -lwinmm -lws2_32 -lpsapi -flto=thin)
+fi
 # Third-party decoders: compiled once, without this project's -Werror policy.
 atrac9=(third_party/LibAtrac9/C/src/*.c)
 if [[ ! -f out/libatrac9.a || -n $(find third_party/LibAtrac9/C/src -newer out/libatrac9.a -name '*.c') ]]; then
@@ -100,10 +118,10 @@ if [[ ! -f out/libatrac9.a || -n $(find third_party/LibAtrac9/C/src -newer out/l
     for source in "${atrac9[@]}"; do "$CC" -std=c99 -O2 -g -w -c "$source" -o "out/atrac9/$(basename "${source%.c}").o"; done
     ar rcs out/libatrac9.a out/atrac9/*.o
 fi
-"$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -no-pie "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" src/vulkan_smoke.c out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/bb-probe
+"$CC" "${cstd[@]}" -O2 -g -Wall -Wextra -Werror "${threads[@]}" "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" src/vulkan_smoke.c out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" "${link[@]}" -o out/bb-probe
 echo "Built $PWD/out/bb-probe"
 # GPU check for run.sh (live_resolution=auto) and the launcher's gamepad list (--gamepads).
-"$CC" -std=c11 -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
+"$CC" "${cstd[@]}" -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
 # Native C++20 RmlUi launcher
 if [[ ! -f out/libRmlUi.a ]]; then
     bash tools/build_rmlui.sh

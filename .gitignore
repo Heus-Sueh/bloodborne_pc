@@ -3,6 +3,10 @@ __pycache__/
 user/
 *.mp4
 bbport.ini
+bbport.toml
+tools/extractor/pkg_extractor
+tools/extractor/*.exe
+tools/extractor/*.dll
 fsr4_shaders/
 pgo/
 *.png

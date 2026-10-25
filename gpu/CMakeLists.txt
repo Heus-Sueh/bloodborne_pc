@@ -224,6 +224,10 @@ endif()
 add_library(bbgpu ${BBGPU_LIBRARY_TYPE} ${RECOMPILER} ${COMMON} ${PLATFORM_SOURCES} ${SHIM_SOURCES} ${LAYER_SOURCES} ${GAME_SOURCES} ${CP_SOURCES}
     ${RENDER_SOURCES} ${UPSCALE_SOURCES})
 add_dependencies(bbgpu host_shaders)
+if (WIN32)
+    include(cmake/LinkClosure.cmake)
+    bb_write_link_closure(bbgpu "${CMAKE_CURRENT_BINARY_DIR}/bbgpu_link.txt")
+endif()
 # In-game settings menu: Dear ImGui (third_party/imgui, MIT) with its Vulkan backend, and an
 # embedded Cyrillic font (third_party/fonts).
 target_sources(bbgpu PRIVATE third_party/imgui/imgui.cpp third_party/imgui/imgui_draw.cpp

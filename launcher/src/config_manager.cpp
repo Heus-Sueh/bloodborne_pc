@@ -19,19 +19,32 @@ std::string ConfigManager::GetConfigPath() {
   }
   const char* env_data = std::getenv("BB_DATA_DIR");
   if (env_data && env_data[0]) {
-    return (fs::path(env_data) / "bbport.ini").string();
+    fs::path p_toml = fs::path(env_data) / "bbport.toml";
+    if (fs::exists(p_toml))
+      return p_toml.string();
+    fs::path p_ini = fs::path(env_data) / "bbport.ini";
+    if (fs::exists(p_ini))
+      return p_ini.string();
+    return p_toml.string();
+  }
+  if (fs::exists("bbport.toml")) {
+    return "bbport.toml";
   }
   if (fs::exists("bbport.ini")) {
     return "bbport.ini";
   }
   const char* home = std::getenv("HOME");
   if (home) {
-    fs::path default_path = fs::path(home) / ".local" / "share" / "bbport" / "bbport.ini";
-    if (fs::exists(default_path)) {
-      return default_path.string();
+    fs::path default_toml = fs::path(home) / ".local" / "share" / "bbport" / "bbport.toml";
+    if (fs::exists(default_toml)) {
+      return default_toml.string();
+    }
+    fs::path default_ini = fs::path(home) / ".local" / "share" / "bbport" / "bbport.ini";
+    if (fs::exists(default_ini)) {
+      return default_ini.string();
     }
   }
-  return "bbport.ini";
+  return "bbport.toml";
 }
 
 LauncherSettings ConfigManager::Load() {
@@ -70,6 +83,12 @@ LauncherSettings ConfigManager::Load() {
     };
     trim_str(key);
     trim_str(val);
+
+    // Strip quotes for TOML string values
+    if (val.size() >= 2 && ((val.front() == '"' && val.back() == '"') ||
+                            (val.front() == '\'' && val.back() == '\''))) {
+      val = val.substr(1, val.size() - 2);
+    }
 
     if (key == "game_dir")
       s.game_dir = val;
@@ -114,6 +133,11 @@ LauncherSettings ConfigManager::Load() {
 
 bool ConfigManager::Save(const LauncherSettings& s) {
   std::string path = GetConfigPath();
+  // Migrate legacy .ini to .toml
+  if (path.size() >= 4 && path.substr(path.size() - 4) == ".ini") {
+    path = path.substr(0, path.size() - 4) + ".toml";
+  }
+
   std::vector<std::string> keys_written;
 
   auto update_or_append = [&](const std::string& key, const std::string& val) {
@@ -148,21 +172,24 @@ bool ConfigManager::Save(const LauncherSettings& s) {
     }
   };
 
-  update_or_append("game_dir", s.game_dir);
-  update_or_append("user_dir", s.user_dir);
-  update_or_append("mods_dir", s.mods_dir);
-  update_or_append("output_res", s.output_res);
-  update_or_append("fullscreen", s.fullscreen ? "1" : "0");
-  update_or_append("borderless", s.borderless ? "1" : "0");
-  update_or_append("vsync", s.vsync ? "1" : "0");
+  auto quote = [](const std::string& val) { return "\"" + val + "\""; };
+
+  update_or_append("game_dir", quote(s.game_dir));
+  update_or_append("user_dir", quote(s.user_dir));
+  update_or_append("mods_dir", quote(s.mods_dir));
+  update_or_append("output_res", quote(s.output_res));
+  update_or_append("live_resolution", quote("auto"));
+  update_or_append("fullscreen", s.fullscreen ? "true" : "false");
+  update_or_append("borderless", s.borderless ? "true" : "false");
+  update_or_append("vsync", s.vsync ? "true" : "false");
   update_or_append("fps_limit", std::to_string(s.fps_limit));
-  update_or_append("upscaler", s.upscaler);
+  update_or_append("upscaler", quote(s.upscaler));
   update_or_append("preset", std::to_string(s.preset));
-  update_or_append("online_pool", s.online_pool);
-  update_or_append("online_server", s.online_server);
-  update_or_append("mouse_look", s.mouse_look ? "1" : "0");
+  update_or_append("online_pool", quote(s.online_pool));
+  update_or_append("online_server", quote(s.online_server));
+  update_or_append("mouse_look", s.mouse_look ? "true" : "false");
   update_or_append("mouse_sensitivity", std::to_string(s.mouse_sensitivity));
-  update_or_append("mouse_invert_y", s.mouse_invert_y ? "1" : "0");
+  update_or_append("mouse_invert_y", s.mouse_invert_y ? "true" : "false");
 
   std::ofstream out(path);
   if (!out.is_open())

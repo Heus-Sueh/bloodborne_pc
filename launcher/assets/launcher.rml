@@ -76,6 +76,16 @@
                         <input type="text" class="input-text input-path" data-value="mods_dir" data-event-change="save" data-event-click="choose_mods_dir" />
                     </div>
                 </div>
+
+                <div class="setting-row">
+                    <div class="col-info" data-event-click="extract_dump">
+                        <div class="field-title interactive-title">Install / Extract Dump</div>
+                        <div class="field-desc">Decrypt and unpack PS4 game dump (.pkg or .iso) directly</div>
+                    </div>
+                    <div class="col-control">
+                        <button class="action-btn" data-event-click="extract_dump">EXTRACT (PKG / ISO)</button>
+                    </div>
+                </div>
             </div>
 
             <div class="card">

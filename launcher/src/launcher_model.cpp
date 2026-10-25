@@ -25,6 +25,9 @@ LauncherModel::~LauncherModel() {
   if (log_reader_thread_.joinable()) {
     log_reader_thread_.join();
   }
+  if (extract_thread_.joinable()) {
+    extract_thread_.join();
+  }
 }
 
 void LauncherModel::BindModel() {
@@ -54,6 +57,7 @@ void LauncherModel::BindModel() {
   constructor.Bind("console_log", &console_log);
   constructor.Bind("is_console_open", &is_console_open);
   constructor.Bind("is_game_running", &is_game_running);
+  constructor.Bind("is_extracting", &is_extracting);
   constructor.Bind("copy_btn_text", &copy_btn_text);
 
   constructor.BindEventCallback(
@@ -137,6 +141,11 @@ void LauncherModel::BindModel() {
   constructor.BindEventCallback("choose_mods_dir",
                                 [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
                                   ChooseModsDirectory();
+                                });
+
+  constructor.BindEventCallback("extract_dump",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ChooseDumpToExtract();
                                 });
 
   model_handle_ = constructor.GetModelHandle();
@@ -238,6 +247,139 @@ void LauncherModel::ChooseModsDirectory() {
         }
       },
       this, window_, default_loc, false);
+}
+
+static void RunFileDialogFallback(const char* title, const char* filter,
+                                  std::function<void(const std::string&)> on_selected) {
+  std::thread([title, filter, on_selected]() {
+    std::string cmd = "zenity --file-selection --title=\"";
+    cmd += title;
+    cmd += "\" --file-filter=\"";
+    cmd += filter;
+    cmd += "\" 2>/dev/null";
+    FILE* fp = popen(cmd.c_str(), "r");
+    if (fp) {
+      char buf[1024];
+      if (fgets(buf, sizeof(buf), fp)) {
+        std::string path(buf);
+        while (!path.empty() && (path.back() == '\n' || path.back() == '\r')) {
+          path.pop_back();
+        }
+        if (!path.empty()) {
+          on_selected(path);
+        }
+      }
+      pclose(fp);
+    }
+  }).detach();
+}
+
+void LauncherModel::ChooseDumpToExtract() {
+  if (is_extracting || is_game_running) {
+    return;
+  }
+
+  static const SDL_DialogFileFilter filters[] = {{"PS4 Game Dumps (*.pkg, *.iso)", "pkg;iso"},
+                                                 {"All Files", "*"}};
+
+  SDL_ShowOpenFileDialog(
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
+        if (!self)
+          return;
+
+        std::string chosen_file;
+        if (filelist && *filelist) {
+          chosen_file = *filelist;
+        }
+
+        if (chosen_file.empty()) {
+          RunFileDialogFallback(
+              "Select PlayStation 4 Game Dump (PKG or ISO)",
+              "PS4 Dumps (*.pkg *.iso) | *.pkg *.iso", [self](const std::string& path) {
+                if (!path.empty()) {
+                  std::string target_dir = self->settings.game_dir;
+                  if (target_dir.empty()) {
+                    target_dir = (fs::current_path() / "games" / "CUSA03173").string();
+                  }
+                  self->StartExtraction(path, target_dir);
+                }
+              });
+          return;
+        }
+
+        std::string target_dir = self->settings.game_dir;
+        if (target_dir.empty()) {
+          target_dir = (fs::current_path() / "games" / "CUSA03173").string();
+        }
+        self->StartExtraction(chosen_file, target_dir);
+      },
+      this, window_, filters, 2, nullptr, false);
+}
+
+void LauncherModel::StartExtraction(const std::string& dump_path, const std::string& out_dir) {
+  if (is_extracting || is_game_running)
+    return;
+
+  is_extracting = true;
+  is_console_open = true;
+  status_text = "Extracting game dump...";
+  if (model_handle_) {
+    model_handle_.DirtyVariable("is_extracting");
+    model_handle_.DirtyVariable("is_console_open");
+    model_handle_.DirtyVariable("status_text");
+  }
+
+  if (extract_thread_.joinable()) {
+    extract_thread_.join();
+  }
+
+  extract_thread_ = std::thread([this, dump_path, out_dir]() {
+    AppendLogLine("[EXTRACT] Starting extraction of: " + dump_path);
+    AppendLogLine("[EXTRACT] Target output directory: " + out_dir);
+
+    std::string script = "./tools/extractor/extract_dump.sh";
+#ifdef _WIN32
+    script = "tools\\extractor\\extract_dump.bat";
+#endif
+    std::string cmd = script + " \"" + dump_path + "\" \"" + out_dir + "\" 2>&1";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+      AppendLogLine("[EXTRACT] Error: Failed to execute extraction script.");
+      {
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        is_extracting = false;
+      }
+      return;
+    }
+
+    char buffer[512];
+    std::string detected_game_dir = out_dir;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+      std::string line(buffer);
+      while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+        line.pop_back();
+      }
+      if (!line.empty()) {
+        AppendLogLine(line);
+        const std::string target_marker = "[EXTRACT] TARGET_GAME_DIR=";
+        if (line.rfind(target_marker, 0) == 0) {
+          detected_game_dir = line.substr(target_marker.length());
+        }
+      }
+    }
+    int exit_code = pclose(pipe);
+    AppendLogLine("[EXTRACT] Extraction process finished with exit code: " +
+                  std::to_string(exit_code));
+
+    {
+      std::lock_guard<std::mutex> lock(pending_mutex_);
+      is_extracting = false;
+      if (exit_code == 0) {
+        pending_game_dir_ = detected_game_dir;
+      }
+    }
+  });
 }
 
 void LauncherModel::UpdateValidationStatus() {
@@ -430,6 +572,7 @@ void LauncherModel::Update() {
 
   if (settings_changed) {
     ConfigManager::Save(settings);
+    UpdateValidationStatus();
   }
 
   if (logs_changed && model_handle_) {

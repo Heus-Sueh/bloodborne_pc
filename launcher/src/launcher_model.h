@@ -23,6 +23,8 @@ public:
   void ChooseGameDirectory();
   void ChooseUserDirectory();
   void ChooseModsDirectory();
+  void ChooseDumpToExtract();
+  void StartExtraction(const std::string& dump_path, const std::string& out_dir);
 
   void ToggleConsole();
   void ClearLog();
@@ -47,6 +49,7 @@ public:
   bool should_close_ = false;
   bool is_console_open = false;
   bool is_game_running = false;
+  bool is_extracting = false;
 
 private:
   Rml::Context* context_ = nullptr;
@@ -64,6 +67,7 @@ private:
   std::vector<std::string> pending_logs_;
 
   std::thread log_reader_thread_;
+  std::thread extract_thread_;
 
   void BindModel();
   void UpdateValidationStatus();

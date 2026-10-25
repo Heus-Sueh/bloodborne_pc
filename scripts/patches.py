@@ -178,10 +178,18 @@ UI_HEIGHT=0x0235855D-EBOOT_BASE
 
 def read_settings(path):
     settings={}
+    path = Path(path)
+    if not path.exists():
+        if path.suffix == '.toml' and path.with_suffix('.ini').exists():
+            path = path.with_suffix('.ini')
+        elif path.suffix == '.ini' and path.with_suffix('.toml').exists():
+            path = path.with_suffix('.toml')
     if path.exists():
         for line in path.read_text(encoding='utf-8').splitlines():
             key,sep,value=line.partition('=')
-            if sep and not line.startswith('#'): settings[key.strip()]=value.strip()
+            if sep and not line.strip().startswith('#'):
+                v = value.strip().strip('"\'')
+                settings[key.strip()]=v
     return settings
 
 
@@ -352,7 +360,7 @@ def main():
     p.add_argument('--extra',default='',help='additional patch names, separated by ";"')
     p.add_argument('--app-version',default='01.09')
     p.add_argument('--out',type=Path,default=Path(__file__).resolve().parent.parent/'out')
-    p.add_argument('--settings',type=Path,default=Path(__file__).resolve().parent.parent/'bbport.ini')
+    p.add_argument('--settings',type=Path,default=Path(__file__).resolve().parent.parent/'bbport.toml')
     p.add_argument('--game-dir',type=Path,default=Path(os.environ.get('BB_GAME_DIR','../CUSA03173')))
     p.add_argument('--render-res',default='',help='render resolution WxH (overrides the preset)')
     p.add_argument('--print-preset-size',action='store_true',help='print the selected preset size, if reduced')

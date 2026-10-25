@@ -287,6 +287,25 @@ body {
     color: #ffffff;
 }
 
+.action-btn {
+    display: inline-block;
+    background-color: #171b29;
+    border: 1px #2a3147;
+    color: #e2e8f0;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    background-color: #8f1818;
+    border-color: #8f1818;
+    color: #ffffff;
+}
+
 /* Text Inputs */
 .input-text {
     display: inline-block;

@@ -48,6 +48,58 @@ In this fork, the entire client launcher has been rewritten as a native, compile
 
 ## 6. Resilient Build System & Automated Fallbacks
 
+- Integrated automatic CMake `FetchContent` fallbacks for `Vulkan-Headers`, `VulkanMemoryAllocator` (VMA), `tsl-robin-map`, and `magic_enum`.
+- Enables seamless builds across diverse Linux environments (Arch, Debian, Ubuntu, NixOS) even when specific distro development headers are absent.
+
+---
+
+## 7. Built-in PS4 PKG & Disc ISO Extraction
+
+- **Integrated Launcher Extraction**: Users can install and extract legally acquired PS4 `.pkg` packages and disc `.iso` images directly within the launcher UI via the **Install / Extract Dump** action.
+- **Standalone CLI Automation**: Dumps can also be extracted headlessly using `just extract <file.pkg|file.iso> [destination]` or `tools/extractor/extract_dump.sh`.
+- **Reference Architecture**: Built using the proven decryption and PlayStation File System (PFS) extraction methodology from [ShadPs4Plus](https://github.com/AzaharPlus/shadPS4Plus) and [ShadPKG](https://github.com/seregonwar/ShadPKG) (AES-128-XTS PFS decryption, HMAC key derivation, and direct userspace ISO9660/UDF extraction).
+- **Automatic Configuration**: Once extraction finishes, the launcher automatically detects `eboot.bin`, sets `game_dir` in `bbport.toml`, and marks the installation as verified and ready.
+
+---
+
+## 8. Modern TOML Configuration (`bbport.toml`)
+
+- Fully migrated the configuration format from legacy unstructured `.ini` files to typed, modern **TOML** (`bbport.toml`).
+- Provides clean typing (quoted strings, booleans `true`/`false`, numbers), structured defaults, and seamless backward-compatible loading.
+
+---
+
+## 9. Cross-Platform Justfile Task Runner
+
+- Added a root `justfile` providing standard cross-platform developer workflows:
+  - `just build`: Builds the runtime, GPU layer, and launcher.
+  - `just test`: Runs the automated test suite.
+  - `just lint`: Runs clang-tidy and formatting verification.
+  - `just format`: Automatically formats codebase according to `.clang-format`.
+  - `just run`: Directly executes the game runtime.
+  - `just launcher`: Launches the graphical client.
+  - `just extract`: Extracts PKG or ISO dump files.
+
+---
+
+## 10. Preliminary Windows Support (MSYS2 CLANG64)
+
+- Introduced preliminary Windows compilation and execution support based on PR #6:
+  - Native Win32 synchronization primitives (`src/host_sync.h`) replacing POSIX pthreads with SRW Locks and Condition Variables.
+  - Win32 memory management and page protection (`src/win32_memory.c/.h`) using `VirtualAlloc2` and bottom-up memory mapping.
+  - Win32 filesystem and runtime bridges (`src/win32_compat.c/.h`).
+  - Windows execution scripts (`run.bat`, `setup.bat`, `scripts/run_windows.py`).
+
+---
+
+## 11. C++ & C Coding Standards and Quality Tooling
+
+- Standardized the codebase against modern coding conventions (`cpp-coding-standards`):
+  - Strict RAII for all system resources (pipes, file descriptors, synchronization handles).
+  - Clean inclusion guards (`#pragma once`).
+  - Automated formatting and linting via `.clang-format` and `.clang-tidy`.
+  - Integrated `--lint` and `--format` modes in `build.sh` and `justfile`.
+
 - **Automated `FetchContent` Fallbacks in CMake**:
   - Automatically fetches official Khronos `Vulkan-Headers` if missing on the host OS.
   - Automatically fetches `VulkanMemoryAllocator` (VMA) without requiring manual installation of AUR packages.

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,7 +18,13 @@ namespace {
 
 const char* Path() {
     const char* env = std::getenv("BB_CONFIG");
-    return env && env[0] ? env : "bbport.ini";
+    if (env && env[0]) return env;
+    static std::string cached_path;
+    if (std::filesystem::exists("bbport.toml")) {
+        cached_path = "bbport.toml";
+        return cached_path.c_str();
+    }
+    return "bbport.ini";
 }
 
 float Clamp(float v, float lo, float hi) {
@@ -247,7 +254,20 @@ void Load() {
             if (text.empty() || text[0] == '#' || eq == std::string::npos) {
                 continue;
             }
-            Set(v, text.substr(0, eq), text.substr(eq + 1));
+            std::string key = text.substr(0, eq);
+            std::string val = text.substr(eq + 1);
+            auto trim = [](std::string& s) {
+                size_t p1 = s.find_first_not_of(" \t");
+                size_t p2 = s.find_last_not_of(" \t");
+                if (p1 == std::string::npos) s.clear();
+                else s = s.substr(p1, p2 - p1 + 1);
+            };
+            trim(key);
+            trim(val);
+            if (val.size() >= 2 && ((val.front() == '"' && val.back() == '"') || (val.front() == '\'' && val.back() == '\''))) {
+                val = val.substr(1, val.size() - 2);
+            }
+            Set(v, key, val);
         }
         std::fclose(file);
         std::printf("Settings: %s\n", Path());

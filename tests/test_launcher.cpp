@@ -40,7 +40,7 @@ void test_validation() {
 }
 
 void test_config_save_load() {
-  fs::path tmp_ini = fs::temp_directory_path() / "test_bbport.ini";
+  fs::path tmp_toml = fs::temp_directory_path() / "test_bbport.toml";
   LauncherSettings s;
   s.output_res = "2560x1440";
   s.fps_limit = 120;
@@ -48,7 +48,7 @@ void test_config_save_load() {
   s.online_pool = "seamless";
 
   // Set custom env or test ConfigManager save
-  setenv("BB_CONFIG", tmp_ini.string().c_str(), 1);
+  setenv("BB_CONFIG", tmp_toml.string().c_str(), 1);
   assert(ConfigManager::Save(s));
 
   LauncherSettings loaded = ConfigManager::Load();
@@ -57,7 +57,7 @@ void test_config_save_load() {
   assert(loaded.upscaler == "fsr");
   assert(loaded.online_pool == "seamless");
 
-  fs::remove(tmp_ini);
+  fs::remove(tmp_toml);
   unsetenv("BB_CONFIG");
   std::cout << "PASS: test_config_save_load\n";
 }
