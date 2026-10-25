@@ -248,6 +248,7 @@ int main(int argc, char* argv[]) {
   // Unified configuration environment application
   ConfigManager::ApplyToEnvironment(cfg);
   SetEnvVar("BB_DATA_DIR", data_dir);
+  SetEnvVar("BB_MODS_ENABLED", mods_enabled);
   if (!render_res.empty())
     SetEnvVar("BB_RENDER_RES", render_res);
   if (!live_res.empty())
@@ -257,25 +258,8 @@ int main(int argc, char* argv[]) {
 
   std::cout << "[RUNNER] Initializing game preparation for " << game_abs << "...\n";
 
-  // 1. Resolve mods overlay
+  // 1. Resolve active game path (Native VFS handles mod layering in-memory)
   std::string active_game = game_abs.string();
-  std::string mods_out;
-  std::vector<std::string> mods_cmd = {python,
-                                       "scripts/mods.py",
-                                       active_game,
-                                       "--out",
-                                       out_dir.string(),
-                                       "--mods-dir",
-                                       cfg.mods_dir,
-                                       "--enabled",
-                                       mods_enabled};
-  if (RunCommand(mods_cmd, &mods_out) == 0 && !mods_out.empty()) {
-    while (!mods_out.empty() && (mods_out.back() == '\n' || mods_out.back() == '\r'))
-      mods_out.pop_back();
-    if (fs::exists(mods_out)) {
-      active_game = mods_out;
-    }
-  }
 
   // 2. Prepare ELF / SELF structure
   std::cout << "[RUNNER] Inspecting eboot.bin (prepare.py)...\n";

@@ -32,6 +32,10 @@ int bb_vfs_mount(BbVfsLayerType layer, const char *host_dir);
 void bb_vfs_unmount(BbVfsLayerType layer);
 bool bb_vfs_is_layer_active(BbVfsLayerType layer);
 const char *bb_vfs_get_mount(BbVfsLayerType layer);
+int bb_vfs_mount_mod(const char *host_dir, const char *name);
+void bb_vfs_clear_mods(void);
+int bb_vfs_load_mods(const char *mods_dir, const char *config_json);
+size_t bb_vfs_get_mod_count(void);
 bool bb_vfs_resolve_path(const char *guest_path, char *host_path_out, size_t max_len);
 
 #endif /* __cplusplus */

@@ -5,6 +5,7 @@
  * Paths containing ".." components are rejected rather than normalized. */
 #define _GNU_SOURCE
 #include "runtime.h"
+#include "runtime_vfs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,6 +96,20 @@ void runtime_file_configure(const char *app0,const char *user) {
     snprintf(user_root,sizeof(user_root),"%s",user);
     runtime_file_mount("/app0",app0);
     runtime_file_mount("/hostapp",app0);
+
+    bb_vfs_init();
+    bb_vfs_mount(VFS_LAYER_BASE, app0);
+    const char *mods_enabled = getenv("BB_MODS_ENABLED");
+    if (!mods_enabled || strcmp(mods_enabled, "0") != 0) {
+        const char *mods_dir = getenv("BB_MODS_DIR");
+        const char *mods_cfg = getenv("BB_MODS_CONFIG");
+        bb_vfs_load_mods(mods_dir ? mods_dir : "mods", mods_cfg);
+
+        char legacy[1024];
+        snprintf(legacy, sizeof(legacy), "%s-mods", app0);
+        bb_vfs_mount_mod(legacy, "legacy-mods");
+    }
+
     const char *writable[]={"temp0","download0","data"};
     mkdir(user,0755);
     for (int i=0;i<3;++i) {
@@ -112,6 +127,18 @@ static int translate(const char *guest,char *out,size_t size) {
     else snprintf(buffer,sizeof(buffer),"%s",guest);
     for (const char *p=buffer;(p=strstr(p,".."));p+=2)
         if ((p==buffer || p[-1]=='/') && (p[2]==0 || p[2]=='/')) return EACCES;
+
+    if (!strncmp(buffer, "/app0", 5) || !strncmp(buffer, "/hostapp", 8)) {
+        if (bb_vfs_is_layer_active(VFS_LAYER_BASE)) {
+            const char *subpath = buffer + (buffer[1] == 'a' ? 5 : 8);
+            bb_vfs_resolve_path(subpath, out, size);
+            static int trace = -1;
+            if (trace < 0) { const char *t = getenv("BB_FILE_TRACE"); trace = t && t[0] == '1'; }
+            if (trace) printf("File trace (vfs): %s -> %s\n", guest, out);
+            return 0;
+        }
+    }
+
     pthread_mutex_lock(&lock);
     size_t best=0; const Mount *m=NULL;
     for (size_t i=0;i<mount_count;++i) {

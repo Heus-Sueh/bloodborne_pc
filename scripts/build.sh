@@ -175,7 +175,7 @@ if [[ ${1:-} == --test ]]; then
     out/vfs-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc tests/test_file_mods.c -o out/file-mods-test
+    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc -I. tests/test_file_mods.c out/runtime_vfs.o -lstdc++ -o out/file-mods-test
     out/file-mods-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_sema.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/sema-test
     out/sema-test
