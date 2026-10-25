@@ -1,5 +1,4 @@
-#ifndef LAUNCHER_MODEL_H
-#define LAUNCHER_MODEL_H
+#pragma once
 
 #include "config_manager.h"
 #include <RmlUi/Core/Context.h>
@@ -7,12 +6,14 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
+#include <vector>
 
 struct SDL_Window;
 
 class LauncherModel {
 public:
-  LauncherModel(Rml::Context *context, SDL_Window *window = nullptr);
+  LauncherModel(Rml::Context* context, SDL_Window* window = nullptr);
   ~LauncherModel();
 
   void Update();
@@ -27,14 +28,14 @@ public:
   void ClearLog();
   void CopyLogToClipboard();
   void SaveLogDialog();
-  void SaveLogToFile(const std::string &filepath);
+  void SaveLogToFile(const std::string& filepath);
   void StopGame();
-  void AppendLogLine(const std::string &line);
+  void AppendLogLine(const std::string& line);
   void OnGameExited(int exit_code);
 
-  void SetPendingGameDir(const std::string &path);
-  void SetPendingUserDir(const std::string &path);
-  void SetPendingModsDir(const std::string &path);
+  void SetPendingGameDir(const std::string& path);
+  void SetPendingUserDir(const std::string& path);
+  void SetPendingModsDir(const std::string& path);
 
   // State exposed to RML template via Data Binding
   LauncherSettings settings;
@@ -48,8 +49,8 @@ public:
   bool is_game_running = false;
 
 private:
-  Rml::Context *context_ = nullptr;
-  SDL_Window *window_ = nullptr;
+  Rml::Context* context_ = nullptr;
+  SDL_Window* window_ = nullptr;
   Rml::DataModelHandle model_handle_;
 
   pid_t game_pid_ = -1;
@@ -62,8 +63,8 @@ private:
   std::optional<bool> pending_game_running_;
   std::vector<std::string> pending_logs_;
 
+  std::thread log_reader_thread_;
+
   void BindModel();
   void UpdateValidationStatus();
 };
-
-#endif // LAUNCHER_MODEL_H

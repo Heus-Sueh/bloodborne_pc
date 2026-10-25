@@ -13,20 +13,24 @@
 
 namespace fs = std::filesystem;
 
-LauncherModel::LauncherModel(Rml::Context *context, SDL_Window *window)
-    : context_(context), window_(window) {
+LauncherModel::LauncherModel(Rml::Context* context, SDL_Window* window)
+  : context_(context), window_(window) {
   settings = ConfigManager::Load();
   BindModel();
   UpdateValidationStatus();
 }
 
-LauncherModel::~LauncherModel() { StopGame(); }
+LauncherModel::~LauncherModel() {
+  StopGame();
+  if (log_reader_thread_.joinable()) {
+    log_reader_thread_.join();
+  }
+}
 
 void LauncherModel::BindModel() {
   Rml::DataModelConstructor constructor = context_->CreateDataModel("launcher");
   if (!constructor) {
-    std::cerr
-        << "LauncherModel: Failed to create RmlUi data model 'launcher'\n";
+    std::cerr << "LauncherModel: Failed to create RmlUi data model 'launcher'\n";
     return;
   }
 
@@ -52,39 +56,34 @@ void LauncherModel::BindModel() {
   constructor.Bind("is_game_running", &is_game_running);
   constructor.Bind("copy_btn_text", &copy_btn_text);
 
-  constructor.BindEventCallback("play",
-                                [this](Rml::DataModelHandle, Rml::Event &,
-                                       const Rml::VariantList &) { Launch(); });
+  constructor.BindEventCallback(
+      "play", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { Launch(); });
 
   constructor.BindEventCallback(
-      "toggle_console", [this](Rml::DataModelHandle, Rml::Event &,
-                               const Rml::VariantList &) { ToggleConsole(); });
+      "toggle_console",
+      [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { ToggleConsole(); });
+
+  constructor.BindEventCallback("clear_log", [this](Rml::DataModelHandle, Rml::Event&,
+                                                    const Rml::VariantList&) { ClearLog(); });
 
   constructor.BindEventCallback(
-      "clear_log", [this](Rml::DataModelHandle, Rml::Event &,
-                          const Rml::VariantList &) { ClearLog(); });
+      "copy_log",
+      [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { CopyLogToClipboard(); });
+
+  constructor.BindEventCallback("save_log", [this](Rml::DataModelHandle, Rml::Event&,
+                                                   const Rml::VariantList&) { SaveLogDialog(); });
+
+  constructor.BindEventCallback("stop_game", [this](Rml::DataModelHandle, Rml::Event&,
+                                                    const Rml::VariantList&) { StopGame(); });
 
   constructor.BindEventCallback(
-      "copy_log", [this](Rml::DataModelHandle, Rml::Event &,
-                         const Rml::VariantList &) { CopyLogToClipboard(); });
-
-  constructor.BindEventCallback(
-      "save_log", [this](Rml::DataModelHandle, Rml::Event &,
-                         const Rml::VariantList &) { SaveLogDialog(); });
-
-  constructor.BindEventCallback(
-      "stop_game", [this](Rml::DataModelHandle, Rml::Event &,
-                          const Rml::VariantList &) { StopGame(); });
-
-  constructor.BindEventCallback(
-      "set_tab",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args) {
+      "set_tab", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
         if (!args.empty()) {
           active_tab = args[0].Get<Rml::String>();
           model_handle_.DirtyVariable("active_tab");
           if (context_) {
-            if (auto *root = context_->GetRootElement()) {
-              if (auto *content = root->GetElementById("content")) {
+            if (auto* root = context_->GetRootElement()) {
+              if (auto* content = root->GetElementById("content")) {
                 content->SetScrollTop(0.0f);
               }
             }
@@ -93,8 +92,7 @@ void LauncherModel::BindModel() {
       });
 
   constructor.BindEventCallback(
-      "set_resolution",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args) {
+      "set_resolution", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
         if (!args.empty()) {
           settings.output_res = args[0].Get<Rml::String>();
           model_handle_.DirtyVariable("output_res");
@@ -103,8 +101,7 @@ void LauncherModel::BindModel() {
       });
 
   constructor.BindEventCallback(
-      "set_upscaler",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args) {
+      "set_upscaler", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
         if (!args.empty()) {
           settings.upscaler = args[0].Get<Rml::String>();
           model_handle_.DirtyVariable("upscaler");
@@ -113,8 +110,7 @@ void LauncherModel::BindModel() {
       });
 
   constructor.BindEventCallback(
-      "set_pool",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args) {
+      "set_pool", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
         if (!args.empty()) {
           settings.online_pool = args[0].Get<Rml::String>();
           model_handle_.DirtyVariable("online_pool");
@@ -122,57 +118,52 @@ void LauncherModel::BindModel() {
         }
       });
 
-  constructor.BindEventCallback(
-      "save",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) {
-        ConfigManager::Save(settings);
-        UpdateValidationStatus();
-      });
+  constructor.BindEventCallback("save",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ConfigManager::Save(settings);
+                                  UpdateValidationStatus();
+                                });
 
-  constructor.BindEventCallback(
-      "choose_game_dir",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) {
-        ChooseGameDirectory();
-      });
+  constructor.BindEventCallback("choose_game_dir",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ChooseGameDirectory();
+                                });
 
-  constructor.BindEventCallback(
-      "choose_user_dir",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) {
-        ChooseUserDirectory();
-      });
+  constructor.BindEventCallback("choose_user_dir",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ChooseUserDirectory();
+                                });
 
-  constructor.BindEventCallback(
-      "choose_mods_dir",
-      [this](Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) {
-        ChooseModsDirectory();
-      });
+  constructor.BindEventCallback("choose_mods_dir",
+                                [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+                                  ChooseModsDirectory();
+                                });
 
   model_handle_ = constructor.GetModelHandle();
 }
 
-void LauncherModel::SetPendingGameDir(const std::string &path) {
+void LauncherModel::SetPendingGameDir(const std::string& path) {
   std::lock_guard<std::mutex> lock(pending_mutex_);
   pending_game_dir_ = path;
 }
 
-void LauncherModel::SetPendingUserDir(const std::string &path) {
+void LauncherModel::SetPendingUserDir(const std::string& path) {
   std::lock_guard<std::mutex> lock(pending_mutex_);
   pending_user_dir_ = path;
 }
 
-void LauncherModel::SetPendingModsDir(const std::string &path) {
+void LauncherModel::SetPendingModsDir(const std::string& path) {
   std::lock_guard<std::mutex> lock(pending_mutex_);
   pending_mods_dir_ = path;
 }
 
-static void
-RunFolderDialogFallback(const char *title,
-                        std::function<void(const std::string &)> on_selected) {
+static void RunFolderDialogFallback(const char* title,
+                                    std::function<void(const std::string&)> on_selected) {
   std::thread([title, on_selected]() {
     std::string cmd = "zenity --file-selection --directory --title=\"";
     cmd += title;
     cmd += "\" 2>/dev/null";
-    FILE *fp = popen(cmd.c_str(), "r");
+    FILE* fp = popen(cmd.c_str(), "r");
     if (fp) {
       char buf[1024];
       if (fgets(buf, sizeof(buf), fp)) {
@@ -190,66 +181,60 @@ RunFolderDialogFallback(const char *title,
 }
 
 void LauncherModel::ChooseGameDirectory() {
-  const char *default_loc =
-      settings.game_dir.empty() ? nullptr : settings.game_dir.c_str();
+  const char* default_loc = settings.game_dir.empty() ? nullptr : settings.game_dir.c_str();
 
   SDL_ShowOpenFolderDialog(
-      [](void *userdata, const char *const *filelist, int /*filter*/) {
-        auto *self = static_cast<LauncherModel *>(userdata);
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
         if (!self)
           return;
 
         if (filelist && *filelist) {
           self->SetPendingGameDir(*filelist);
         } else if (!filelist) {
-          RunFolderDialogFallback("Select Bloodborne Game Directory",
-                                  [self](const std::string &path) {
-                                    self->SetPendingGameDir(path);
-                                  });
+          RunFolderDialogFallback(
+              "Select Bloodborne Game Directory",
+              [self](const std::string& path) { self->SetPendingGameDir(path); });
         }
       },
       this, window_, default_loc, false);
 }
 
 void LauncherModel::ChooseUserDirectory() {
-  const char *default_loc =
-      settings.user_dir.empty() ? nullptr : settings.user_dir.c_str();
+  const char* default_loc = settings.user_dir.empty() ? nullptr : settings.user_dir.c_str();
 
   SDL_ShowOpenFolderDialog(
-      [](void *userdata, const char *const *filelist, int /*filter*/) {
-        auto *self = static_cast<LauncherModel *>(userdata);
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
         if (!self)
           return;
 
         if (filelist && *filelist) {
           self->SetPendingUserDir(*filelist);
         } else if (!filelist) {
-          RunFolderDialogFallback("Select Saves & Data Directory",
-                                  [self](const std::string &path) {
-                                    self->SetPendingUserDir(path);
-                                  });
+          RunFolderDialogFallback("Select Saves & Data Directory", [self](const std::string& path) {
+            self->SetPendingUserDir(path);
+          });
         }
       },
       this, window_, default_loc, false);
 }
 
 void LauncherModel::ChooseModsDirectory() {
-  const char *default_loc =
-      settings.mods_dir.empty() ? nullptr : settings.mods_dir.c_str();
+  const char* default_loc = settings.mods_dir.empty() ? nullptr : settings.mods_dir.c_str();
 
   SDL_ShowOpenFolderDialog(
-      [](void *userdata, const char *const *filelist, int /*filter*/) {
-        auto *self = static_cast<LauncherModel *>(userdata);
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
         if (!self)
           return;
 
         if (filelist && *filelist) {
           self->SetPendingModsDir(*filelist);
         } else if (!filelist) {
-          RunFolderDialogFallback("Select Modifications Directory",
-                                  [self](const std::string &path) {
-                                    self->SetPendingModsDir(path);
-                                  });
+          RunFolderDialogFallback(
+              "Select Modifications Directory",
+              [self](const std::string& path) { self->SetPendingModsDir(path); });
         }
       },
       this, window_, default_loc, false);
@@ -264,7 +249,8 @@ void LauncherModel::UpdateValidationStatus() {
   } else {
     fs::path p(settings.game_dir);
     if (fs::exists(p / "eboot.bin") || fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
-      status_text = "Base assets missing (gxshader.shaderbnd.dcx). Merge base game with 1.09 update.";
+      status_text =
+          "Base assets missing (gxshader.shaderbnd.dcx). Merge base game with 1.09 update.";
     } else {
       status_text = "Invalid game folder (eboot.bin not found).";
     }
@@ -310,7 +296,7 @@ void LauncherModel::CopyLogToClipboard() {
   AppendLogLine("[INFO] Console log copied to clipboard.");
 }
 
-void LauncherModel::SaveLogToFile(const std::string &filepath) {
+void LauncherModel::SaveLogToFile(const std::string& filepath) {
   std::string content;
   {
     std::lock_guard<std::mutex> lock(pending_mutex_);
@@ -327,13 +313,12 @@ void LauncherModel::SaveLogToFile(const std::string &filepath) {
 }
 
 void LauncherModel::SaveLogDialog() {
-  const SDL_DialogFileFilter filters[] = {{"Log files (*.log)", "log"},
-                                          {"Text files (*.txt)", "txt"},
-                                          {"All files (*)", "*"}};
+  const SDL_DialogFileFilter filters[] = {
+      {"Log files (*.log)", "log"}, {"Text files (*.txt)", "txt"}, {"All files (*)", "*"}};
 
   SDL_ShowSaveFileDialog(
-      [](void *userdata, const char *const *filelist, int /*filter*/) {
-        auto *self = static_cast<LauncherModel *>(userdata);
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* self = static_cast<LauncherModel*>(userdata);
         if (!self)
           return;
         if (filelist && *filelist) {
@@ -341,16 +326,14 @@ void LauncherModel::SaveLogDialog() {
         } else if (!filelist) {
           // Fallback with zenity
           std::thread([self]() {
-            FILE *fp =
-                popen("zenity --file-selection --save --confirm-overwrite "
-                      "--filename=\"bloodborne_boot.log\" 2>/dev/null",
-                      "r");
+            FILE* fp = popen("zenity --file-selection --save --confirm-overwrite "
+                             "--filename=\"bloodborne_boot.log\" 2>/dev/null",
+                             "r");
             if (fp) {
               char buf[1024];
               if (fgets(buf, sizeof(buf), fp)) {
                 std::string path(buf);
-                while (!path.empty() &&
-                       (path.back() == '\n' || path.back() == '\r')) {
+                while (!path.empty() && (path.back() == '\n' || path.back() == '\r')) {
                   path.pop_back();
                 }
                 if (!path.empty()) {
@@ -367,8 +350,7 @@ void LauncherModel::SaveLogDialog() {
 
 void LauncherModel::StopGame() {
   if (game_pid_ > 0) {
-    AppendLogLine("[PROCESS] Terminating game process (PID " +
-                  std::to_string(game_pid_) + ")...");
+    AppendLogLine("[PROCESS] Terminating game process (PID " + std::to_string(game_pid_) + ")...");
     kill(game_pid_, SIGTERM);
     game_pid_ = -1;
     is_game_running = false;
@@ -378,7 +360,7 @@ void LauncherModel::StopGame() {
   }
 }
 
-void LauncherModel::AppendLogLine(const std::string &line) {
+void LauncherModel::AppendLogLine(const std::string& line) {
   std::lock_guard<std::mutex> lock(pending_mutex_);
   pending_logs_.push_back(line);
 }
@@ -387,8 +369,8 @@ void LauncherModel::OnGameExited(int exit_code) {
   std::lock_guard<std::mutex> lock(pending_mutex_);
   game_pid_ = -1;
   pending_game_running_ = false;
-  std::string msg = "[PROCESS] Game process terminated (exit code: " +
-                    std::to_string(exit_code) + ")";
+  std::string msg =
+      "[PROCESS] Game process terminated (exit code: " + std::to_string(exit_code) + ")";
   pending_logs_.push_back(std::move(msg));
 }
 
@@ -430,7 +412,7 @@ void LauncherModel::Update() {
       }
     }
     if (!pending_logs_.empty()) {
-      for (const auto &line : pending_logs_) {
+      for (const auto& line : pending_logs_) {
         if (!console_log.empty()) {
           console_log += '\n';
         }
@@ -454,8 +436,8 @@ void LauncherModel::Update() {
     model_handle_.DirtyVariable("console_log");
 
     if (context_) {
-      if (auto *doc = context_->GetRootElement()) {
-        if (auto *body = doc->GetElementById("console-scroll-body")) {
+      if (auto* doc = context_->GetRootElement()) {
+        if (auto* body = doc->GetElementById("console-scroll-body")) {
           body->SetScrollTop(body->GetScrollHeight());
         }
       }
@@ -508,8 +490,12 @@ void LauncherModel::Launch() {
 
   game_pid_ = proc.pid;
 
-  std::thread([this, fd = proc.read_fd, pid = proc.pid]() {
-    FILE *stream = fdopen(fd, "r");
+  if (log_reader_thread_.joinable()) {
+    log_reader_thread_.join();
+  }
+
+  log_reader_thread_ = std::thread([this, fd = proc.read_fd, pid = proc.pid]() {
+    FILE* stream = fdopen(fd, "r");
     if (stream) {
       char buf[2048];
       while (fgets(buf, sizeof(buf), stream)) {
@@ -528,5 +514,5 @@ void LauncherModel::Launch() {
     waitpid(pid, &status, 0);
     int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
     OnGameExited(exit_code);
-  }).detach();
+  });
 }

@@ -14,7 +14,7 @@
 
 namespace fs = std::filesystem;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   // 1. Headless shortcut check (--play)
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "--play") {
@@ -38,9 +38,8 @@ int main(int argc, char **argv) {
   const int initial_width = 960;
   const int initial_height = 620;
 
-  SDL_Window *window =
-      SDL_CreateWindow("Bloodborne PC Launcher", initial_width, initial_height,
-                       SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+  SDL_Window* window = SDL_CreateWindow("Bloodborne PC Launcher", initial_width, initial_height,
+                                        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
   if (!window) {
     std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
@@ -93,7 +92,7 @@ int main(int argc, char **argv) {
   }
 
   // 4. Load TrueType Fonts explicitly (Rule R-07)
-  auto resolve_font_path = [](const std::string &rel_path) -> std::string {
+  auto resolve_font_path = [](const std::string& rel_path) -> std::string {
     if (fs::exists(rel_path)) {
       return rel_path;
     }
@@ -106,14 +105,10 @@ int main(int argc, char **argv) {
     return rel_path;
   };
 
-  const std::string noto_reg =
-      resolve_font_path("launcher/assets/fonts/NotoSans-Regular.ttf");
-  const std::string noto_bold =
-      resolve_font_path("launcher/assets/fonts/NotoSans-Bold.ttf");
-  const std::string jb_reg =
-      resolve_font_path("launcher/assets/fonts/JetBrainsMono-Regular.ttf");
-  const std::string jb_bold =
-      resolve_font_path("launcher/assets/fonts/JetBrainsMono-Bold.ttf");
+  const std::string noto_reg = resolve_font_path("launcher/assets/fonts/NotoSans-Regular.ttf");
+  const std::string noto_bold = resolve_font_path("launcher/assets/fonts/NotoSans-Bold.ttf");
+  const std::string jb_reg = resolve_font_path("launcher/assets/fonts/JetBrainsMono-Regular.ttf");
+  const std::string jb_bold = resolve_font_path("launcher/assets/fonts/JetBrainsMono-Bold.ttf");
 
   // Noto Sans as primary UI font and fallback
   if (fs::exists(noto_reg)) {
@@ -130,22 +125,18 @@ int main(int argc, char **argv) {
   if (fs::exists(jb_reg)) {
     Rml::LoadFontFace(jb_reg, "JetBrainsMono NF", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Normal, false);
-    Rml::LoadFontFace(jb_reg, "JetBrainsMono Nerd Font",
-                      Rml::Style::FontStyle::Normal,
+    Rml::LoadFontFace(jb_reg, "JetBrainsMono Nerd Font", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Normal, false);
   }
   if (fs::exists(jb_bold)) {
-    Rml::LoadFontFace(jb_bold, "JetBrainsMono NF",
-                      Rml::Style::FontStyle::Normal,
+    Rml::LoadFontFace(jb_bold, "JetBrainsMono NF", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Bold, false);
-    Rml::LoadFontFace(jb_bold, "JetBrainsMono Nerd Font",
-                      Rml::Style::FontStyle::Normal,
+    Rml::LoadFontFace(jb_bold, "JetBrainsMono Nerd Font", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Bold, false);
   }
 
   // 5. Create RmlUi Context
-  Rml::Context *rml_context =
-      Rml::CreateContext("main", Rml::Vector2i(fb_w, fb_h));
+  Rml::Context* rml_context = Rml::CreateContext("main", Rml::Vector2i(fb_w, fb_h));
   if (!rml_context) {
     std::cerr << "Failed to create RmlUi context!\n";
     Rml::Shutdown();
@@ -163,7 +154,7 @@ int main(int argc, char **argv) {
   if (!fs::exists(rml_path)) {
     rml_path = "assets/launcher.rml";
   }
-  Rml::ElementDocument *document = rml_context->LoadDocument(rml_path);
+  Rml::ElementDocument* document = rml_context->LoadDocument(rml_path);
   if (!document) {
     std::cerr << "Failed to load RML document: " << rml_path << "\n";
     Rml::Shutdown();

@@ -243,6 +243,10 @@ void runtime_libc_register(void) {
 uintptr_t runtime_resolve(const char *name, int is_data) {
     if (!(capabilities & 1)) return 0;
     runtime_registry_init();
+    if (!is_data) {
+        uintptr_t online = runtime_net_resolve(name);
+        if (online) return online;
+    }
     uintptr_t target = runtime_registry_resolve(name, is_data);
     if (target) return target;
     if (!is_data) return bbgpu_resolve(name);

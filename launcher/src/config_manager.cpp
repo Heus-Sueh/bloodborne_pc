@@ -13,21 +13,20 @@ namespace fs = std::filesystem;
 std::vector<std::string> ConfigManager::raw_lines_;
 
 std::string ConfigManager::GetConfigPath() {
-  const char *env_config = std::getenv("BB_CONFIG");
+  const char* env_config = std::getenv("BB_CONFIG");
   if (env_config && env_config[0]) {
     return env_config;
   }
-  const char *env_data = std::getenv("BB_DATA_DIR");
+  const char* env_data = std::getenv("BB_DATA_DIR");
   if (env_data && env_data[0]) {
     return (fs::path(env_data) / "bbport.ini").string();
   }
   if (fs::exists("bbport.ini")) {
     return "bbport.ini";
   }
-  const char *home = std::getenv("HOME");
+  const char* home = std::getenv("HOME");
   if (home) {
-    fs::path default_path =
-        fs::path(home) / ".local" / "share" / "bbport" / "bbport.ini";
+    fs::path default_path = fs::path(home) / ".local" / "share" / "bbport" / "bbport.ini";
     if (fs::exists(default_path)) {
       return default_path.string();
     }
@@ -61,7 +60,7 @@ LauncherSettings ConfigManager::Load() {
     std::string val = trimmed.substr(eq + 1);
 
     // Trim whitespace
-    auto trim_str = [](std::string &str) {
+    auto trim_str = [](std::string& str) {
       size_t start = str.find_first_not_of(" \t\r\n");
       size_t end = str.find_last_not_of(" \t\r\n");
       if (start == std::string::npos)
@@ -87,14 +86,14 @@ LauncherSettings ConfigManager::Load() {
     else if (key == "vsync")
       s.vsync = (val == "1" || val == "true");
     else if (key == "fps_limit") {
-      char *end = nullptr;
+      char* end = nullptr;
       long val_l = std::strtol(val.c_str(), &end, 10);
       if (end != val.c_str())
         s.fps_limit = static_cast<int>(val_l);
     } else if (key == "upscaler")
       s.upscaler = val;
     else if (key == "preset") {
-      char *end = nullptr;
+      char* end = nullptr;
       long val_l = std::strtol(val.c_str(), &end, 10);
       if (end != val.c_str())
         s.preset = static_cast<int>(val_l);
@@ -113,14 +112,14 @@ LauncherSettings ConfigManager::Load() {
   return s;
 }
 
-bool ConfigManager::Save(const LauncherSettings &s) {
+bool ConfigManager::Save(const LauncherSettings& s) {
   std::string path = GetConfigPath();
   std::vector<std::string> keys_written;
 
-  auto update_or_append = [&](const std::string &key, const std::string &val) {
+  auto update_or_append = [&](const std::string& key, const std::string& val) {
     keys_written.push_back(key);
     bool found = false;
-    for (auto &line : raw_lines_) {
+    for (auto& line : raw_lines_) {
       std::string trimmed = line;
       size_t comment = trimmed.find('#');
       if (comment != std::string::npos)
@@ -169,20 +168,19 @@ bool ConfigManager::Save(const LauncherSettings &s) {
   if (!out.is_open())
     return false;
 
-  for (const auto &l : raw_lines_) {
+  for (const auto& l : raw_lines_) {
     out << l << "\n";
   }
   return true;
 }
 
-bool ConfigManager::ValidateGameDirectory(const std::string &path) {
+bool ConfigManager::ValidateGameDirectory(const std::string& path) {
   if (path.empty())
     return false;
   fs::path p(path);
   if (!fs::exists(p) || !fs::is_directory(p))
     return false;
-  if (!fs::exists(p / "eboot.bin") &&
-      !fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
+  if (!fs::exists(p / "eboot.bin") && !fs::exists(p / "dvdroot_ps4" / "eboot.bin")) {
     return false;
   }
   // Base game assets check: ensure gxshader.shaderbnd.dcx exists
@@ -193,13 +191,13 @@ bool ConfigManager::ValidateGameDirectory(const std::string &path) {
   return true;
 }
 
-bool ConfigManager::ValidateFsr411(const std::string &directory,
-                                   const std::string &output, int preset) {
+bool ConfigManager::ValidateFsr411(const std::string& directory, const std::string& output,
+                                   int preset) {
   int w = 1920;
   int h = 1080;
   size_t x_pos = output.find('x');
   if (x_pos != std::string::npos) {
-    char *end = nullptr;
+    char* end = nullptr;
     long parsed_w = std::strtol(output.c_str(), &end, 10);
     long parsed_h = std::strtol(output.c_str() + x_pos + 1, nullptr, 10);
     if (end != output.c_str()) {
@@ -207,8 +205,8 @@ bool ConfigManager::ValidateFsr411(const std::string &directory,
       h = static_cast<int>(parsed_h);
     }
   }
-  std::string model = ((w > 1920 || h > 1080) ? "t2160" : "t1080") +
-                      std::string(preset == 4 ? "_m1" : "_m0");
+  std::string model =
+      ((w > 1920 || h > 1080) ? "t2160" : "t1080") + std::string(preset == 4 ? "_m1" : "_m0");
   fs::path base = fs::path(directory) / model;
 
   std::vector<std::string> passes = {"spd", "prepass", "pass0_post"};
@@ -219,7 +217,7 @@ bool ConfigManager::ValidateFsr411(const std::string &directory,
   passes.push_back("postpass");
   passes.push_back("rcas");
 
-  for (const auto &name : passes) {
+  for (const auto& name : passes) {
     fs::path p = base / (name + ".spv");
     std::error_code ec;
     auto sz = fs::file_size(p, ec);
@@ -234,12 +232,11 @@ bool ConfigManager::ValidateFsr411(const std::string &directory,
   return true;
 }
 
-ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings &s) {
+ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
   Save(s);
 
   if (s.game_dir.empty() || !ValidateGameDirectory(s.game_dir)) {
-    std::cerr
-        << "bbport: please select a valid game folder containing eboot.bin\n";
+    std::cerr << "bbport: please select a valid game folder containing eboot.bin\n";
     return {-1, -1};
   }
 
@@ -265,28 +262,29 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings &s) {
     return {-1, -1};
   }
 
+  UniqueFd read_end(pipe_fds[0]);
+  UniqueFd write_end(pipe_fds[1]);
+
   pid_t pid = fork();
   if (pid == 0) {
     // Child: redirect stdout & stderr to pipe
-    close(pipe_fds[0]);
-    dup2(pipe_fds[1], STDOUT_FILENO);
-    dup2(pipe_fds[1], STDERR_FILENO);
-    close(pipe_fds[1]);
+    read_end.Reset();
+    dup2(write_end.Get(), STDOUT_FILENO);
+    dup2(write_end.Get(), STDERR_FILENO);
+    write_end.Reset();
 
-    execlp("bash", "bash", "run.sh", (char *)nullptr);
+    execlp("bash", "bash", "run.sh", (char*)nullptr);
     std::perror("execlp bash run.sh failed");
     _exit(127);
   } else if (pid > 0) {
-    close(pipe_fds[1]);
-    return {pid, pipe_fds[0]};
+    write_end.Reset();
+    return {pid, read_end.Release()};
   }
 
-  close(pipe_fds[0]);
-  close(pipe_fds[1]);
   return {-1, -1};
 }
 
-int ConfigManager::LaunchGame(const LauncherSettings &s) {
+int ConfigManager::LaunchGame(const LauncherSettings& s) {
   ProcessHandle proc = LaunchGameAsync(s);
   if (proc.pid <= 0) {
     return 1;

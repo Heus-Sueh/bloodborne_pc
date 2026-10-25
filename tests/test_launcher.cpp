@@ -1,4 +1,4 @@
-#include "launcher/src/config_manager.h"
+#include "config_manager.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -28,6 +28,11 @@ void test_validation() {
   std::ofstream out(tmp / "eboot.bin");
   out << "ELF";
   out.close();
+
+  fs::create_directories(tmp / "dvdroot_ps4" / "shader");
+  std::ofstream shader_out(tmp / "dvdroot_ps4" / "shader" / "gxshader.shaderbnd.dcx");
+  shader_out << "DCX";
+  shader_out.close();
 
   assert(ConfigManager::ValidateGameDirectory(tmp.string()));
   fs::remove_all(tmp);
