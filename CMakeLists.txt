@@ -65,7 +65,6 @@ target_link_libraries(rmlui PUBLIC
 # Runtime Subsystems & Services
 set(RUNTIME_C_SOURCES
     src/runtime_host.c
-    src/runtime_memory.c
     src/runtime_thread.c
     src/runtime.c
 )
@@ -80,6 +79,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_error.cpp
     src/runtime_file.cpp
     src/runtime_kernel.cpp
+    src/runtime_memory.cpp
     src/runtime_mutex.cpp
     src/runtime_net.cpp
     src/runtime_ngs2.cpp
