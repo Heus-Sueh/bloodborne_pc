@@ -66,7 +66,6 @@ target_link_libraries(rmlui PUBLIC
 set(RUNTIME_C_SOURCES
     src/runtime_host.c
     src/runtime_memory.c
-    src/runtime_pad.c
     src/runtime_thread.c
     src/runtime.c
 )
@@ -84,6 +83,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_mutex.cpp
     src/runtime_net.cpp
     src/runtime_ngs2.cpp
+    src/runtime_pad.cpp
     src/runtime_platform.cpp
     src/runtime_registry.cpp
     src/runtime_rewatch.cpp
@@ -183,8 +183,8 @@ target_link_libraries(bb-gpu-capabilities PRIVATE PkgConfig::Vulkan PkgConfig::S
 enable_testing()
 add_compile_options(-UNDEBUG)
 
-add_executable(pad-test tests/test_pad.c)
-set_target_properties(pad-test PROPERTIES C_STANDARD 11)
+add_executable(pad-test tests/test_pad.cpp)
+set_target_properties(pad-test PROPERTIES CXX_STANDARD 23)
 target_include_directories(pad-test PRIVATE . src)
 target_link_libraries(pad-test PRIVATE PkgConfig::SDL3 PkgConfig::Vulkan m)
 add_test(NAME pad COMMAND pad-test)
