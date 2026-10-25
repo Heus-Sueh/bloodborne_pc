@@ -65,7 +65,6 @@ target_link_libraries(rmlui PUBLIC
 # Runtime Subsystems & Services
 set(RUNTIME_C_SOURCES
     src/runtime_ajm.c
-    src/runtime_audio.c
     src/runtime_compat.c
     src/runtime_file.c
     src/runtime_host.c
@@ -74,7 +73,6 @@ set(RUNTIME_C_SOURCES
     src/runtime_ngs2.c
     src/runtime_pad.c
     src/runtime_rewatch.c
-    src/runtime_services.c
     src/runtime_thread.c
     src/runtime_toypad.c
     src/runtime.c
@@ -83,6 +81,7 @@ set(RUNTIME_C_SOURCES
 set(RUNTIME_CPP_SOURCES
     src/config_manager.cpp
     src/loader.cpp
+    src/runtime_audio.cpp
     src/runtime_content.cpp
     src/runtime_error.cpp
     src/runtime_mutex.cpp
@@ -93,6 +92,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_rwlock.cpp
     src/runtime_savedata.cpp
     src/runtime_sema.cpp
+    src/runtime_services.cpp
     src/runtime_subsystems.cpp
     src/runtime_vfs.cpp
 )
