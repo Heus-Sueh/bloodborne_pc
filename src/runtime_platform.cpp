@@ -1,15 +1,16 @@
-/* Platform abstraction implementation for Linux, Windows, and macOS. */
-#define _GNU_SOURCE
+/* Platform abstraction layer implementation in modern C++23. */
 #include "platform/platform.h"
 #include "platform/time.h"
 #include "platform/system.h"
 #include "platform/memory.h"
 #include "platform/sync.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <thread>
 
 #if defined(BB_PLATFORM_WINDOWS)
 #include "win32_compat.h"
@@ -18,7 +19,7 @@
 #include <windows.h>
 #include <bcrypt.h>
 
-const char *bb_platform_name(void) { return "Windows"; }
+extern "C" const char *bb_platform_name(void) { return "Windows"; }
 
 #elif defined(BB_PLATFORM_MACOS)
 #include <unistd.h>
@@ -28,7 +29,7 @@ const char *bb_platform_name(void) { return "Windows"; }
 #include <sys/sysctl.h>
 #include <mach/mach_time.h>
 
-const char *bb_platform_name(void) { return "macOS"; }
+extern "C" const char *bb_platform_name(void) { return "macOS"; }
 
 #else /* BB_PLATFORM_LINUX / POSIX */
 #include <unistd.h>
@@ -38,10 +39,10 @@ const char *bb_platform_name(void) { return "macOS"; }
 #include <sys/random.h>
 #include <fcntl.h>
 
-const char *bb_platform_name(void) { return "Linux"; }
+extern "C" const char *bb_platform_name(void) { return "Linux"; }
 #endif
 
-const char *bb_platform_arch(void) {
+extern "C" const char *bb_platform_arch(void) {
 #if defined(BB_ARCH_X86_64)
     return "x86_64";
 #elif defined(BB_ARCH_ARM64)
@@ -55,6 +56,8 @@ const char *bb_platform_arch(void) {
  * Timing & Clocks
  * -------------------------------------------------------------------------- */
 
+extern "C" {
+
 #if defined(BB_PLATFORM_WINDOWS)
 
 static uint64_t win_qpc_frequency(void) {
@@ -62,7 +65,7 @@ static uint64_t win_qpc_frequency(void) {
     if (!freq) {
         LARGE_INTEGER f;
         QueryPerformanceFrequency(&f);
-        freq = (uint64_t)f.QuadPart;
+        freq = static_cast<uint64_t>(f.QuadPart);
     }
     return freq;
 }
@@ -70,14 +73,15 @@ static uint64_t win_qpc_frequency(void) {
 uint64_t bb_platform_monotonic_ns(void) {
     LARGE_INTEGER c;
     QueryPerformanceCounter(&c);
-    uint64_t f = win_qpc_frequency(), n = (uint64_t)c.QuadPart;
+    uint64_t f = win_qpc_frequency();
+    uint64_t n = static_cast<uint64_t>(c.QuadPart);
     return (n / f) * 1000000000ULL + (n % f) * 1000000000ULL / f;
 }
 
 uint64_t bb_platform_realtime_ns(void) {
     FILETIME t;
     GetSystemTimePreciseAsFileTime(&t);
-    uint64_t ticks = ((uint64_t)t.dwHighDateTime << 32) | t.dwLowDateTime;
+    uint64_t ticks = (static_cast<uint64_t>(t.dwHighDateTime) << 32) | t.dwLowDateTime;
     return (ticks - UINT64_C(116444736000000000)) * 100;
 }
 
@@ -98,25 +102,25 @@ int64_t bb_platform_utc_offset(time_t when) {
 uint64_t bb_platform_monotonic_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+    return static_cast<uint64_t>(ts.tv_sec) * 1000000000ULL + static_cast<uint64_t>(ts.tv_nsec);
 }
 
 uint64_t bb_platform_realtime_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+    return static_cast<uint64_t>(ts.tv_sec) * 1000000000ULL + static_cast<uint64_t>(ts.tv_nsec);
 }
 
 void bb_platform_sleep_ns(uint64_t ns) {
     struct timespec ts = {
-        .tv_sec = (time_t)(ns / 1000000000ULL),
-        .tv_nsec = (long)(ns % 1000000000ULL)
+        .tv_sec = static_cast<time_t>(ns / 1000000000ULL),
+        .tv_nsec = static_cast<long>(ns % 1000000000ULL)
     };
     while (nanosleep(&ts, &ts) && errno == EINTR) {}
 }
 
 void bb_platform_sleep_until_ns(uint64_t deadline_ns) {
-    while (1) {
+    while (true) {
         uint64_t now = bb_platform_monotonic_ns();
         if (now >= deadline_ns) break;
         bb_platform_sleep_ns(deadline_ns - now);
@@ -124,9 +128,9 @@ void bb_platform_sleep_until_ns(uint64_t deadline_ns) {
 }
 
 int64_t bb_platform_utc_offset(time_t when) {
-    struct tm tm_val;
+    struct tm tm_val{};
     localtime_r(&when, &tm_val);
-    return (int64_t)tm_val.tm_gmtoff;
+    return static_cast<int64_t>(tm_val.tm_gmtoff);
 }
 
 #else /* BB_PLATFORM_LINUX / POSIX */
@@ -134,7 +138,7 @@ int64_t bb_platform_utc_offset(time_t when) {
 static inline uint64_t linux_read_clock(clockid_t id) {
     struct timespec ts;
     clock_gettime(id, &ts);
-    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+    return static_cast<uint64_t>(ts.tv_sec) * 1000000000ULL + static_cast<uint64_t>(ts.tv_nsec);
 }
 
 uint64_t bb_platform_monotonic_ns(void) {
@@ -147,24 +151,24 @@ uint64_t bb_platform_realtime_ns(void) {
 
 void bb_platform_sleep_ns(uint64_t ns) {
     struct timespec ts = {
-        .tv_sec = (time_t)(ns / 1000000000ULL),
-        .tv_nsec = (long)(ns % 1000000000ULL)
+        .tv_sec = static_cast<time_t>(ns / 1000000000ULL),
+        .tv_nsec = static_cast<long>(ns % 1000000000ULL)
     };
     while (nanosleep(&ts, &ts) && errno == EINTR) {}
 }
 
 void bb_platform_sleep_until_ns(uint64_t deadline_ns) {
     struct timespec ts = {
-        .tv_sec = (time_t)(deadline_ns / 1000000000ULL),
-        .tv_nsec = (long)(deadline_ns % 1000000000ULL)
+        .tv_sec = static_cast<time_t>(deadline_ns / 1000000000ULL),
+        .tv_nsec = static_cast<long>(deadline_ns % 1000000000ULL)
     };
-    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) && errno == EINTR) {}
+    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) && errno == EINTR) {}
 }
 
 int64_t bb_platform_utc_offset(time_t when) {
-    struct tm tm_val;
+    struct tm tm_val{};
     localtime_r(&when, &tm_val);
-    return (int64_t)tm_val.tm_gmtoff;
+    return static_cast<int64_t>(tm_val.tm_gmtoff);
 }
 
 #endif
@@ -190,13 +194,13 @@ void bb_platform_set_guest_tcb(void *tcb) {
 size_t bb_platform_page_size(void) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    return (size_t)si.dwPageSize;
+    return static_cast<size_t>(si.dwPageSize);
 }
 
 int bb_platform_cpu_count(void) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    return (int)si.dwNumberOfProcessors;
+    return static_cast<int>(si.dwNumberOfProcessors);
 }
 
 #elif defined(BB_PLATFORM_MACOS)
@@ -211,36 +215,35 @@ void bb_platform_set_thread_name(const char *name) {
 }
 
 void bb_platform_set_guest_tcb(void *tcb) {
-    /* macOS x86-64 thread pointer configuration */
     (void)tcb;
 }
 
 size_t bb_platform_page_size(void) {
     long sz = sysconf(_SC_PAGESIZE);
-    return sz > 0 ? (size_t)sz : 4096;
+    return sz > 0 ? static_cast<size_t>(sz) : 4096;
 }
 
 int bb_platform_cpu_count(void) {
     long count = sysconf(_SC_NPROCESSORS_ONLN);
-    return count > 0 ? (int)count : 1;
+    return count > 0 ? static_cast<int>(count) : 1;
 }
 
 #else /* BB_PLATFORM_LINUX / POSIX */
 
 int bb_platform_random(void *buffer, size_t size) {
     ssize_t ret = syscall(SYS_getrandom, buffer, size, 0);
-    if (ret == (ssize_t)size) return 0;
+    if (ret == static_cast<ssize_t>(size)) return 0;
 
     int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
     if (fd < 0) return -1;
     size_t done = 0;
     while (done < size) {
-        ssize_t n = read(fd, (char *)buffer + done, size - done);
+        ssize_t n = read(fd, static_cast<char *>(buffer) + done, size - done);
         if (n <= 0) {
             close(fd);
             return -1;
         }
-        done += (size_t)n;
+        done += static_cast<size_t>(n);
     }
     close(fd);
     return 0;
@@ -253,7 +256,7 @@ void bb_platform_set_thread_name(const char *name) {
 void bb_platform_set_guest_tcb(void *tcb) {
 #if defined(BB_ARCH_X86_64) && defined(SYS_arch_prctl)
     enum { ARCH_SET_FS = 0x1002 };
-    syscall(SYS_arch_prctl, ARCH_SET_FS, (unsigned long)tcb);
+    syscall(SYS_arch_prctl, ARCH_SET_FS, reinterpret_cast<unsigned long>(tcb));
 #else
     (void)tcb;
 #endif
@@ -261,12 +264,12 @@ void bb_platform_set_guest_tcb(void *tcb) {
 
 size_t bb_platform_page_size(void) {
     long sz = sysconf(_SC_PAGESIZE);
-    return sz > 0 ? (size_t)sz : 4096;
+    return sz > 0 ? static_cast<size_t>(sz) : 4096;
 }
 
 int bb_platform_cpu_count(void) {
     long count = sysconf(_SC_NPROCESSORS_ONLN);
-    return count > 0 ? (int)count : 1;
+    return count > 0 ? static_cast<int>(count) : 1;
 }
 
 #endif
@@ -278,8 +281,8 @@ int bb_platform_cpu_count(void) {
 #if defined(BB_PLATFORM_WINDOWS)
 
 void *bb_platform_reserve_space(uintptr_t base, size_t size) {
-    if (win_mem_space(base, base + size) != 0) return NULL;
-    return (void *)base;
+    if (win_mem_space(base, base + size) != 0) return nullptr;
+    return reinterpret_cast<void *>(base);
 }
 
 void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
@@ -288,11 +291,13 @@ void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
 }
 
 int bb_platform_protect(void *addr, size_t size, int prot) {
-    return win_mem_protect((uintptr_t)addr, (uintptr_t)addr + size, prot);
+    auto u_addr = reinterpret_cast<uintptr_t>(addr);
+    return win_mem_protect(u_addr, u_addr + size, prot);
 }
 
 int bb_platform_release(void *addr, size_t size) {
-    return win_mem_release((uintptr_t)addr, (uintptr_t)addr + size, NULL);
+    auto u_addr = reinterpret_cast<uintptr_t>(addr);
+    return win_mem_release(u_addr, u_addr + size, nullptr);
 }
 
 #elif defined(BB_PLATFORM_MACOS)
@@ -306,8 +311,8 @@ static int macos_translate_prot(int prot) {
 }
 
 void *bb_platform_reserve_space(uintptr_t base, size_t size) {
-    void *ptr = mmap((void *)base, size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    return (ptr == MAP_FAILED) ? NULL : ptr;
+    void *ptr = mmap(reinterpret_cast<void *>(base), size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    return (ptr == MAP_FAILED) ? nullptr : ptr;
 }
 
 void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
@@ -316,8 +321,8 @@ void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
     if (base != 0) {
         flags |= MAP_FIXED;
     }
-    void *ptr = mmap((void *)base, size, p, flags, -1, 0);
-    return (ptr == MAP_FAILED) ? NULL : ptr;
+    void *ptr = mmap(reinterpret_cast<void *>(base), size, p, flags, -1, 0);
+    return (ptr == MAP_FAILED) ? nullptr : ptr;
 }
 
 int bb_platform_protect(void *addr, size_t size, int prot) {
@@ -340,9 +345,9 @@ static int linux_translate_prot(int prot) {
 }
 
 void *bb_platform_reserve_space(uintptr_t base, size_t size) {
-    void *ptr = mmap((void *)base, size, PROT_NONE,
+    void *ptr = mmap(reinterpret_cast<void *>(base), size, PROT_NONE,
                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0);
-    return (ptr == MAP_FAILED) ? NULL : ptr;
+    return (ptr == MAP_FAILED) ? nullptr : ptr;
 }
 
 void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
@@ -351,8 +356,8 @@ void *bb_platform_alloc_committed(uintptr_t base, size_t size, int prot) {
     if (base != 0) {
         flags |= MAP_FIXED;
     }
-    void *ptr = mmap((void *)base, size, p, flags, -1, 0);
-    return (ptr == MAP_FAILED) ? NULL : ptr;
+    void *ptr = mmap(reinterpret_cast<void *>(base), size, p, flags, -1, 0);
+    return (ptr == MAP_FAILED) ? nullptr : ptr;
 }
 
 int bb_platform_protect(void *addr, size_t size, int prot) {
@@ -373,7 +378,7 @@ int bb_platform_release(void *addr, size_t size) {
 
 int bb_platform_thread_start(BbPlatformThread *thread, size_t stack, void *(*entry)(void *), void *argument) {
 #if defined(BB_PLATFORM_WINDOWS)
-    return host_thread_start((HostThread *)thread, stack, entry, argument);
+    return host_thread_start(reinterpret_cast<HostThread *>(thread), stack, entry, argument);
 #else
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -388,16 +393,18 @@ int bb_platform_thread_start(BbPlatformThread *thread, size_t stack, void *(*ent
 
 int bb_platform_thread_join(BbPlatformThread thread) {
 #if defined(BB_PLATFORM_WINDOWS)
-    return host_thread_join((HostThread)thread);
+    return host_thread_join(static_cast<HostThread>(thread));
 #else
-    return pthread_join(thread, NULL);
+    return pthread_join(thread, nullptr);
 #endif
 }
 
 void bb_platform_thread_detach(BbPlatformThread thread) {
 #if defined(BB_PLATFORM_WINDOWS)
-    host_thread_detach((HostThread)thread);
+    host_thread_detach(static_cast<HostThread>(thread));
 #else
     pthread_detach(thread);
 #endif
 }
+
+} // extern "C"

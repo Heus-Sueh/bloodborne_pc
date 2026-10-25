@@ -1,13 +1,13 @@
 #ifndef BB_RUNTIME_SUBSYSTEMS_H
 #define BB_RUNTIME_SUBSYSTEMS_H
 
+#ifdef __cplusplus
+#include "runtime_subsystems.hpp"
+#else
+
 #include "platform/platform.h"
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Subsystem identifier enumeration */
 typedef enum {
@@ -36,8 +36,7 @@ typedef struct {
     BbSubsystemStatus status;
 } BbSubsystemContract;
 
-/* Initializes all registered runtime subsystems in deterministic order.
- * Returns 0 on success, or non-zero on failure. */
+/* Initializes all registered runtime subsystems in deterministic order. */
 int bb_subsystems_init(uint64_t capabilities);
 
 /* Shuts down all registered subsystems in reverse initialization order. */
@@ -49,8 +48,6 @@ const BbSubsystemContract *bb_subsystem_get(BbSubsystemId id);
 /* Dumps diagnostic statistics across all active subsystems. */
 void bb_subsystems_dump_all_stats(void);
 
-#ifdef __cplusplus
-}
-#endif
+#endif /* __cplusplus */
 
 #endif /* BB_RUNTIME_SUBSYSTEMS_H */

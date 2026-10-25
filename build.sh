@@ -23,6 +23,12 @@ if [[ -z ${CC:-} ]]; then
     fi
 fi
 if [[ -z ${CC:-} ]]; then echo 'Install GCC/Clang or set CC.' >&2; exit 1; fi
+# Add local tool fallback paths if cmake or ninja are not in PATH
+if ! command -v cmake >/dev/null || ! command -v ninja >/dev/null; then
+    for p in /home/heus/.cache/uv/archive-v0/*/cmake/data/bin /home/heus/.cache/uv/archive-v0/*/ninja-*.data/scripts /home/heus/.local/share/mise/installs/cmake/*/bin /home/heus/.local/share/mise/installs/ninja/*; do
+        if [[ -d $p ]]; then export PATH="$p:$PATH"; fi
+    done
+fi
 # Dependencies come from pkg-config (Vulkan loader/headers, SDL3). On NixOS the
 # environment is provided by shell.nix; re-enter it automatically if needed.
 if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 freetype2 && command -v cmake >/dev/null && command -v ninja >/dev/null; }; then
@@ -102,9 +108,17 @@ if [[ -n ${DLSS_SDK_ROOT:-} ]]; then
     cp "$DLSS_SDK_ROOT/LICENSE.txt" out/NVIDIA-DLSS-LICENSE.txt
     echo "DLSS bridge: out/libbbport_dlss.so"
 fi
+CXX=${CXX:-g++}
 # $ORIGIN/gpu: packaged copies keep the library next to the binary without patching it.
 gpu=(-Lout/gpu -lbbgpu -Wl,-rpath,'$ORIGIN/gpu' -Wl,-rpath,"$PWD/out/gpu" -rdynamic)
 runtime=(src/runtime*.c)
+runtime_cpp=(src/runtime*.cpp)
+runtime_cpp_objs=()
+for src in "${runtime_cpp[@]}"; do
+    obj="out/$(basename "${src%.cpp}").o"
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror "${includes[@]}" -I. -Isrc -c "$src" -o "$obj"
+    runtime_cpp_objs+=("$obj")
+done
 link=(-no-pie)
 if [[ -n $windows ]]; then
     mapfile -t gpu < out/gpu/bbgpu_link.txt
@@ -118,7 +132,7 @@ if [[ ! -f out/libatrac9.a || -n $(find third_party/LibAtrac9/C/src -newer out/l
     for source in "${atrac9[@]}"; do "$CC" -std=c99 -O2 -g -w -c "$source" -o "out/atrac9/$(basename "${source%.c}").o"; done
     ar rcs out/libatrac9.a out/atrac9/*.o
 fi
-"$CC" "${cstd[@]}" -O2 -g -Wall -Wextra -Werror "${threads[@]}" "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" src/vulkan_smoke.c out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" "${link[@]}" -o out/bb-probe
+"$CC" "${cstd[@]}" -O2 -g -Wall -Wextra -Werror "${threads[@]}" "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" "${runtime_cpp_objs[@]}" src/vulkan_smoke.c out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" "${link[@]}" -o out/bb-probe
 echo "Built $PWD/out/bb-probe"
 # GPU check for run.sh (live_resolution=auto) and the launcher's gamepad list (--gamepads).
 "$CC" "${cstd[@]}" -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
@@ -126,7 +140,6 @@ echo "Built $PWD/out/bb-probe"
 if [[ ! -f out/libRmlUi.a ]]; then
     bash tools/build_rmlui.sh
 fi
-CXX=${CXX:-g++}
 read -r -a ft_includes <<< "$(pkg-config --cflags freetype2 2>/dev/null || true)"
 read -r -a ft_libs <<< "$(pkg-config --libs freetype2 2>/dev/null || true)"
 "$CXX" -std=c++20 -O2 -Wall -Wextra -pthread \
@@ -148,19 +161,19 @@ echo "Built $PWD/out/bb-launcher"
 if [[ ${1:-} == --test ]]; then
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread "${includes[@]}" -I. -Isrc tests/test_pad.c "${libraries[@]}" -lm -o out/pad-test
     out/pad-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_platform.c src/runtime_platform.c -o out/platform-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_platform.cpp src/runtime_platform.cpp -o out/platform-test
     out/platform-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.c src/runtime_subsystems.c -o out/subsystems-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.cpp src/runtime_subsystems.cpp -o out/subsystems-test
     out/subsystems-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_vfs.c src/runtime_vfs.c -o out/vfs-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_vfs.cpp src/runtime_vfs.cpp -o out/vfs-test
     out/vfs-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
+    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc tests/test_file_mods.c -o out/file-mods-test
     out/file-mods-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_sema.c "${runtime[@]}" out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/sema-test
+    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_sema.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/sema-test
     out/sema-test
-    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_online.c "${runtime[@]}" out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/online-test
+    "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_online.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/online-test
     out/online-test
     "$CC" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c src/runtime_content.c -o out/content-test
     out/content-test

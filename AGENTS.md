@@ -65,7 +65,7 @@ just run
 ## 3. Core Development Rules & Constraints
 
 ### Language & Toolchain
-- **Runtime (`src/`)**: Strict **C11** (`-std=c11`). No C++ in the core runtime.
+- **Runtime (`src/`)**: Hybrid **C11** (`-std=c11`) / Modern **C++23** (`-std=c++23`). Low-level PS4 guest ABI interception, syscall bridges, and assembly trampolines are strict C11 (`sysv_abi` / `extern "C"`). Runtime subsystems, PAL, and high-level services are modern C++23.
 - **GPU Core (`gpu/`)**: Modern **C++23** (`-std=c++23`).
 - **Launcher (`launcher/`)**: Modern **C++20** (`-std=c++20`). Zero Python dependencies.
 - **Documentation**: All documentation must be maintained in **English**. Do not create or commit localized `.ru.md` or non-English files.
