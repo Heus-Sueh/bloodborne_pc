@@ -150,13 +150,24 @@ pacman -S --needed mingw-w64-clang-x86_64-clang \
 ### Build Commands
 
 ```bash
-# Build native runtime, GPU translation layer, and launcher
+# Standard workflow via CMake presets
+cmake --preset default
+cmake --build --preset default
+
+# Run test suite
+ctest --preset default
+
+# Code quality & formatting
+cmake --build --preset lint
+cmake --build --preset format
+
+# Unified task runner alternatives (just / scripts)
 just build
 # or: ./scripts/build.sh
 
-# Run comprehensive test suite
 just test
 # or: ./scripts/build.sh --test
+
 
 # Run static analysis and formatting check
 just lint

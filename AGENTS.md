@@ -207,13 +207,19 @@ Prefer the repository's `just` targets because they encode the intended build wo
 ### Building and validation
 
 ```bash
-# Standard feedback loops
+# Standard feedback loops via CMake presets
+cmake --preset default
+cmake --build --preset default
+ctest --preset default
+cmake --build --preset lint
+cmake --build --preset format
+
+# Unified task runner alternatives (justfile / scripts)
 just build
 just test
 just lint
 just format
 
-# Unified shell script alternatives
 ./scripts/build.sh
 ./scripts/build.sh --test
 ./scripts/build.sh --lint
