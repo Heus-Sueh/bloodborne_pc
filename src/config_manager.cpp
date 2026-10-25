@@ -337,14 +337,7 @@ bool ConfigManager::ValidateFsr411(const std::string& directory, const std::stri
   return true;
 }
 
-ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
-  Save(s);
-
-  if (s.game_dir.empty() || !ValidateGameDirectory(s.game_dir)) {
-    std::cerr << "bbport: please select a valid game folder containing eboot.bin\n";
-    return {-1, -1};
-  }
-
+void ConfigManager::ApplyToEnvironment(const LauncherSettings& s) {
   std::string cfg_path = GetConfigPath();
   if (cfg_path.size() >= 4 && cfg_path.substr(cfg_path.size() - 4) == ".ini") {
     cfg_path = cfg_path.substr(0, cfg_path.size() - 4) + ".toml";
@@ -367,9 +360,12 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
     setenv("BB_SHADNET_SERVER", s.online_server.c_str(), 1);
   }
 
-  setenv("BB_GAME_DIR", s.game_dir.c_str(), 1);
+  if (!s.game_dir.empty()) {
+    setenv("BB_GAME_DIR", s.game_dir.c_str(), 1);
+  }
   setenv("BB_USER_DIR", s.user_dir.c_str(), 1);
   setenv("BB_MODS_DIR", s.mods_dir.c_str(), 1);
+  setenv("BB_GPU_USER_DIR", s.user_dir.c_str(), 1);
 
   setenv("BB_FULLSCREEN", s.fullscreen ? "1" : "0", 1);
   setenv("BB_BORDERLESS", s.borderless ? "1" : "0", 1);
@@ -381,9 +377,34 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
   setenv("BB_UPSCALER", s.upscaler.c_str(), 1);
   setenv("BB_PRESET", std::to_string(s.preset).c_str(), 1);
 
+  if (s.fps_limit == 0) {
+    setenv("BB_VBLANK_HZ", "1000", 1);
+  } else if (s.fps_limit == 90) {
+    setenv("BB_VBLANK_HZ", "90", 1);
+  } else {
+    setenv("BB_VBLANK_HZ", "60", 1);
+  }
+
   setenv("BB_MOUSE_LOOK", s.mouse_look ? "1" : "0", 1);
   setenv("BB_MOUSE_SENSITIVITY", std::to_string(s.mouse_sensitivity).c_str(), 1);
   setenv("BB_MOUSE_INVERT_Y", s.mouse_invert_y ? "1" : "0", 1);
+
+  // Shader disk cache optimizations
+  setenv("__GL_SHADER_DISK_CACHE", "1", 1);
+  setenv("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "1", 1);
+  setenv("__GL_SHADER_DISK_CACHE_SIZE", "10737418240", 1);
+  setenv("MESA_SHADER_CACHE_MAX_SIZE", "4G", 1);
+}
+
+ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
+  Save(s);
+
+  if (s.game_dir.empty() || !ValidateGameDirectory(s.game_dir)) {
+    std::cerr << "bbport: please select a valid game folder containing eboot.bin\n";
+    return {-1, -1};
+  }
+
+  ApplyToEnvironment(s);
 
   int pipe_fds[2];
   if (pipe(pipe_fds) != 0) {

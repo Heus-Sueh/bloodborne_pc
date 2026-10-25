@@ -74,6 +74,45 @@ void test_config_save_load() {
   std::cout << "PASS: test_config_save_load\n";
 }
 
+void test_apply_to_environment() {
+  LauncherSettings s;
+  s.game_dir = "/games/bb";
+  s.user_dir = "my_user";
+  s.fullscreen = true;
+  s.borderless = true;
+  s.vsync = true;
+  s.fps_limit = 90;
+  s.output_res = "2560x1440";
+  s.upscaler = "fsr4";
+  s.preset = 1;
+  s.mouse_look = true;
+  s.mouse_sensitivity = 1.75f;
+  s.mouse_invert_y = false;
+  s.online_pool = "huntersdream";
+  s.online_server = "server.net:31313";
+
+  ConfigManager::ApplyToEnvironment(s);
+
+  assert(std::string(std::getenv("BB_GAME_DIR")) == "/games/bb");
+  assert(std::string(std::getenv("BB_USER_DIR")) == "my_user");
+  assert(std::string(std::getenv("BB_FULLSCREEN")) == "1");
+  assert(std::string(std::getenv("BB_BORDERLESS")) == "1");
+  assert(std::string(std::getenv("BB_VSYNC")) == "1");
+  assert(std::string(std::getenv("BB_PRESENT_MODE")) == "Fifo");
+  assert(std::string(std::getenv("BB_FPS_LIMIT")) == "90");
+  assert(std::string(std::getenv("BB_VBLANK_HZ")) == "90");
+  assert(std::string(std::getenv("BB_OUTPUT_RES")) == "2560x1440");
+  assert(std::string(std::getenv("BB_UPSCALER")) == "fsr4");
+  assert(std::string(std::getenv("BB_PRESET")) == "1");
+  assert(std::string(std::getenv("BB_ONLINE")) == "1");
+  assert(std::string(std::getenv("BB_NET_BACKEND")) == "thd");
+  assert(std::string(std::getenv("BB_SHADNET_SERVER")) == "server.net:31313");
+  assert(std::string(std::getenv("BB_MOUSE_LOOK")) == "1");
+  assert(std::strtof(std::getenv("BB_MOUSE_SENSITIVITY"), nullptr) == 1.75f);
+  assert(std::string(std::getenv("BB_MOUSE_INVERT_Y")) == "0");
+  std::cout << "PASS: test_apply_to_environment\n";
+}
+
 void test_game_version() {
   assert(ConfigManager::GetGameVersion("").empty());
   assert(ConfigManager::GetTitleId("").empty());
@@ -153,6 +192,7 @@ int main() {
   test_default_config();
   test_validation();
   test_config_save_load();
+  test_apply_to_environment();
   test_game_version();
   std::cout << "All launcher tests passed successfully.\n";
   return 0;

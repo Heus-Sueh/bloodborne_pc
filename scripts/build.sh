@@ -146,9 +146,10 @@ read -r -a ft_libs <<< "$(pkg-config --libs freetype2 2>/dev/null || true)"
     -DRMLUI_NUM_MSAA_SAMPLES=0 \
     -Ithird_party/RmlUi/Include \
     -Ithird_party/RmlUi/Backends \
+    -Isrc \
     -Ilauncher/src \
     "${includes[@]}" "${ft_includes[@]}" \
-    launcher/src/config_manager.cpp \
+    src/config_manager.cpp \
     launcher/src/launcher_model.cpp \
     launcher/src/main.cpp \
     out/libRmlUi.a \
@@ -159,6 +160,7 @@ echo "Built $PWD/out/bb-launcher"
 # Native C++23 game runner
 "$CXX" -std=c++23 -O2 -Wall -Wextra -pthread \
     -I. -Isrc \
+    src/config_manager.cpp \
     src/runner.cpp \
     -o out/bb-runner
 echo "Built $PWD/out/bb-runner"
@@ -181,6 +183,6 @@ if [[ ${1:-} == --test ]]; then
     out/online-test
     "$CC" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c src/runtime_content.c -o out/content-test
     out/content-test
-    "$CXX" -std=c++20 -O2 -Wall -Wextra -pthread -Ilauncher/src tests/test_launcher.cpp launcher/src/config_manager.cpp -o out/launcher-test
+    "$CXX" -std=c++20 -O2 -Wall -Wextra -pthread -Isrc -Ilauncher/src tests/test_launcher.cpp src/config_manager.cpp -o out/launcher-test
     out/launcher-test
 fi
