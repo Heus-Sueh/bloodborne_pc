@@ -268,3 +268,22 @@ set_target_properties(launcher-test PROPERTIES CXX_STANDARD 20)
 target_include_directories(launcher-test PRIVATE . src launcher/src)
 target_link_libraries(launcher-test PRIVATE Threads::Threads)
 add_test(NAME launcher COMMAND launcher-test)
+
+# Code Quality & Formatting Targets
+find_program(CLANG_FORMAT_BIN clang-format)
+if(CLANG_FORMAT_BIN)
+    file(GLOB FORMAT_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/launcher/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/launcher/src/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_launcher.cpp"
+    )
+    add_custom_target(format
+        COMMAND ${CLANG_FORMAT_BIN} -i ${FORMAT_SOURCES}
+        COMMENT "Formatting C/C++ source files with clang-format..."
+    )
+    add_custom_target(lint
+        COMMAND ${CLANG_FORMAT_BIN} --dry-run --Werror ${FORMAT_SOURCES}
+        COMMENT "Checking C/C++ formatting with clang-format..."
+    )
+endif()
+

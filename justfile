@@ -7,19 +7,19 @@ set shell := ["bash", "-c"]
 default:
     @just --list
 
-# Build native runtime, GPU library, and launcher
+# Build native runtime, core engine, and launcher via CMake Presets
 build *ARGS:
     {{ if os() == "windows" { "./scripts/run.bat --build-only " + ARGS } else { "./scripts/build.sh " + ARGS } }}
 
-# Run comprehensive test suite
+# Run comprehensive test suite via CMake Presets
 test:
     ./scripts/build.sh --test
 
-# Run static analysis and style linting (clang-tidy & clang-format check)
+# Run static analysis and style linting (clang-format check via CMake target)
 lint:
     ./scripts/build.sh --lint
 
-# Format codebase according to C/C++ coding standards
+# Format codebase according to C/C++ coding standards (via CMake target)
 format:
     ./scripts/build.sh --format
 
@@ -37,4 +37,4 @@ extract FILE OUT_DIR="":
 
 # Clean build artifacts
 clean:
-    rm -rf out
+    rm -rf out out-debug out-release
