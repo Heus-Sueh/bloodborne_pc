@@ -64,7 +64,6 @@ target_link_libraries(rmlui PUBLIC
 
 # Runtime Subsystems & Services
 set(RUNTIME_C_SOURCES
-    src/runtime_ajm.c
     src/runtime_file.c
     src/runtime_host.c
     src/runtime_memory.c
@@ -77,6 +76,7 @@ set(RUNTIME_C_SOURCES
 set(RUNTIME_CPP_SOURCES
     src/config_manager.cpp
     src/loader.cpp
+    src/runtime_ajm.cpp
     src/runtime_audio.cpp
     src/runtime_compat.cpp
     src/runtime_content.cpp
