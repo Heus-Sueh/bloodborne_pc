@@ -2,7 +2,7 @@
 #define RMLUI_SDL_VERSION_MAJOR 3
 #endif
 
-#include "config_manager.h"
+#include "config_manager.hpp"
 #include "launcher_model.h"
 #include <RmlUi/Core.h>
 #include <RmlUi_Include_GL3.h>

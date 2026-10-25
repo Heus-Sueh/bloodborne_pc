@@ -1,4 +1,4 @@
-#include "config_manager.h"
+#include "config_manager.hpp"
 #include "loader.hpp"
 #include <cstdlib>
 #include <cstring>

@@ -190,7 +190,7 @@ See [`docs/fork-enhancements.md`](docs/fork-enhancements.md) for full technical 
 
 All contributions must follow our coding conventions:
 - **C11** for low-level runtime components (`src/`).
-- **C++23** for GPU translation and networking (`gpu/`).
+- **C++23** for GPU translation and networking (`core/`).
 - **C++20** for client launcher applications (`launcher/`).
 - Strict RAII for system resources, explicit synchronization, and zero raw owning pointers.
 

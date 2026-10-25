@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 #include "runtime.h"
-#include "gpu/bbgpu.h"
-#include "gpu/bbnet/bbnet.h"
+#include "core/bbgpu.h"
+#include "core/bbnet/bbnet.h"
 #include <assert.h>
 #include <dlfcn.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@
 void runtime_restart(void) { abort(); }
 
 /* Online play (BB_ONLINE=1): the game's network and PSN imports resolve to the online module
- * (out/gpu/libbbnet.so); trophies stay with the runtime. Without the module (a build without its
+ * (out/core/libbbnet.so); trophies stay with the runtime. Without the module (a build without its
  * libraries) there is nothing to check. */
 int main(void) {
     static const char *const online[]={
@@ -24,8 +24,12 @@ int main(void) {
         "3KOuC4RmZZU#T#U",  /* sceNpSignalingInitialize */
     };
     static const char *const local="XbkjbobZlCY#l#m"; /* sceNpTrophyCreateContext */
-    const char *path="out/gpu/libbbnet.so";
+    const char *path="out/core/libbbnet.so";
     void *module=dlopen(path,RTLD_NOW|RTLD_LOCAL); /* the same handle the runtime gets */
+    if (!module) {
+        path="core/libbbnet.so";
+        module=dlopen(path,RTLD_NOW|RTLD_LOCAL);
+    }
     if (!module) {
         printf("SKIP: no online module (%s)\n",dlerror());
         return 0;

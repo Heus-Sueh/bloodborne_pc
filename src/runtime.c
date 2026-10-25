@@ -1,7 +1,7 @@
 /* Narrow, explicit PS4 libc contracts. No automatic success stubs. */
 #define _CRT_RAND_S
 #include "runtime.h"
-#include "gpu/bbgpu.h"
+#include "core/bbgpu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

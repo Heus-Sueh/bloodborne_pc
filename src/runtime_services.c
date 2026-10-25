@@ -6,7 +6,7 @@
  * Every entry here is an explicit contract; unknown functions still stop. */
 #define _GNU_SOURCE
 #include "runtime.h"
-#include "gpu/bbhost.h"
+#include "core/bbhost.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

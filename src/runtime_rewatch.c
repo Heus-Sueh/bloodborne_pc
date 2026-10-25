@@ -151,7 +151,7 @@ void runtime_re_watch_report(void) { if (watch_started) watch_drain(1); }
 static uint64_t watch_requested;
 void runtime_re_watch(uint64_t address) { if (!watch_requested) watch_requested=address; }
 
-#include "gpu/bbhooks.h"
+#include "core/bbhooks.h"
 
 void runtime_re_watch_tick(const void *pad_buffer, uint64_t reads) {
     /* BB_RE_WATCH_CAMSTATE=1: the current camera's aspect ratio (+0x54): who reads it. */

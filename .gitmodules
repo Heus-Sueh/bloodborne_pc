@@ -1,8 +1,8 @@
-[submodule "gpu/third_party/fsr-vulkan"]
-	path = gpu/third_party/fsr-vulkan
+[submodule "core/third_party/fsr-vulkan"]
+	path = core/third_party/fsr-vulkan
 	url = https://github.com/FireBurn/FSR-Vulkan.git
-[submodule "gpu/third_party/imgui"]
-	path = gpu/third_party/imgui
+[submodule "core/third_party/imgui"]
+	path = core/third_party/imgui
 	url = https://github.com/ocornut/imgui.git
 [submodule "third_party/LibAtrac9"]
 	path = third_party/LibAtrac9

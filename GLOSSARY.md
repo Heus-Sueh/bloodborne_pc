@@ -14,16 +14,16 @@ The canonical adapter (`src/runtime_error.h`, `src/runtime_error.c`) translating
 The typed metadata record registering an implementation at the `SymbolRegistry` seam: specifying the symbol's name or NID, its target host address, and whether it satisfies a function or data import (`EXPORT_FUNCTION` vs `EXPORT_DATA`).
 
 ### HostPlatform
-The deep module (`gpu/bbhost.h`, `gpu/shim/window.cpp`, `gpu/shim/sdl_window.cpp`) encapsulating host OS interactions: SDL windowing, event filtering, relative mouse capture for camera control, in-game IME text dialogs, and game pad input filtering. Exposes focused `bbhost_*` procedures to the runtime without exposing any graphics or Vulkan types.
+The deep module (`core/bbhost.h`, `core/shim/window.cpp`, `core/shim/sdl_window.cpp`) encapsulating host OS interactions: SDL windowing, event filtering, relative mouse capture for camera control, in-game IME text dialogs, and game pad input filtering. Exposes focused `bbhost_*` procedures to the runtime without exposing any graphics or Vulkan types.
 
 ### GameHooks
-The deep module (`gpu/bbhooks.h`, `gpu/shim/bbport_guest_hooks.cpp`) encapsulating reverse-engineered guest game mechanics: camera rotation vectors, free-camera toggles, projection parameters, and guest code patch installation. Exposes focused `bbhook_*` procedures without binding to either windowing or GPU rendering pipelines.
+The deep module (`core/bbhooks.h`, `core/shim/bbport_guest_hooks.cpp`) encapsulating reverse-engineered guest game mechanics: camera rotation vectors, free-camera toggles, projection parameters, and guest code patch installation. Exposes focused `bbhook_*` procedures without binding to either windowing or GPU rendering pipelines.
 
 ### GpuRenderer
-The deep module (`gpu/bbgpu.h`, `gpu/shim/bbgpu.cpp`) encapsulating Vulkan device management, presenter swapchains, shader rasterization, GPU page fault trapping, and guest graphics NID resolution. Exposes minimal lifecycle and fault dispatch entry points (`bbgpu_init`, `bbgpu_resolve`, `bbgpu_handle_fault`).
+The deep module (`core/bbgpu.h`, `core/shim/bbgpu.cpp`) encapsulating Vulkan device management, presenter swapchains, shader rasterization, GPU page fault trapping, and guest graphics NID resolution. Exposes minimal lifecycle and fault dispatch entry points (`bbgpu_init`, `bbgpu_resolve`, `bbgpu_handle_fault`).
 
 ### OnlineSubsystem
-The standalone dynamic module (`gpu/bbnet/`, producing `libbbnet.so`) implementing the guest PS4 network (`sceNet`, `sceHttp`, `sceSsl`) and NP matchmaking/signaling stacks. Supports both the *Seamless Hunt* (shadNet + BBSC) and *The Hunter's Dream* (THD) backends behind a unified C host seam (`BbNetHost` in `bbnet.h`), eliminating duplicate module trees and runtime environment flags.
+The standalone dynamic module (`core/bbnet/`, producing `libbbnet.so`) implementing the guest PS4 network (`sceNet`, `sceHttp`, `sceSsl`) and NP matchmaking/signaling stacks. Supports both the *Seamless Hunt* (shadNet + BBSC) and *The Hunter's Dream* (THD) backends behind a unified C host seam (`BbNetHost` in `bbnet.h`), eliminating duplicate module trees and runtime environment flags.
 
 ### MemoryCoherence
 The deep subsystem (`src/runtime_memory.c`, `src/runtime.h`) coordinating guest CPU memory mappings with GPU VRAM mirrors and rasterizer caches. Encapsulates table generation sequence tracking, thread-local region caching (`runtime_memory_check_mapped`), write-trap management, and unified GPU invalidation notifications (`RuntimeMemoryCoherenceHooks`), hiding internal pointer arithmetic and atomic sequence flags from callers.

@@ -7,7 +7,7 @@
 #include <inttypes.h>
 #include <cpuid.h>
 #include "runtime.h"
-#include "gpu/bbgpu.h"
+#include "core/bbgpu.h"
 #if !defined(__x86_64__) || !defined(__GNUC__)
 #error This prototype requires x86-64 GCC or Clang (including MinGW).
 #endif

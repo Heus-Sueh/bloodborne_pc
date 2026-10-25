@@ -1,6 +1,6 @@
 #include "runtime_net.hpp"
 #include "runtime.h"
-#include "gpu/bbnet/bbnet.h"
+#include "core/bbnet/bbnet.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -87,8 +87,8 @@ uintptr_t NetworkBridge::Resolve(const char *name) {
             fs::path exe_path = fs::read_symlink("/proc/self/exe", ec);
             if (!ec) {
                 fs::path dir = exe_path.parent_path();
-                fs::path p1 = dir / "gpu" / "libbbnet.so";
-                fs::path p2 = dir / "gpu" / "libbbnet20.so";
+                fs::path p1 = dir / "core" / "libbbnet.so";
+                fs::path p2 = dir / "core" / "libbbnet20.so";
                 if (fs::exists(p1, ec)) {
                     path = p1.string();
                 } else if (fs::exists(p2, ec)) {

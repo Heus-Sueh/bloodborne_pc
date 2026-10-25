@@ -3,7 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
-#include "gpu/upscale/motion_history.h"
+#include "core/upscale/motion_history.h"
 
 using namespace Vulkan::Motion;
 

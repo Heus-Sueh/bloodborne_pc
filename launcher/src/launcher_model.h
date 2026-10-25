@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config_manager.h"
+#include "config_manager.hpp"
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
 #include <mutex>

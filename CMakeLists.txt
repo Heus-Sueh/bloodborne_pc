@@ -13,7 +13,7 @@ endif()
 
 # Global build directory outputs
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gpu")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/core")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 # Find required packages
@@ -26,7 +26,7 @@ pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 pkg_check_modules(Freetype REQUIRED IMPORTED_TARGET freetype2)
 
 # Submodules & GPU library
-add_subdirectory(gpu)
+add_subdirectory(core)
 
 # Third-party decoders: ATRAC9
 add_library(atrac9 STATIC
@@ -131,8 +131,8 @@ add_executable(bb-probe
 set_target_properties(bb-probe PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
-    BUILD_RPATH "\$ORIGIN/gpu;\${CMAKE_BINARY_DIR}/gpu"
-    INSTALL_RPATH "\$ORIGIN/gpu"
+    BUILD_RPATH "\$ORIGIN/core;\${CMAKE_BINARY_DIR}/core"
+    INSTALL_RPATH "\$ORIGIN/core"
 )
 target_include_directories(bb-probe PRIVATE . src)
 target_link_libraries(bb-probe PRIVATE

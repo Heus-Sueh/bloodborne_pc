@@ -36,8 +36,8 @@ The architectural layout incorporates design principles inspired by **Aurora** (
 └──────────────┬──────────────────────────┬──────────────┘
                │                          │
 ┌──────────────▼────────────┐ ┌───────────▼──────────────┐
-│  Platform Abstraction     │ │  GPU & Presentation Core  │
-│  Layer (PAL - src/platform│ │  (gpu/) - Modern C++23    │
+│  Platform Abstraction     │ │  Core Translation Engine  │
+│  Layer (PAL - src/platform│ │  (core/) - Modern C++23   │
 │  Linux / Win32 / macOS    │ │  (Inspired by Aurora GX) │
 │  ├── Threads & Sync       │ │  ├── GNM/PM4 Processor    │
 │  ├── High-Res Clocks      │ │  ├── Vulkan Pipeline/Desc│
@@ -99,6 +99,6 @@ The PAL resides in `src/platform/` and exposes a pure C11 API:
 ## 5. Dialect & Boundary Invariants
 
 1. **C11 Strictness**: The runtime layer (`src/`) must strictly compile under `-std=c11` without C++ dependencies.
-2. **C++23 Modernity**: The GPU translation layer (`gpu/`) utilizes modern C++23 features (concepts, ranges, std::span, modules where applicable).
+2. **C++23 Modernity**: The core translation engine (`core/`) utilizes modern C++23 features (concepts, ranges, std::span, modules where applicable).
 3. **C++20 Launcher**: The graphical client (`launcher/`) utilizes modern C++20 with SDL3 and RmlUi 6.x.
 4. **Documentation Integrity**: All technical documentation, code comments, and ADRs are maintained in 100% English.

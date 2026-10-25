@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 #include <unistd.h>
-#include "gpu/shim/bbport_settings.h"
+#include "core/shim/bbport_settings.h"
 
 static std::string Read(const char* path) {
     std::ifstream file(path);

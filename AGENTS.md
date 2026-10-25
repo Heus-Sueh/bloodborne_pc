@@ -9,7 +9,7 @@ The project is an x86-64 native Linux execution layer for *Bloodborne* (PlayStat
 ```text
 bloodborne_pc/
 ├── src/                 # Native C11 Runtime (process loader, memory virtualization, POSIX/syscall bridges)
-├── gpu/                 # C++23 GPU Translation Core (GNM/PM4 command processor, Vulkan translation, FSR/DLSS)
+├── core/                # C++23 Core Translation Engine (GNM/PM4 command processor, Vulkan translation, FSR/DLSS, bbnet)
 │   ├── bbnet/           # Online multiplayer subsystem (shadNet client, HTTPS, UPnP, BBSC seamless co-op)
 │   └── third_party/     # Submodules (fsr-vulkan, imgui, sirit)
 ├── launcher/            # C++20 Client Launcher (SDL3, OpenGL 3.3 Core, RmlUi 6.x)
@@ -115,7 +115,7 @@ The purpose of architecture work is to make the next change easier, the behavior
 ## 5. Language & Toolchain Constraints
 
 - **Runtime (`src/`):** Hybrid **C11** (`-std=c11`) / modern **C++23** (`-std=c++23`). Low-level PS4 guest ABI interception, syscall bridges, and assembly trampolines are strict C11 (`sysv_abi` / `extern "C"` where appropriate). Runtime subsystems, PAL, and high-level services use modern C++23.
-- **GPU Core (`gpu/`):** Modern **C++23** (`-std=c++23`).
+- **Core Translation Engine (`core/`):** Modern **C++23** (`-std=c++23`).
 - **Launcher (`launcher/`):** Modern **C++20** (`-std=c++20`). Zero Python dependencies.
 - **Documentation:** All documentation must be maintained in **English**. Do not create or commit localized `.ru.md` or non-English files.
 

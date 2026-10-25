@@ -247,19 +247,19 @@ else
     bash scripts/build.sh
     probe=${BB_PROBE:-out/bb-probe}  # BB_PROBE: a wrapper (gdb) around it
 fi
-# Online play (BB_ONLINE=1, launcher: Online; the online module gpu/bbnet): the game's own server
+# Online play (BB_ONLINE=1, launcher: Online; the online module core/bbnet): the game's own server
 # goes to the community server, summon signs to the shadNet WebAPI (scripts/online.py).
 if [[ ${BB_ONLINE:-0} == 1 && -f scripts/online.py ]]; then
-    # The unified online module (gpu/bbnet, libbbnet.so) answers both pools: Seamless Hunt (shadNet
+    # The unified online module (core/bbnet, libbbnet.so) answers both pools: Seamless Hunt (shadNet
     # with BBSC) and The Hunter's Dream (BB_NET_BACKEND=thd, without BBSC).
     if [[ ${BB_NET_BACKEND:-} == thd ]]; then
         unset BB_BBSC
     fi
     if [[ -z ${BB_NET_MODULE:-} ]]; then
         if [[ -n ${BB_PREBUILT:-} ]]; then
-            BB_NET_MODULE=$PWD/bin/gpu/libbbnet.so
+            BB_NET_MODULE=$PWD/bin/core/libbbnet.so
         else
-            BB_NET_MODULE=$PWD/out/gpu/libbbnet.so
+            BB_NET_MODULE=$PWD/out/core/libbbnet.so
         fi
         export BB_NET_MODULE
     fi

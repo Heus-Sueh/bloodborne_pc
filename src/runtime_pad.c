@@ -34,8 +34,8 @@
  * BB_PAD_CENTER_CAL=0 disables the measurement. */
 #define _GNU_SOURCE
 #include "runtime.h"
-#include "gpu/bbhost.h"
-#include "gpu/bbhooks.h"
+#include "core/bbhost.h"
+#include "core/bbhooks.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

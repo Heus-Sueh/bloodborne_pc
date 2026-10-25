@@ -8,7 +8,7 @@ This document establishes the architecture conventions, memory safety guidelines
 
 - **Core Runtime (`src/`)**: Written in strict **C11** (`-std=c11`). Focuses on zero-overhead OS virtualization, low-level POSIX/Linux syscall bridges, high-frequency synchronization, and flat memory image loading.
 - **Client Launcher (`launcher/`)**: Written in **C++20** (`-std=c++20`). Integrates SDL3 windowing, OpenGL 3.3 Core rendering context, and RmlUi reactive UI data models.
-- **GPU Translation Core (`gpu/`)**: Written in **C++23** (`-std=c++23`). Uses modern standard library features, standard algorithms, and Vulkan 1.3 abstractions.
+- **Core Translation Engine (`core/`)**: Written in **C++23** (`-std=c++23`). Uses modern standard library features, standard algorithms, and Vulkan 1.3 abstractions.
 
 ---
 
