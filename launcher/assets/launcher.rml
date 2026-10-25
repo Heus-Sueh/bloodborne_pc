@@ -83,8 +83,19 @@
                         <div class="field-desc">Decrypt and unpack PS4 game dump (.pkg or .iso) directly</div>
                     </div>
                     <div class="col-control">
-                        <button class="action-btn" data-event-click="extract_dump">EXTRACT (PKG / ISO)</button>
+                        <button class="action-btn" data-event-click="extract_dump" data-class-disabled="is_extracting || is_game_running">EXTRACT (PKG / ISO)</button>
                     </div>
+                </div>
+
+                <div class="extract-progress-card" data-if="is_extracting">
+                    <div class="extract-header-row">
+                        <div class="extract-label">EXTRACTING GAME DUMP</div>
+                        <div class="extract-percent">{{ extract_progress_pct }}%</div>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" data-style-width="extract_progress_pct + '%'"></div>
+                    </div>
+                    <div class="extract-detail">{{ extract_progress_text }}</div>
                 </div>
             </div>
 

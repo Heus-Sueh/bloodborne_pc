@@ -24,6 +24,7 @@ public:
   void ChooseUserDirectory();
   void ChooseModsDirectory();
   void ChooseDumpToExtract();
+  void ChooseExtractionDestination(const std::string& dump_path);
   void StartExtraction(const std::string& dump_path, const std::string& out_dir);
 
   void ToggleConsole();
@@ -50,6 +51,8 @@ public:
   bool is_console_open = false;
   bool is_game_running = false;
   bool is_extracting = false;
+  std::string extract_progress_pct = "0";
+  std::string extract_progress_text;
 
 private:
   Rml::Context* context_ = nullptr;
@@ -64,6 +67,9 @@ private:
   std::optional<std::string> pending_user_dir_;
   std::optional<std::string> pending_mods_dir_;
   std::optional<bool> pending_game_running_;
+  std::optional<bool> pending_is_extracting_;
+  std::optional<std::string> pending_extract_progress_pct_;
+  std::optional<std::string> pending_extract_progress_text_;
   std::vector<std::string> pending_logs_;
 
   std::thread log_reader_thread_;

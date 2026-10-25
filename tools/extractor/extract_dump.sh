@@ -47,12 +47,35 @@ fi
 
 if [[ $IS_ISO -eq 1 ]]; then
     echo "[EXTRACT] Processing Disc Image (ISO)..."
+    echo "[PROGRESS] 5|Inspecting ISO file..."
     if command -v bsdtar >/dev/null 2>&1; then
         echo "[EXTRACT] Extracting with bsdtar..."
-        bsdtar -xf "$SOURCE_FILE" -C "$DEST_DIR"
+        TOTAL_FILES=$(bsdtar -tf "$SOURCE_FILE" 2>/dev/null | wc -l || echo 0)
+        bsdtar -v -xf "$SOURCE_FILE" -C "$DEST_DIR" 2>&1 | awk -v total="$TOTAL_FILES" '
+        /^x / {
+            count++
+            if (total > 0) {
+                pct = int(count * 100 / total)
+                if (pct > 99) pct = 99
+                if (count % 10 == 0 || pct == 99) {
+                    print "[PROGRESS] " pct "|Extracting: " count "/" total " files (" pct "%)"
+                    fflush()
+                }
+            }
+        }
+        { print $0; fflush() }
+        '
     elif command -v 7z >/dev/null 2>&1; then
         echo "[EXTRACT] Extracting with 7z..."
-        7z x -y "$SOURCE_FILE" -o"$DEST_DIR"
+        7z x -y -bsp1 "$SOURCE_FILE" -o"$DEST_DIR" 2>&1 | tr '\r' '\n' | awk '
+        /^[ ]*[0-9]+%/ {
+            match($0, /[0-9]+%/)
+            pct = substr($0, RSTART, RLENGTH - 1)
+            print "[PROGRESS] " pct "|Extracting ISO: " pct "%"
+            fflush()
+        }
+        { print $0; fflush() }
+        '
     elif command -v tar >/dev/null 2>&1; then
         echo "[EXTRACT] Extracting with tar..."
         tar -xf "$SOURCE_FILE" -C "$DEST_DIR"
@@ -96,7 +119,22 @@ elif [[ $IS_PKG -eq 1 ]]; then
     fi
 
     echo "[EXTRACT] Executing: $PKG_EXTRACTOR \"$SOURCE_FILE\" \"$DEST_DIR\""
-    "$PKG_EXTRACTOR" "$SOURCE_FILE" "$DEST_DIR"
+    echo "[PROGRESS] 10|Analyzing PKG and decrypting PFS partition..."
+    "$PKG_EXTRACTOR" "$SOURCE_FILE" "$DEST_DIR" 2>&1 | tr '\r' '\n' | awk '
+    /Extracting file [0-9]+ of [0-9]+/ {
+        for (i=1; i<=NF; i++) {
+            if ($i == "file") cur = $(i+1)
+            if ($i == "of") total = $(i+1)
+        }
+        if (total > 0) {
+            pct = int(cur * 100 / total)
+            if (pct > 99) pct = 99
+            print "[PROGRESS] " pct "|Extracting: " cur "/" total " files (" pct "%)"
+            fflush()
+        }
+    }
+    { print $0; fflush() }
+    '
 else
     echo "Error: Unknown dump file format for $SOURCE_FILE (expected .pkg or .iso)" >&2
     exit 1
@@ -113,6 +151,7 @@ elif [[ ! -f "$DEST_DIR/eboot.bin" ]]; then
     fi
 fi
 
+echo "[PROGRESS] 100|Extraction complete! Verifying game files..."
 echo "================================================================================"
 if [[ -f "$FINAL_GAME_DIR/eboot.bin" ]]; then
     echo "[EXTRACT] SUCCESS: Found eboot.bin in $FINAL_GAME_DIR"

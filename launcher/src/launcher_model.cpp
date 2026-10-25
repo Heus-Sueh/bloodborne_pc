@@ -58,6 +58,8 @@ void LauncherModel::BindModel() {
   constructor.Bind("is_console_open", &is_console_open);
   constructor.Bind("is_game_running", &is_game_running);
   constructor.Bind("is_extracting", &is_extracting);
+  constructor.Bind("extract_progress_pct", &extract_progress_pct);
+  constructor.Bind("extract_progress_text", &extract_progress_text);
   constructor.Bind("copy_btn_text", &copy_btn_text);
 
   constructor.BindEventCallback(
@@ -294,27 +296,58 @@ void LauncherModel::ChooseDumpToExtract() {
         }
 
         if (chosen_file.empty()) {
-          RunFileDialogFallback(
-              "Select PlayStation 4 Game Dump (PKG or ISO)",
-              "PS4 Dumps (*.pkg *.iso) | *.pkg *.iso", [self](const std::string& path) {
-                if (!path.empty()) {
-                  std::string target_dir = self->settings.game_dir;
-                  if (target_dir.empty()) {
-                    target_dir = (fs::current_path() / "games" / "CUSA03173").string();
-                  }
-                  self->StartExtraction(path, target_dir);
-                }
-              });
+          RunFileDialogFallback("Select PlayStation 4 Game Dump (PKG or ISO)",
+                                "PS4 Dumps (*.pkg *.iso) | *.pkg *.iso",
+                                [self](const std::string& path) {
+                                  if (!path.empty()) {
+                                    self->ChooseExtractionDestination(path);
+                                  }
+                                });
           return;
         }
 
-        std::string target_dir = self->settings.game_dir;
-        if (target_dir.empty()) {
-          target_dir = (fs::current_path() / "games" / "CUSA03173").string();
-        }
-        self->StartExtraction(chosen_file, target_dir);
+        self->ChooseExtractionDestination(chosen_file);
       },
       this, window_, filters, 2, nullptr, false);
+}
+
+void LauncherModel::ChooseExtractionDestination(const std::string& dump_path) {
+  if (is_extracting || is_game_running)
+    return;
+
+  std::string default_dest = settings.game_dir;
+  if (default_dest.empty()) {
+    default_dest = (fs::current_path() / "games" / "CUSA03173").string();
+  }
+
+  SDL_ShowOpenFolderDialog(
+      [](void* userdata, const char* const* filelist, int /*filter*/) {
+        auto* pair = static_cast<std::pair<LauncherModel*, std::string>*>(userdata);
+        if (!pair)
+          return;
+        LauncherModel* self = pair->first;
+        std::string dump = pair->second;
+        delete pair;
+
+        std::string chosen_dir;
+        if (filelist && *filelist) {
+          chosen_dir = *filelist;
+        }
+
+        if (chosen_dir.empty()) {
+          RunFolderDialogFallback("Select Destination Folder for Game Extraction",
+                                  [self, dump](const std::string& path) {
+                                    if (!path.empty()) {
+                                      self->StartExtraction(dump, path);
+                                    }
+                                  });
+          return;
+        }
+
+        self->StartExtraction(dump, chosen_dir);
+      },
+      new std::pair<LauncherModel*, std::string>(this, dump_path), window_, default_dest.c_str(),
+      false);
 }
 
 void LauncherModel::StartExtraction(const std::string& dump_path, const std::string& out_dir) {
@@ -322,10 +355,14 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
     return;
 
   is_extracting = true;
+  extract_progress_pct = "0";
+  extract_progress_text = "Preparing extraction...";
   is_console_open = true;
   status_text = "Extracting game dump...";
   if (model_handle_) {
     model_handle_.DirtyVariable("is_extracting");
+    model_handle_.DirtyVariable("extract_progress_pct");
+    model_handle_.DirtyVariable("extract_progress_text");
     model_handle_.DirtyVariable("is_console_open");
     model_handle_.DirtyVariable("status_text");
   }
@@ -348,7 +385,8 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
       AppendLogLine("[EXTRACT] Error: Failed to execute extraction script.");
       {
         std::lock_guard<std::mutex> lock(pending_mutex_);
-        is_extracting = false;
+        pending_is_extracting_ = false;
+        pending_extract_progress_text_ = "Failed to launch extraction script.";
       }
       return;
     }
@@ -366,6 +404,27 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
         if (line.rfind(target_marker, 0) == 0) {
           detected_game_dir = line.substr(target_marker.length());
         }
+        const std::string progress_marker = "[PROGRESS] ";
+        if (line.rfind(progress_marker, 0) == 0) {
+          std::string rest = line.substr(progress_marker.length());
+          size_t sep = rest.find('|');
+          if (sep != std::string::npos) {
+            std::string pct_str = rest.substr(0, sep);
+            std::string detail = rest.substr(sep + 1);
+            try {
+              float val = std::stof(pct_str);
+              if (val < 0.0f)
+                val = 0.0f;
+              if (val > 100.0f)
+                val = 100.0f;
+              int ival = static_cast<int>(val);
+
+              std::lock_guard<std::mutex> lock(pending_mutex_);
+              pending_extract_progress_pct_ = std::to_string(ival);
+              pending_extract_progress_text_ = detail;
+            } catch (...) {}
+          }
+        }
       }
     }
     int exit_code = pclose(pipe);
@@ -374,7 +433,10 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
 
     {
       std::lock_guard<std::mutex> lock(pending_mutex_);
-      is_extracting = false;
+      pending_is_extracting_ = false;
+      pending_extract_progress_pct_ = "100";
+      pending_extract_progress_text_ = (exit_code == 0) ? "Extraction completed successfully!"
+                                                        : "Extraction encountered errors.";
       if (exit_code == 0) {
         pending_game_dir_ = detected_game_dir;
       }
@@ -551,6 +613,27 @@ void LauncherModel::Update() {
       pending_game_running_.reset();
       if (model_handle_) {
         model_handle_.DirtyVariable("is_game_running");
+      }
+    }
+    if (pending_is_extracting_.has_value()) {
+      is_extracting = *pending_is_extracting_;
+      pending_is_extracting_.reset();
+      if (model_handle_) {
+        model_handle_.DirtyVariable("is_extracting");
+      }
+    }
+    if (pending_extract_progress_pct_.has_value()) {
+      extract_progress_pct = *pending_extract_progress_pct_;
+      pending_extract_progress_pct_.reset();
+      if (model_handle_) {
+        model_handle_.DirtyVariable("extract_progress_pct");
+      }
+    }
+    if (pending_extract_progress_text_.has_value()) {
+      extract_progress_text = *pending_extract_progress_text_;
+      pending_extract_progress_text_.reset();
+      if (model_handle_) {
+        model_handle_.DirtyVariable("extract_progress_text");
       }
     }
     if (!pending_logs_.empty()) {

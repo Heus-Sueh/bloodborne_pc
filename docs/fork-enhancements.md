@@ -98,6 +98,32 @@ In this fork, the entire client launcher has been rewritten as a native, compile
   - Strict RAII for all system resources (pipes, file descriptors, synchronization handles).
   - Clean inclusion guards (`#pragma once`).
   - Automated formatting and linting via `.clang-format` and `.clang-tidy`.
+
+---
+
+## 12. Real-Time Extraction Progress & Destination Selection
+
+- **Interactive Progress Bar**: When extracting PKG packages or ISO disc images in the launcher, an animated progress bar and real-time file counters provide live extraction status (`[PROGRESS] <pct>|<detail>`).
+- **Destination Folder Dialog**: Selecting a dump file immediately prompts the user with a native folder selection dialog to specify where the game files should be unpacked before starting.
+
+---
+
+## 13. System Platform Abstraction Layer (PAL)
+
+- Centralized low-level operating system facilities under `src/platform/` with unified C11 interfaces:
+  - `src/platform/platform.h`: OS and architecture identification macros (`BB_PLATFORM_LINUX`, `BB_PLATFORM_WINDOWS`, `BB_PLATFORM_MACOS`).
+  - `src/platform/sync.h`: Unified lightweight locks, condition variables, and host thread wrappers.
+  - `src/platform/time.h`: High-precision monotonic and realtime timestamps, deadline sleeping, and timezone calculations.
+  - `src/platform/memory.h`: Virtual address space reservation, committed anonymous allocations, and page protection.
+  - `src/platform/system.h`: High-entropy randomness, host thread naming, guest TCB/TLS configuration, and CPU core counting.
+  - `src/runtime_platform.c`: Native implementations for Linux, Windows, and preparation for future macOS ports.
+
+---
+
+## 14. Supermedo Fork Improvements Integration
+
+- **Windows CA Trust Verification**: Integrated dynamic Windows Root CA certificate validation (`gpu/bbnet/include/windows_trust.h`) via Schannel fallback, allowing secure online connectivity when host root stores are updated dynamically.
+- **Pad Route Replay Benchmark Fix**: Updated replay playback in `src/runtime_pad.c` to reload route files fresh on every replay start instead of caching once.
   - Integrated `--lint` and `--format` modes in `build.sh` and `justfile`.
 
 - **Automated `FetchContent` Fallbacks in CMake**:

@@ -1157,10 +1157,11 @@ static PadSample *replay; static size_t replay_count, replay_next;
 static void replay_sample(PadData *d) {
     if (!replay_armed) return;
     if (!replay_start) {
-        static int loaded;
-        if (!loaded) {
-            loaded=1;
-            const char *path=getenv("BB_PAD_REPLAY");
+        /* Read at every start: a test with several routes writes the next one into the same file
+         * (read once, every later "replay" played the first route again). */
+        {
+            replay_count = 0;
+            const char *path = getenv("BB_PAD_REPLAY");
             FILE *f=path ? fopen(path,"r") : NULL;
             PadSample s; unsigned v[8]; size_t cap=0;
             while (f && fscanf(f,"%u %u %u %u %u %u %u %u",&v[0],&v[1],&v[2],&v[3],&v[4],&v[5],&v[6],&v[7])==8) {
