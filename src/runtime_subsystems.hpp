@@ -15,6 +15,8 @@ enum class SubsystemId : uint8_t {
     Input,
     Audio,
     SaveData,
+    Content,
+    Rtc,
     Count
 };
 
@@ -60,6 +62,9 @@ typedef enum {
     BB_SUBSYSTEM_VFS,
     BB_SUBSYSTEM_INPUT,
     BB_SUBSYSTEM_AUDIO,
+    BB_SUBSYSTEM_SAVEDATA,
+    BB_SUBSYSTEM_CONTENT,
+    BB_SUBSYSTEM_RTC,
     BB_SUBSYSTEM_COUNT
 } BbSubsystemId;
 

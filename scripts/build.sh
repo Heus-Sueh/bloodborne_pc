@@ -170,7 +170,7 @@ if [[ ${1:-} == --test ]]; then
     out/pad-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_platform.cpp src/runtime_platform.cpp -o out/platform-test
     out/platform-test
-    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.cpp src/runtime_subsystems.cpp src/runtime_savedata.cpp -o out/subsystems-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_subsystems.cpp src/runtime_subsystems.cpp src/runtime_savedata.cpp src/runtime_content.cpp src/runtime_rtc.cpp -o out/subsystems-test
     out/subsystems-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_vfs.cpp src/runtime_vfs.cpp -o out/vfs-test
     out/vfs-test
@@ -178,6 +178,8 @@ if [[ ${1:-} == --test ]]; then
     out/loader-test
     "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_savedata.cpp src/runtime_savedata.cpp -o out/savedata-test
     out/savedata-test
+    "$CXX" -std=c++23 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_rtc.cpp src/runtime_rtc.cpp -o out/rtc-test
+    out/rtc-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_runtime.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc -I. tests/test_file_mods.c out/runtime_vfs.o -lstdc++ -o out/file-mods-test
@@ -186,7 +188,7 @@ if [[ ${1:-} == --test ]]; then
     out/sema-test
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -I. -Isrc tests/test_online.c "${runtime[@]}" "${runtime_cpp_objs[@]}" out/libatrac9.a -lm -lstdc++ "${gpu[@]}" "${libraries[@]}" -o out/online-test
     out/online-test
-    "$CC" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c src/runtime_content.c -o out/content-test
+    "$CC" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c out/runtime_content.o -lstdc++ -o out/content-test
     out/content-test
     "$CXX" -std=c++20 -O2 -Wall -Wextra -pthread -Isrc -Ilauncher/src tests/test_launcher.cpp src/config_manager.cpp -o out/launcher-test
     out/launcher-test

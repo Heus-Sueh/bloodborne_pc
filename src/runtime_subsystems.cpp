@@ -1,5 +1,7 @@
 #include "runtime_subsystems.hpp"
 #include "runtime_savedata.hpp"
+#include "runtime_content.hpp"
+#include "runtime_rtc.hpp"
 #include <iostream>
 #include <ranges>
 
@@ -66,6 +68,22 @@ SubsystemManager::SubsystemManager() {
         .init = [](uint64_t) { return 0; },
         .shutdown = []() { bb::savedata::SaveDataManager::Instance().Reset(); },
         .dump_stats = []() { bb::savedata::SaveDataManager::Instance().Report(); },
+        .status = SubsystemStatus::Uninitialized,
+    };
+
+    subsystems_[static_cast<size_t>(SubsystemId::Content)] = SubsystemContract{
+        .name = "Content",
+        .init = [](uint64_t) { return 0; },
+        .shutdown = []() { bb::content::ContentManager::Instance().Reset(); },
+        .dump_stats = []() { bb::content::ContentManager::Instance().Report(); },
+        .status = SubsystemStatus::Uninitialized,
+    };
+
+    subsystems_[static_cast<size_t>(SubsystemId::Rtc)] = SubsystemContract{
+        .name = "RTC",
+        .init = [](uint64_t) { return 0; },
+        .shutdown = []() {},
+        .dump_stats = []() {},
         .status = SubsystemStatus::Uninitialized,
     };
 }
