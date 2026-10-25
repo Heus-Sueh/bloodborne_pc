@@ -95,6 +95,14 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         for (int a = 0; a < AspectCount; ++a) {
             if (value == AspectKey(a)) v.aspect = a;
         }
+    } else if (key == "fullscreen") {
+        v.fullscreen = (value == "1" || value == "true");
+    } else if (key == "borderless") {
+        v.borderless = (value == "1" || value == "true");
+    } else if (key == "vsync") {
+        v.vsync = (value == "1" || value == "true");
+    } else if (key == "fps_limit") {
+        v.fps_limit = std::max(0, i);
     } else {
         for (int e = 0; e < EffectCount; ++e) {
             if (key == Effects[e].key) {

@@ -345,6 +345,12 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
     return {-1, -1};
   }
 
+  std::string cfg_path = GetConfigPath();
+  if (cfg_path.size() >= 4 && cfg_path.substr(cfg_path.size() - 4) == ".ini") {
+    cfg_path = cfg_path.substr(0, cfg_path.size() - 4) + ".toml";
+  }
+  setenv("BB_CONFIG", cfg_path.c_str(), 1);
+
   if (s.online_pool != "offline") {
     setenv("BB_ONLINE", "1", 1);
     if (s.online_pool == "huntersdream") {
@@ -357,9 +363,27 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& s) {
     unsetenv("BB_NET_BACKEND");
   }
 
+  if (!s.online_server.empty()) {
+    setenv("BB_SHADNET_SERVER", s.online_server.c_str(), 1);
+  }
+
   setenv("BB_GAME_DIR", s.game_dir.c_str(), 1);
   setenv("BB_USER_DIR", s.user_dir.c_str(), 1);
   setenv("BB_MODS_DIR", s.mods_dir.c_str(), 1);
+
+  setenv("BB_FULLSCREEN", s.fullscreen ? "1" : "0", 1);
+  setenv("BB_BORDERLESS", s.borderless ? "1" : "0", 1);
+  setenv("BB_VSYNC", s.vsync ? "1" : "0", 1);
+  setenv("BB_PRESENT_MODE", s.vsync ? "Fifo" : "Mailbox", 1);
+  setenv("BB_FPS_LIMIT", std::to_string(s.fps_limit).c_str(), 1);
+  setenv("BB_FPS", (s.fps_limit > 0 ? std::to_string(s.fps_limit) : "uncap").c_str(), 1);
+  setenv("BB_OUTPUT_RES", s.output_res.c_str(), 1);
+  setenv("BB_UPSCALER", s.upscaler.c_str(), 1);
+  setenv("BB_PRESET", std::to_string(s.preset).c_str(), 1);
+
+  setenv("BB_MOUSE_LOOK", s.mouse_look ? "1" : "0", 1);
+  setenv("BB_MOUSE_SENSITIVITY", std::to_string(s.mouse_sensitivity).c_str(), 1);
+  setenv("BB_MOUSE_INVERT_Y", s.mouse_invert_y ? "1" : "0", 1);
 
   int pipe_fds[2];
   if (pipe(pipe_fds) != 0) {

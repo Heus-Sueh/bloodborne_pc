@@ -30,6 +30,13 @@ struct RunnerConfig {
     std::string upscaler = "native";
     std::string online_pool = "offline";
     std::string online_server;
+    bool fullscreen = false;
+    bool borderless = false;
+    bool vsync = true;
+    int fps_limit = 60;
+    bool mouse_look = true;
+    float mouse_sensitivity = 1.0f;
+    bool mouse_invert_y = false;
     bool build_only = false;
     std::vector<std::string> extra_args;
 };
@@ -181,9 +188,19 @@ static void LoadConfig(const std::string& path, RunnerConfig& cfg) {
         else if (key == "render_resolution" || key == "render_res") cfg.render_res = val;
         else if (key == "live_resolution") cfg.live_res = val;
         else if (key == "frame_rate" || key == "fps") cfg.fps = val;
+        else if (key == "fps_limit") {
+            cfg.fps_limit = std::atoi(val.c_str());
+            if (cfg.fps == "uncap" || cfg.fps.empty()) cfg.fps = std::to_string(cfg.fps_limit);
+        }
+        else if (key == "fullscreen") cfg.fullscreen = (val == "true" || val == "1");
+        else if (key == "borderless") cfg.borderless = (val == "true" || val == "1");
+        else if (key == "vsync") cfg.vsync = (val == "true" || val == "1");
         else if (key == "upscaler") cfg.upscaler = val;
         else if (key == "online_pool") cfg.online_pool = val;
         else if (key == "online_server") cfg.online_server = val;
+        else if (key == "mouse_look") cfg.mouse_look = (val == "true" || val == "1");
+        else if (key == "mouse_sensitivity") cfg.mouse_sensitivity = std::strtof(val.c_str(), nullptr);
+        else if (key == "mouse_invert_y") cfg.mouse_invert_y = (val == "true" || val == "1");
     }
 }
 
@@ -200,6 +217,17 @@ int main(int argc, char* argv[]) {
             cfg.mods_dir = argv[++i];
         } else if (arg == "--fps" && i + 1 < argc) {
             cfg.fps = argv[++i];
+        } else if (arg == "--fps-limit" && i + 1 < argc) {
+            cfg.fps_limit = std::atoi(argv[++i]);
+            cfg.fps = std::to_string(cfg.fps_limit);
+        } else if (arg == "--fullscreen") {
+            cfg.fullscreen = true;
+        } else if (arg == "--borderless") {
+            cfg.borderless = true;
+        } else if (arg == "--vsync") {
+            cfg.vsync = true;
+        } else if (arg == "--no-vsync") {
+            cfg.vsync = false;
         } else if (arg == "--render-res" && i + 1 < argc) {
             cfg.render_res = argv[++i];
         } else if (arg == "--output-res" && i + 1 < argc) {
@@ -215,7 +243,11 @@ int main(int argc, char* argv[]) {
                       << "  --game-dir <DIR>    Set game dump directory (CUSA03173)\n"
                       << "  --user <DIR>        Set user save directory (default: user)\n"
                       << "  --mods-dir <DIR>    Set mods directory (default: mods)\n"
+                      << "  --fullscreen        Launch in fullscreen mode\n"
+                      << "  --borderless        Launch as borderless window\n"
+                      << "  --vsync / --no-vsync Toggle vertical synchronization\n"
                       << "  --fps <RATE>        Set frame rate (uncap, 60, 90, 30)\n"
+                      << "  --fps-limit <FPS>   Set numeric frame rate limit\n"
                       << "  --render-res <WxH>  Set internal render resolution\n"
                       << "  --output-res <WxH>  Set window/display output resolution\n"
                       << "  --live-res <0|1>    Toggle live resolution scaling\n"
@@ -283,6 +315,21 @@ int main(int argc, char* argv[]) {
     SetEnvVar("BB_USER_DIR", cfg.user_dir);
     SetEnvVar("BB_MODS_DIR", cfg.mods_dir);
     SetEnvVar("BB_GPU_USER_DIR", cfg.user_dir);
+
+    // Display & Graphics
+    SetEnvVar("BB_FULLSCREEN", cfg.fullscreen ? "1" : "0");
+    SetEnvVar("BB_BORDERLESS", cfg.borderless ? "1" : "0");
+    SetEnvVar("BB_VSYNC", cfg.vsync ? "1" : "0");
+    SetEnvVar("BB_PRESENT_MODE", cfg.vsync ? "Fifo" : "Mailbox");
+    SetEnvVar("BB_FPS_LIMIT", std::to_string(cfg.fps_limit));
+    SetEnvVar("BB_FPS", cfg.fps);
+    SetEnvVar("BB_OUTPUT_RES", cfg.output_res);
+    SetEnvVar("BB_UPSCALER", cfg.upscaler);
+
+    // Controls
+    SetEnvVar("BB_MOUSE_LOOK", cfg.mouse_look ? "1" : "0");
+    SetEnvVar("BB_MOUSE_SENSITIVITY", std::to_string(cfg.mouse_sensitivity));
+    SetEnvVar("BB_MOUSE_INVERT_Y", cfg.mouse_invert_y ? "1" : "0");
 
     // Shader disk cache optimizations
     SetEnvVar("__GL_SHADER_DISK_CACHE", "1");

@@ -27,6 +27,25 @@ if [[ -z ${BB_CONFIG:-} ]]; then
         export BB_CONFIG=$data/bbport.toml
     fi
 fi
+if [[ -f $BB_CONFIG ]]; then
+    while IFS= read -r line || [[ -n $line ]]; do
+        line="${line%%#*}"
+        line="${line%%;*}"
+        if [[ $line =~ ^[[:space:]]*fullscreen[[:space:]]*=[[:space:]]*[\"\']?([01]|true|false) ]]; then
+            val="${BASH_REMATCH[1]}"
+            [[ -z ${BB_FULLSCREEN:-} ]] && { if [[ $val == 1 || $val == true ]]; then export BB_FULLSCREEN=1; else export BB_FULLSCREEN=0; fi }
+        elif [[ $line =~ ^[[:space:]]*borderless[[:space:]]*=[[:space:]]*[\"\']?([01]|true|false) ]]; then
+            val="${BASH_REMATCH[1]}"
+            [[ -z ${BB_BORDERLESS:-} ]] && { if [[ $val == 1 || $val == true ]]; then export BB_BORDERLESS=1; else export BB_BORDERLESS=0; fi }
+        elif [[ $line =~ ^[[:space:]]*vsync[[:space:]]*=[[:space:]]*[\"\']?([01]|true|false) ]]; then
+            val="${BASH_REMATCH[1]}"
+            [[ -z ${BB_VSYNC:-} ]] && { if [[ $val == 1 || $val == true ]]; then export BB_VSYNC=1; else export BB_VSYNC=0; fi }
+        elif [[ $line =~ ^[[:space:]]*fps_limit[[:space:]]*=[[:space:]]*([0-9]+) ]]; then
+            val="${BASH_REMATCH[1]}"
+            [[ -z ${BB_FPS_LIMIT:-} ]] && export BB_FPS_LIMIT=$val
+        fi
+    done < "$BB_CONFIG"
+fi
 # GPU paths are initialized when libbbgpu is loaded, before bbgpu_init receives --user.
 # Select the same user directory now, including for an AppImage or a separate save profile.
 export BB_GPU_USER_DIR=${BB_GPU_USER_DIR:-${BB_USER_DIR:-$data/user}}

@@ -162,12 +162,24 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height_);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true);
-    const char* fullscreen = std::getenv("BB_FULLSCREEN");
-    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, fullscreen && fullscreen[0] == '1');
+    const char* fs_env = std::getenv("BB_FULLSCREEN");
+    const bool is_fullscreen =
+        (fs_env && fs_env[0]) ? (fs_env[0] == '1' || !strcmp(fs_env, "true")) : BbSettings::Get().fullscreen.load();
+    const char* bl_env = std::getenv("BB_BORDERLESS");
+    const bool is_borderless =
+        (bl_env && bl_env[0]) ? (bl_env[0] == '1' || !strcmp(bl_env, "true")) : BbSettings::Get().borderless.load();
+    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, is_fullscreen);
+    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, is_borderless);
     base_title = title;
     window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     ASSERT_MSG(window, "Failed to create window: {}", SDL_GetError());
+    if (is_fullscreen) {
+        SDL_SetWindowFullscreen(window, true);
+    }
+    if (is_borderless) {
+        SDL_SetWindowBordered(window, false);
+    }
     // The cursor over the game: the port's own (BB_CURSOR=0: the system's).
     if (SDL_Cursor* cursor = BbCursor::Create()) {
         SDL_SetCursor(cursor);
@@ -328,6 +340,13 @@ bool WindowSDL::PollEvents() {
         // F3: the frame rate limit 30 on and off (the cinematic of Laurence hangs above 30 FPS).
         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_F3) {
             BbFrameRate::SetLimit(BbFrameRate::Limit() == 30 ? 0 : 30);
+            continue;
+        }
+        // F11 or Alt+Enter: Toggle fullscreen
+        if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+            (event.key.key == SDLK_F11 || (event.key.key == SDLK_RETURN && (event.key.mod & SDL_KMOD_ALT)))) {
+            const bool is_fs = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
+            SDL_SetWindowFullscreen(window, !is_fs);
             continue;
         }
         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_F1 &&

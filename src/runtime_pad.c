@@ -384,59 +384,96 @@ static float mouse_sensitivity=1.0f;
 /* key.<input>= / pad.<input>= lines of the settings file. */
 /* Motion emulation (apply_motion): -1 unknown yet, from bbport.ini pad_motion; BB_PAD_MOTION wins. */
 static int motion_enabled = -1;
+
+static int parse_bool_val(const char *s, int def) {
+    while (*s == ' ' || *s == '\t') ++s;
+    if (!*s) return def;
+    if (*s == '"' || *s == '\'') ++s;
+    if (!strncmp(s, "true", 4) || !strncmp(s, "1", 1) || !strncmp(s, "yes", 3) || !strncmp(s, "on", 2)) return 1;
+    if (!strncmp(s, "false", 5) || !strncmp(s, "0", 1) || !strncmp(s, "no", 2) || !strncmp(s, "off", 3)) return 0;
+    return atoi(s) != 0;
+}
+
 static void load_bindings(void) {
     bind_defaults();
     mouse_look=1; mouse_invert_y=0; mouse_sensitivity=1.0f;
     const char *path=getenv("BB_CONFIG");
     FILE *f=path ? fopen(path,"r") : NULL;
-    if (!f) return;
-    char line[512];
-    while (fgets(line,sizeof line,f)) {
-        const int keyboard=!strncmp(line,"key.",4), pad=!strncmp(line,"pad.",4);
-        char *eq=strchr(line,'=');
-        if (eq && !keyboard && !pad) {
-            const char *value=eq+1;
-            if (!strncmp(line,"mouse_look=",11)) mouse_look=atoi(value)!=0;
-            else if (!strncmp(line,"pad_motion=",11) && motion_enabled<0) motion_enabled=atoi(value)!=0;
-            else if (!strncmp(line,"mouse_invert_y=",15)) mouse_invert_y=atoi(value)!=0;
-            else if (!strncmp(line,"mouse_sensitivity=",18)) {
-                const float v=strtof(value,NULL);
-                if (v>=0.05f && v<=20.0f) mouse_sensitivity=v;
-            }
-            continue;
-        }
-        if ((!keyboard && !pad) || !eq) continue;
-        *eq=0;
-        int input=-1;
-        for (int i=0;i<IN_COUNT;++i) if (!strcmp(line+4,input_names[i])) input=i;
-        if (input<0 || (pad && input>=IN_MOVE_UP)) { printf("Runtime: controls: unknown input %s\n",line); continue; }
-        Binding *b=&bindings[input];
-        if (keyboard) b->key_count=0; else b->pad_count=0;
-        for (char *name=strtok(eq+1,",\r\n"); name; name=strtok(NULL,",\r\n")) {
-            while (*name==' ') ++name;
-            for (char *end=name+strlen(name); end>name && end[-1]==' ';) *--end=0;
-            if (!*name) continue;
-            if (keyboard) {
-                /* A chord: "<modifier>+<key>" ("Keypad +" is one key: nothing after its '+'). */
-                int mod=-1;
-                char *plus=strrchr(name,'+');
-                if (plus && plus>name && plus[1]) {
-                    *plus=0;
-                    mod=key_from_name(name);
-                    if (mod<0) *plus='+'; else name=plus+1;
-                    while (*name==' ') ++name;
+    if (!f) f = fopen("bbport.toml", "r");
+    if (!f) f = fopen("bbport.ini", "r");
+    if (f) {
+        char line[512];
+        while (fgets(line,sizeof line,f)) {
+            const int keyboard=!strncmp(line,"key.",4), pad=!strncmp(line,"pad.",4);
+            char *eq=strchr(line,'=');
+            if (eq && !keyboard && !pad) {
+                *eq = 0;
+                char *k = line;
+                while (*k == ' ' || *k == '\t') ++k;
+                char *k_end = eq - 1;
+                while (k_end >= k && (*k_end == ' ' || *k_end == '\t' || *k_end == '\r' || *k_end == '\n')) *k_end-- = 0;
+
+                char *v = eq + 1;
+                while (*v == ' ' || *v == '\t') ++v;
+                char *v_end = v + strlen(v) - 1;
+                while (v_end >= v && (*v_end == ' ' || *v_end == '\t' || *v_end == '\r' || *v_end == '\n')) *v_end-- = 0;
+                if (*v == '"' || *v == '\'') {
+                    ++v;
+                    if (v_end >= v && (*v_end == '"' || *v_end == '\'')) *v_end = 0;
                 }
-                const int s=key_from_name(name);
-                if (s<0) printf("Runtime: controls: unknown key \"%s\" for %s\n",name,line+4);
-                else if (b->key_count<MAX_BIND) { b->mods[b->key_count]=mod; b->keys[b->key_count++]=s; }
-            } else {
-                const int button=pad_button_from_name(name);
-                if (button<0) printf("Runtime: controls: unknown gamepad button \"%s\" for %s\n",name,line+4);
-                else if (b->pad_count<MAX_BIND) b->pad[b->pad_count++]=button;
+
+                if (!strcmp(k, "mouse_look")) mouse_look = parse_bool_val(v, 1);
+                else if (!strcmp(k, "pad_motion") && motion_enabled < 0) motion_enabled = parse_bool_val(v, 0);
+                else if (!strcmp(k, "mouse_invert_y")) mouse_invert_y = parse_bool_val(v, 0);
+                else if (!strcmp(k, "mouse_sensitivity")) {
+                    const float fval = strtof(v, NULL);
+                    if (fval >= 0.05f && fval <= 20.0f) mouse_sensitivity = fval;
+                }
+                continue;
+            }
+            if ((!keyboard && !pad) || !eq) continue;
+            *eq=0;
+            int input=-1;
+            for (int i=0;i<IN_COUNT;++i) if (!strcmp(line+4,input_names[i])) input=i;
+            if (input<0 || (pad && input>=IN_MOVE_UP)) { printf("Runtime: controls: unknown input %s\n",line); continue; }
+            Binding *b=&bindings[input];
+            if (keyboard) b->key_count=0; else b->pad_count=0;
+            for (char *name=strtok(eq+1,",\r\n"); name; name=strtok(NULL,",\r\n")) {
+                while (*name==' ') ++name;
+                for (char *end=name+strlen(name); end>name && end[-1]==' ';) *--end=0;
+                if (!*name) continue;
+                if (keyboard) {
+                    /* A chord: "<modifier>+<key>" ("Keypad +" is one key: nothing after its '+'). */
+                    int mod=-1;
+                    char *plus=strrchr(name,'+');
+                    if (plus && plus>name && plus[1]) {
+                        *plus=0;
+                        mod=key_from_name(name);
+                        if (mod<0) *plus='+'; else name=plus+1;
+                        while (*name==' ') ++name;
+                    }
+                    const int s=key_from_name(name);
+                    if (s<0) printf("Runtime: controls: unknown key \"%s\" for %s\n",name,line+4);
+                    else if (b->key_count<MAX_BIND) { b->mods[b->key_count]=mod; b->keys[b->key_count++]=s; }
+                } else {
+                    const int button=pad_button_from_name(name);
+                    if (button<0) printf("Runtime: controls: unknown gamepad button \"%s\" for %s\n",name,line+4);
+                    else if (b->pad_count<MAX_BIND) b->pad[b->pad_count++]=button;
+                }
             }
         }
+        fclose(f);
     }
-    fclose(f);
+
+    const char *ml_env = getenv("BB_MOUSE_LOOK");
+    if (ml_env && ml_env[0]) mouse_look = parse_bool_val(ml_env, mouse_look);
+    const char *miy_env = getenv("BB_MOUSE_INVERT_Y");
+    if (miy_env && miy_env[0]) mouse_invert_y = parse_bool_val(miy_env, mouse_invert_y);
+    const char *ms_env = getenv("BB_MOUSE_SENSITIVITY");
+    if (ms_env && ms_env[0]) {
+        const float fval = strtof(ms_env, NULL);
+        if (fval >= 0.05f && fval <= 20.0f) mouse_sensitivity = fval;
+    }
 }
 /* The mouse while the window holds it: buttons, and the wheel as short presses (one per notch,
  * each held and released for a few frames so the game sees it). */

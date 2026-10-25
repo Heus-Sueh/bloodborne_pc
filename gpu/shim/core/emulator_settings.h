@@ -22,7 +22,14 @@ public:
     s32 GetGpuId() { static const auto value = s32(Number("BB_GPU_ID", -1)); return value; }
     u32 GetInternalScreenWidth() { static const auto value = u32(Number("BB_INTERNAL_WIDTH", 1920)); return value; }
     u32 GetInternalScreenHeight() { static const auto value = u32(Number("BB_INTERNAL_HEIGHT", 1080)); return value; }
-    std::string GetPresentMode() { const char* v = std::getenv("BB_PRESENT_MODE"); return v ? v : "Mailbox"; }
+    std::string GetPresentMode() {
+        const char* v = std::getenv("BB_PRESENT_MODE");
+        if (v && v[0]) return v;
+        const char* vs = std::getenv("BB_VSYNC");
+        if (vs && (vs[0] == '1' || !strcmp(vs, "true"))) return "Fifo";
+        if (vs && (vs[0] == '0' || !strcmp(vs, "false"))) return "Mailbox";
+        return "Fifo";
+    }
     // bbport: Relaxed by default: without readbacks FaceGen reads stale GPU-written vertices
     // (vertex explosions); in Hunter's Nightmare it costs no measurable frame rate.
     u32 GetReadbacksMode() { static const auto value = u32(Number("BB_READBACKS", GpuReadbacksMode::Relaxed)); return value; }
@@ -49,7 +56,16 @@ public:
     }
     /// Frames per second the present thread lets through; 0 = no limit (BB_FPS_LIMIT).
     u32 GetFrameLimit() {
-        static const u32 value = u32(std::max(0L, Number("BB_FPS_LIMIT", 0)));
+        static const u32 value = [] {
+            long limit = Number("BB_FPS_LIMIT", -1);
+            if (limit < 0) {
+                const char* fps = std::getenv("BB_FPS");
+                if (fps && strcmp(fps, "uncap") != 0) {
+                    limit = std::strtol(fps, nullptr, 10);
+                }
+            }
+            return limit > 0 ? u32(limit) : 0u;
+        }();
         return value;
     }
     bool IsCopyGpuBuffers() { static const auto value = Flag("BB_COPY_GPU_BUFFERS", true); return value; }

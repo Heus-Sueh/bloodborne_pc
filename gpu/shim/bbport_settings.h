@@ -132,6 +132,11 @@ struct Values {
     std::atomic<bool> dlss_supported{false};
     std::atomic<const char*> dlss_problem{nullptr};
 
+    std::atomic<bool> fullscreen{false};
+    std::atomic<bool> borderless{false};
+    std::atomic<bool> vsync{true};
+    std::atomic<int> fps_limit{60};
+
     /// Startup settings for the explicit BB_RENDER_RES compatibility patch only.
     int startup_preset = NativeAA;
     int startup_upscaler = UpscalerFsr3;

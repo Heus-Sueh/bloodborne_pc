@@ -46,6 +46,12 @@ void test_config_save_load() {
   s.fps_limit = 120;
   s.upscaler = "fsr";
   s.online_pool = "seamless";
+  s.fullscreen = true;
+  s.borderless = true;
+  s.vsync = false;
+  s.mouse_look = false;
+  s.mouse_sensitivity = 2.5f;
+  s.mouse_invert_y = true;
 
   // Set custom env or test ConfigManager save
   setenv("BB_CONFIG", tmp_toml.string().c_str(), 1);
@@ -56,6 +62,12 @@ void test_config_save_load() {
   assert(loaded.fps_limit == 120);
   assert(loaded.upscaler == "fsr");
   assert(loaded.online_pool == "seamless");
+  assert(loaded.fullscreen == true);
+  assert(loaded.borderless == true);
+  assert(loaded.vsync == false);
+  assert(loaded.mouse_look == false);
+  assert(loaded.mouse_sensitivity == 2.5f);
+  assert(loaded.mouse_invert_y == true);
 
   fs::remove(tmp_toml);
   unsetenv("BB_CONFIG");
