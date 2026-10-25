@@ -71,11 +71,9 @@ set(RUNTIME_C_SOURCES
     src/runtime_host.c
     src/runtime_kernel.c
     src/runtime_memory.c
-    src/runtime_mutex.c
     src/runtime_ngs2.c
     src/runtime_pad.c
     src/runtime_rewatch.c
-    src/runtime_rwlock.c
     src/runtime_services.c
     src/runtime_thread.c
     src/runtime_toypad.c
@@ -87,10 +85,12 @@ set(RUNTIME_CPP_SOURCES
     src/loader.cpp
     src/runtime_content.cpp
     src/runtime_error.cpp
+    src/runtime_mutex.cpp
     src/runtime_net.cpp
     src/runtime_platform.cpp
     src/runtime_registry.cpp
     src/runtime_rtc.cpp
+    src/runtime_rwlock.cpp
     src/runtime_savedata.cpp
     src/runtime_sema.cpp
     src/runtime_subsystems.cpp
