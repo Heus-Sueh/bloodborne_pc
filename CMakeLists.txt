@@ -68,7 +68,6 @@ set(RUNTIME_C_SOURCES
     src/runtime_compat.c
     src/runtime_file.c
     src/runtime_host.c
-    src/runtime_kernel.c
     src/runtime_memory.c
     src/runtime_ngs2.c
     src/runtime_pad.c
@@ -84,6 +83,7 @@ set(RUNTIME_CPP_SOURCES
     src/runtime_audio.cpp
     src/runtime_content.cpp
     src/runtime_error.cpp
+    src/runtime_kernel.cpp
     src/runtime_mutex.cpp
     src/runtime_net.cpp
     src/runtime_platform.cpp
