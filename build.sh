@@ -59,12 +59,11 @@ if ! fsr_patches_apply --check 2>/dev/null; then
 fi
 fsr_patches_apply
 cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
-    -DBB_LTO="${BB_LTO:-ON}" -DBB_PGO_DIR="$PWD/pgo" > out/gpu-cmake.log
+    -DBB_LTO="${BB_LTO:-ON}" -DBB_PGO_DIR="$PWD/pgo" 2>&1 | tee out/gpu-cmake.log
 grep '^-- Online module' out/gpu-cmake.log || true
 echo "GPU library: PGO $pgo, LTO ${BB_LTO:-ON}"
 # A failed GPU build must stop here: an older libbbgpu.so would otherwise be used silently.
-if ! ninja -C out/gpu bbgpu $(grep -q "^build bbnet:" out/gpu/build.ninja && echo bbnet) > out/gpu-build.log 2>&1; then
-    grep -v '^\[' out/gpu-build.log | tail -40 >&2
+if ! ninja -C out/gpu bbgpu $(grep -q "^build bbnet:" out/gpu/build.ninja && echo bbnet) 2>&1 | tee out/gpu-build.log; then
     echo 'GPU library build failed (full log: out/gpu-build.log)' >&2; exit 1
 fi
 # Optional DLSS (NVIDIA RTX): DLSS_SDK_ROOT=<github.com/NVIDIA/DLSS checkout> builds the bridge
