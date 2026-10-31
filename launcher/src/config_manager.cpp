@@ -384,18 +384,35 @@ bool ConfigManager::Save(const LauncherSettings& settings) {
   return true;
 }
 
+static fs::path ResolveGameFolder(const std::string& path) {
+  if (path.empty() || !fs::exists(path)) return {};
+  fs::path p(path);
+  if (fs::is_regular_file(p) && p.filename() == "eboot.bin") {
+    return p.parent_path();
+  }
+  if (fs::is_directory(p)) {
+    if (fs::exists(p / "eboot.bin")) return p;
+    if (fs::exists(p / "CUSA03173" / "eboot.bin")) return p / "CUSA03173";
+    if (fs::exists(p / "Image0" / "eboot.bin")) return p / "Image0";
+  }
+  return p;
+}
+
 bool ConfigManager::ValidateGameDirectory(const std::string& path) {
-  if (path.empty() || !fs::exists(path) || !fs::is_directory(path)) {
+  if (path.empty() || !fs::exists(path)) {
     return false;
   }
-  fs::path eboot = fs::path(path) / "eboot.bin";
-  fs::path dvdroot = fs::path(path) / "dvdroot_ps4";
-  return fs::exists(eboot) && fs::exists(dvdroot);
+  fs::path folder = ResolveGameFolder(path);
+  if (folder.empty() || !fs::exists(folder)) {
+    return false;
+  }
+  return fs::exists(folder / "eboot.bin");
 }
 
 std::string ConfigManager::GetGameVersion(const std::string& path) {
   if (!ValidateGameDirectory(path)) return "Unknown";
-  fs::path param_sfo = fs::path(path) / "sce_sys" / "param.sfo";
+  fs::path p = ResolveGameFolder(path);
+  fs::path param_sfo = p / "sce_sys" / "param.sfo";
   if (fs::exists(param_sfo)) {
     std::ifstream f(param_sfo, std::ios::binary);
     std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -409,7 +426,8 @@ std::string ConfigManager::GetGameVersion(const std::string& path) {
 
 std::string ConfigManager::GetTitleId(const std::string& path) {
   if (!ValidateGameDirectory(path)) return "CUSA03173";
-  fs::path param_sfo = fs::path(path) / "sce_sys" / "param.sfo";
+  fs::path p = ResolveGameFolder(path);
+  fs::path param_sfo = p / "sce_sys" / "param.sfo";
   if (fs::exists(param_sfo)) {
     std::ifstream f(param_sfo, std::ios::binary);
     std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -440,6 +458,23 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& settings) {
     return {};
   }
 
+  // Find project root directory containing run.sh
+  fs::path port_dir = fs::current_path();
+  if (!fs::exists(port_dir / "run.sh")) {
+    if (fs::exists(port_dir.parent_path() / "run.sh")) {
+      port_dir = port_dir.parent_path();
+    } else {
+      try {
+        fs::path exe_dir = fs::canonical("/proc/self/exe").parent_path();
+        if (fs::exists(exe_dir / "run.sh")) {
+          port_dir = exe_dir;
+        } else if (fs::exists(exe_dir.parent_path() / "run.sh")) {
+          port_dir = exe_dir.parent_path();
+        }
+      } catch (...) {}
+    }
+  }
+
   pid_t pid = fork();
   if (pid < 0) {
     close(pipefd[0]);
@@ -453,9 +488,17 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& settings) {
     dup2(pipefd[1], STDERR_FILENO);
     close(pipefd[1]);
 
-    if (!settings.game_dir.empty()) {
+    if (fs::exists(port_dir)) {
+      chdir(port_dir.c_str());
+    }
+
+    fs::path game_folder = ResolveGameFolder(settings.game_dir);
+    if (!game_folder.empty() && fs::exists(game_folder)) {
+      setenv("BB_GAME_DIR", game_folder.c_str(), 1);
+    } else if (!settings.game_dir.empty()) {
       setenv("BB_GAME_DIR", settings.game_dir.c_str(), 1);
     }
+
     if (!settings.user_dir.empty()) {
       setenv("BB_USER_DIR", settings.user_dir.c_str(), 1);
     }
@@ -463,12 +506,51 @@ ProcessHandle ConfigManager::LaunchGameAsync(const LauncherSettings& settings) {
       setenv("BB_MODS_DIR", settings.mods_dir.c_str(), 1);
     }
 
-    if (fs::exists("./scripts/run.sh")) {
-      execl("./scripts/run.sh", "./scripts/run.sh", nullptr);
-    } else if (fs::exists("./run.sh")) {
-      execl("./run.sh", "./run.sh", nullptr);
-    } else {
-      execl("./build.sh", "./build.sh", nullptr);
+    setenv("BB_MODS_ENABLED", settings.mods_enabled ? "1" : "0", 1);
+    setenv("BB_CONFIG", ConfigManager::GetIniPath().c_str(), 1);
+    setenv("BB_FPS", settings.fps_mode.c_str(), 1);
+    setenv("BB_FULLSCREEN", settings.fullscreen ? "1" : "0", 1);
+    setenv("BB_PRESENT_MODE", settings.present_mode.c_str(), 1);
+    setenv("BB_LANGUAGE", settings.game_text_language.c_str(), 1);
+    setenv("BB_MENU_LANGUAGE", settings.ui_language.c_str(), 1);
+    setenv("BB_SKIP_NETWORK_CHOICE", settings.skip_network_choice ? "1" : "0", 1);
+
+    if (settings.hdr) setenv("BB_HDR", "1", 1);
+    if (settings.save_log) setenv("BB_SAVE_LOG", "1", 1);
+    if (settings.gpu_profile) setenv("BB_GPU_PROFILE", "1", 1);
+    if (settings.vk_validation) setenv("BB_VK_VALIDATION", "1", 1);
+    if (settings.fps_limit > 0) setenv("BB_FPS_LIMIT", std::to_string(settings.fps_limit).c_str(), 1);
+
+    if (settings.crash_diag) {
+      setenv("BB_FREE_CHECK", "1", 1);
+      setenv("BB_WRITE_LOG", "1", 1);
+      setenv("BB_PRODUCER_CHECK", "1", 1);
+    }
+
+    if (settings.online_enabled) {
+      setenv("BB_ONLINE", "1", 1);
+      setenv("BB_NET_BACKEND", settings.online_pool == "huntersdream" ? "thd" : "seamless", 1);
+      if (!settings.online_server.empty()) {
+        setenv("BB_SHADNET_SERVER", settings.online_server.c_str(), 1);
+      }
+      if (!settings.online_webapi.empty()) {
+        setenv("BB_SHADNET_WEBAPI", settings.online_webapi.c_str(), 1);
+      }
+      if (!settings.online_npid.empty()) {
+        setenv("BB_SHADNET_NPID", settings.online_npid.c_str(), 1);
+      }
+      if (!settings.online_password.empty()) {
+        setenv("BB_SHADNET_PASSWORD", settings.online_password.c_str(), 1);
+      }
+      if (settings.local_bbsc) setenv("BB_BBSC", "1", 1);
+    }
+
+    fs::path run_sh = port_dir / "run.sh";
+    if (fs::exists(run_sh)) {
+      execlp("bash", "bash", run_sh.c_str(), nullptr);
+    } else if (fs::exists(port_dir / "build.sh")) {
+      fs::path build_sh = port_dir / "build.sh";
+      execlp("bash", "bash", build_sh.c_str(), nullptr);
     }
     _exit(127);
   }

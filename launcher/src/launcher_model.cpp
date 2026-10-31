@@ -576,13 +576,24 @@ void LauncherModel::Launch() {
   console_log.clear();
   AppendLogLine("=== Launching Bloodborne PC ===");
 
+  if (!ConfigManager::ValidateGameDirectory(settings.game_dir)) {
+    AppendLogLine("WARNING: No eboot.bin found directly in '" + settings.game_dir + "'.");
+    AppendLogLine("Checking for CUSA03173 subdirectories or launching runner...");
+  }
+
   running_process_ = ConfigManager::LaunchGameAsync(settings);
   if (!running_process_.IsValid()) {
-    AppendLogLine("ERROR: Failed to launch execution process.");
+    AppendLogLine("ERROR: Failed to launch execution process (fork or pipe failed).");
+    active_tab = "log";
+    if (model_handle_) {
+      model_handle_.DirtyVariable("active_tab");
+      model_handle_.DirtyVariable("console_log");
+    }
     return;
   }
 
   is_game_running = true;
+  launch_timestamp_ = std::chrono::steady_clock::now();
   if (model_handle_) {
     model_handle_.DirtyVariable("is_game_running");
   }
@@ -629,6 +640,15 @@ void LauncherModel::OnGameExited(int exit_code) {
   std::ostringstream ss;
   ss << "=== Process exited with code " << exit_code << " ===";
   AppendLogLine(ss.str());
+
+  auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::steady_clock::now() - launch_timestamp_).count();
+  if (exit_code != 0 && elapsed_sec < 4) {
+    active_tab = "log";
+    if (model_handle_) {
+      model_handle_.DirtyVariable("active_tab");
+    }
+  }
 
   if (model_handle_) {
     model_handle_.DirtyVariable("is_game_running");

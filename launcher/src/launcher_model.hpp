@@ -6,6 +6,7 @@
 #include "trophy_manager.hpp"
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -97,6 +98,7 @@ private:
   Rml::DataModelHandle model_handle_;
 
   ProcessHandle running_process_;
+  std::chrono::steady_clock::time_point launch_timestamp_;
   std::thread log_reader_thread_;
   std::thread extract_thread_;
   std::mutex log_mutex_;
