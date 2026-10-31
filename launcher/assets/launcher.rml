@@ -1,0 +1,418 @@
+<rml>
+<head>
+    <title>Bloodborne PC Launcher</title>
+    <link type="text/rcss" href="style.rcss" />
+</head>
+<body data-model="launcher">
+    <!-- SIDEBAR NAVIGATION -->
+    <div id="sidebar">
+        <div class="brand">
+            <div class="brand-title">BLOODBORNE</div>
+            <div class="brand-subtitle">NATIVE PC PORT</div>
+            <div class="brand-divider"></div>
+        </div>
+
+        <div class="nav-menu">
+            <button class="nav-item" data-class-active="active_tab == 'play'" data-event-click="set_tab('play')">
+                <span class="nav-icon">⚔</span> {{ tr_tab_play }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'graphics'" data-event-click="set_tab('graphics')">
+                <span class="nav-icon">👁</span> {{ tr_tab_graphics }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'effects'" data-event-click="set_tab('effects')">
+                <span class="nav-icon">✦</span> {{ tr_tab_effects }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'controls'" data-event-click="set_tab('controls')">
+                <span class="nav-icon">🎮</span> {{ tr_tab_controls }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'mods'" data-event-click="set_tab('mods')">
+                <span class="nav-icon">📦</span> {{ tr_tab_mods }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'trophies'" data-event-click="set_tab('trophies')">
+                <span class="nav-icon">🏆</span> {{ tr_tab_trophies }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'online'" data-event-click="set_tab('online')">
+                <span class="nav-icon">🌐</span> {{ tr_tab_online }}
+            </button>
+            <button class="nav-item" data-class-active="active_tab == 'log'" data-event-click="set_tab('log')">
+                <span class="nav-icon">📜</span> {{ tr_tab_log }}
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="lang-selector">
+                <span class="lang-label">Lang:</span>
+                <button class="lang-btn" data-class-active="ui_language == 'en'" data-event-click="set_language('en')">EN</button>
+                <button class="lang-btn" data-class-active="ui_language == 'pt_BR'" data-event-click="set_language('pt_BR')">PT</button>
+                <button class="lang-btn" data-class-active="ui_language == 'ru'" data-event-click="set_language('ru')">RU</button>
+                <button class="lang-btn" data-class-active="ui_language == 'zh_CN'" data-event-click="set_language('zh_CN')">ZH</button>
+                <button class="lang-btn" data-class-active="ui_language == 'fr_FR'" data-event-click="set_language('fr_FR')">FR</button>
+            </div>
+            <div class="meta-label">ARCHITECTURE</div>
+            <div class="meta-value">C++ · SDL3 · OpenGL · Vulkan</div>
+        </div>
+    </div>
+
+    <!-- MAIN VIEWPORT -->
+    <div id="content">
+
+        <!-- TAB: PLAY -->
+        <div class="tab-pane" data-if="active_tab == 'play'">
+            <div class="pane-header">
+                <h2>THE HUNT AWAITS</h2>
+                <p class="pane-desc">Configure directory paths, verify update 1.09 status, and awaken in Yharnam.</p>
+            </div>
+
+            <div class="card status-card" data-class-valid="is_valid" data-class-warning="is_update_needed">
+                <div class="status-indicator"></div>
+                <div class="status-body">
+                    <div class="status-title">{{ status_text }}</div>
+                    <div class="status-meta">
+                        <span class="tag">ID: {{ game_title_id }}</span>
+                        <span class="tag">VER: {{ game_version }}</span>
+                        <span class="tag" data-if="is_valid">VALIDATED</span>
+                        <span class="tag tag-warn" data-if="is_update_needed">UPDATE REQUIRED</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXTRACTION PROGRESS -->
+            <div class="card extract-card" data-if="is_extracting">
+                <div class="extract-header">
+                    <span class="extract-label">EXTRACTING GAME ASSETS</span>
+                    <span class="extract-pct">{{ extract_progress_pct }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" data-style-width="extract_progress_pct + '%'"></div>
+                </div>
+                <div class="extract-status">{{ extract_progress_text }}</div>
+            </div>
+
+            <!-- PATH CONFIGURATION -->
+            <div class="card">
+                <div class="card-title">DIRECTORY PATHS</div>
+                <div class="form-group">
+                    <label>Game Directory (eboot.bin &amp; dvdroot_ps4)</label>
+                    <div class="input-row">
+                        <input type="text" class="text-input" data-value="game_dir" readonly="true" />
+                        <button class="btn-action" data-event-click="choose_game_dir">BROWSE</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>User Data &amp; Saves Directory</label>
+                    <div class="input-row">
+                        <input type="text" class="text-input" data-value="user_dir" readonly="true" />
+                        <button class="btn-action" data-event-click="choose_user_dir">BROWSE</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Mods Directory</label>
+                    <div class="input-row">
+                        <input type="text" class="text-input" data-value="mods_dir" readonly="true" />
+                        <button class="btn-action" data-event-click="choose_mods_dir">BROWSE</button>
+                    </div>
+                </div>
+
+                <div class="button-row">
+                    <button class="btn-secondary" data-event-click="extract_dump">EXTRACT PKG / DUMP</button>
+                    <button class="btn-secondary" data-event-click="install_update">INSTALL UPDATE 1.09</button>
+                </div>
+            </div>
+
+            <!-- LAUNCH CONTROLS -->
+            <div class="launch-bar">
+                <button class="btn-launch" data-if="!is_game_running" data-event-click="play">
+                    {{ tr_launch_game }}
+                </button>
+                <button class="btn-stop" data-if="is_game_running" data-event-click="stop_game">
+                    {{ tr_stop_game }}
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB: GRAPHICS & DISPLAY -->
+        <div class="tab-pane" data-if="active_tab == 'graphics'">
+            <div class="pane-header">
+                <h2>DISPLAY &amp; GRAPHICS</h2>
+                <p class="pane-desc">Resolution scaling, refresh rate limits, and Vulkan presentation parameters.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">DISPLAY MODE</div>
+                <div class="form-group">
+                    <label>Target Resolution</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="output_res == 'auto'" data-event-click="set_resolution('auto')">Auto (Desktop)</button>
+                        <button class="sel-btn" data-class-active="output_res == '1920x1080'" data-event-click="set_resolution('1920x1080')">1080p</button>
+                        <button class="sel-btn" data-class-active="output_res == '2560x1440'" data-event-click="set_resolution('2560x1440')">1440p</button>
+                        <button class="sel-btn" data-class-active="output_res == '3840x2160'" data-event-click="set_resolution('3840x2160')">4K UHD</button>
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="fullscreen" data-event-change="save" />
+                        Fullscreen Mode
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="borderless" data-event-change="save" />
+                        Borderless Windowed
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="vsync" data-event-change="save" />
+                        Vertical Sync (VSync)
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="hdr" data-event-change="save" />
+                        HDR Output (Vulkan)
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">UPSCALING &amp; ANTI-ALIASING</div>
+                <div class="form-group">
+                    <label>Upscaler Backend</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr4'" data-event-click="set_upscaler('fsr4')">AMD FSR 4</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr31'" data-event-click="set_upscaler('fsr31')">AMD FSR 3.1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'dlss'" data-event-click="set_upscaler('dlss')">NVIDIA DLSS</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr1'" data-event-click="set_upscaler('fsr1')">FSR 1 (Lightweight)</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'none'" data-event-click="set_upscaler('none')">Native</button>
+                    </div>
+                </div>
+
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="sharpen" data-event-change="save" />
+                        CAS Sharpening Filter
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="vbao" data-event-change="save" />
+                        GT-VBAO Ambient Occlusion
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="show_fps" data-event-change="save" />
+                        In-Game FPS Counter
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="object_motion" data-event-change="save" />
+                        Object Motion Vectors
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: EFFECTS & ENGINE -->
+        <div class="tab-pane" data-if="active_tab == 'effects'">
+            <div class="pane-header">
+                <h2>EFFECTS &amp; ENGINE</h2>
+                <p class="pane-desc">Graphical post-processing effects, shadows, and low-latency rendering pipeline.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">POST-PROCESSING EFFECTS</div>
+                <div class="toggle-grid">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="motion_blur" data-event-change="save" />
+                        Motion Blur
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="bloom" data-event-change="save" />
+                        Bloom Lighting
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="chromatic_aberration" data-event-change="save" />
+                        Chromatic Aberration
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="dof" data-event-change="save" />
+                        Depth of Field (DoF)
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="ssao" data-event-change="save" />
+                        Screen-Space Ambient Occlusion (SSAO)
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="dynamic_shadows" data-event-change="save" />
+                        High-Resolution Dynamic Shadows
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">RENDER LATENCY &amp; DIAGNOSTICS</div>
+                <div class="toggle-grid">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="vk_validation" data-event-change="save" />
+                        Vulkan Validation Layers
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="save_log" data-event-change="save" />
+                        Save Process Output to Log File
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CONTROLS & INPUT -->
+        <div class="tab-pane" data-if="active_tab == 'controls'">
+            <div class="pane-header">
+                <h2>CONTROLS &amp; INPUT</h2>
+                <p class="pane-desc">Camera look mechanics, mouse emulation sensitivity, and controller button layouts.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">MOUSE LOOK EMULATION</div>
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="mouse_look" data-event-change="save" />
+                        Enable Mouse Look (Camera Navigation)
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="mouse_invert_y" data-event-change="save" />
+                        Invert Y Axis
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="mouse_invert_x" data-event-change="save" />
+                        Invert X Axis
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: MODS & PATCHES -->
+        <div class="tab-pane" data-if="active_tab == 'mods'">
+            <div class="pane-header">
+                <h2>MODS &amp; SHADPS4 PATCHES</h2>
+                <p class="pane-desc">Manage installed game modifications, load order priority, and XML runtime patches.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">INSTALLED MODS (LOAD ORDER)</div>
+                <div class="mods-list">
+                    <div class="mod-item" data-for="mod : mods_list">
+                        <div class="mod-left">
+                            <input type="checkbox" data-checked="mod.enabled" data-event-change="toggle_mod(mod.id)" />
+                            <div class="mod-info">
+                                <div class="mod-title">{{ mod.name }}</div>
+                                <div class="mod-path">{{ mod.path }}</div>
+                            </div>
+                        </div>
+                        <div class="mod-actions">
+                            <button class="btn-tiny" data-event-click="move_mod_up(mod.id)">▲</button>
+                            <button class="btn-tiny" data-event-click="move_mod_down(mod.id)">▼</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" data-if="patches_list.size > 0">
+                <div class="card-title">SHADPS4 XML PATCHES</div>
+                <div class="patches-list">
+                    <div class="patch-item" data-for="patch : patches_list">
+                        <input type="checkbox" data-checked="patch.enabled" data-event-change="toggle_patch(patch.id)" />
+                        <div class="patch-info">
+                            <div class="patch-title">{{ patch.name }}</div>
+                            <div class="patch-author" data-if="patch.author != ''">Author: {{ patch.author }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: TROPHIES -->
+        <div class="tab-pane" data-if="active_tab == 'trophies'">
+            <div class="pane-header">
+                <h2>ACHIEVEMENTS &amp; TROPHIES</h2>
+                <p class="pane-desc">Decrypted game trophies, unlock milestones, and Yharnam hunter completion.</p>
+            </div>
+
+            <div class="card trophy-summary-card">
+                <div class="trophy-summary-header">
+                    <span class="trophy-summary-title">COMPLETION STATUS</span>
+                    <span class="trophy-summary-stat">{{ trophy_progress_text }}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill trophy-progress-fill" data-style-width="trophy_progress_pct + '%'"></div>
+                </div>
+            </div>
+
+            <div class="trophy-grid">
+                <div class="trophy-card" data-for="t : trophies_list" data-class-unlocked="t.unlocked">
+                    <div class="trophy-grade-badge" data-class-plat="t.grade_str == 'Platinum'" data-class-gold="t.grade_str == 'Gold'" data-class-silver="t.grade_str == 'Silver'" data-class-bronze="t.grade_str == 'Bronze'">
+                        {{ t.grade_str }}
+                    </div>
+                    <div class="trophy-content">
+                        <div class="trophy-title">{{ t.name }}</div>
+                        <div class="trophy-detail">{{ t.detail }}</div>
+                        <div class="trophy-date" data-if="t.unlocked &amp;&amp; t.date_str != ''">Unlocked: {{ t.date_str }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: ONLINE -->
+        <div class="tab-pane" data-if="active_tab == 'online'">
+            <div class="pane-header">
+                <h2>NETWORK &amp; CO-OP</h2>
+                <p class="pane-desc">Seamless multiplayer matchmaking, BBSC local server, and NP communication pools.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">MULTIPLAYER CONFIGURATION</div>
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="online_enabled" data-event-change="save" />
+                        Enable Online Multiplayer
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" data-checked="local_bbsc" data-event-change="save" />
+                        Run Local BBSC Co-op Relay Server
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Matchmaking Pool</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="online_pool == 'seamless'" data-event-click="set_pool('seamless')">Seamless Hunt + BBSC</button>
+                        <button class="sel-btn" data-class-active="online_pool == 'thd'" data-event-click="set_pool('thd')">The Hunter's Dream</button>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Multiplayer Server Address</label>
+                    <input type="text" class="text-input" data-value="online_server" data-event-change="save" />
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Discord Login Token (Optional for The Hunter's Dream)</label>
+                    <input type="text" class="text-input" data-value="discord_token" data-event-change="save" />
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: LOG & CONSOLE -->
+        <div class="tab-pane" data-if="active_tab == 'log'">
+            <div class="pane-header">
+                <h2>LOG &amp; PROCESS CONSOLE</h2>
+                <p class="pane-desc">Live output stream from execution layer, Vulkan initialization, and runtime diagnostics.</p>
+            </div>
+
+            <div class="card log-card">
+                <div class="log-controls">
+                    <button class="btn-action" data-event-click="clear_log">CLEAR</button>
+                    <button class="btn-action" data-event-click="copy_log">{{ copy_btn_text }}</button>
+                    <button class="btn-action" data-event-click="save_log">EXPORT TO FILE...</button>
+                </div>
+                <div class="log-viewport">
+                    <pre class="log-text">{{ console_log }}</pre>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</rml>

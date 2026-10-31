@@ -1,0 +1,1096 @@
+/* ==========================================================================
+   Bloodborne PC Native Client - Stylesheet (RmlUi)
+   ========================================================================== */
+
+/* Universal Block Reset for RmlUi (Rule R-01 & R-02) */
+div, p, h1, h2, h3, h4, section, header, footer {
+    display: block;
+    box-sizing: border-box;
+}
+
+body {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    margin: 0px;
+    padding: 0px;
+    background-color: #090a0f;
+    color: #cbd5e1;
+    font-family: Noto Sans;
+    font-size: 13px;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   SIDEBAR & BRANDING
+   ========================================================================== */
+
+#sidebar {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    width: 240px;
+    background-color: #0d0f15;
+    border-right: 1px #1a1e2d;
+    padding: 24px 16px;
+    box-sizing: border-box;
+}
+
+.brand {
+    display: block;
+    margin-bottom: 28px;
+    padding-left: 8px;
+}
+
+.brand-title {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+}
+
+.brand-subtitle {
+    display: block;
+    font-size: 9px;
+    font-weight: bold;
+    color: #a81d1d;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+
+.brand-divider {
+    display: block;
+    height: 2px;
+    width: 44px;
+    background-color: #8f1818;
+}
+
+.nav-menu {
+    display: block;
+    margin-top: 12px;
+}
+
+.nav-item {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: transparent;
+    border: 0px;
+    border-left: 3px transparent;
+    color: #7b8196;
+    font-family: Noto Sans;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: left;
+    padding: 11px 14px;
+    margin-bottom: 4px;
+    border-radius: 0px 4px 4px 0px;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background-color: #141722;
+    color: #f1f5f9;
+}
+
+.nav-item.active {
+    background-color: #161925;
+    border-left: 3px #8f1818;
+    color: #ffffff;
+}
+
+.sidebar-footer {
+    position: absolute;
+    bottom: 18px;
+    left: 16px;
+    right: 16px;
+    padding-left: 8px;
+    border-top: 1px #161924;
+    padding-top: 14px;
+}
+
+.meta-label {
+    display: block;
+    font-size: 9px;
+    font-weight: bold;
+    color: #555a6e;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+}
+
+.meta-value {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #7b8196;
+}
+
+/* ==========================================================================
+   MAIN CONTENT VIEWPORT & CARDS
+   ========================================================================== */
+
+#content {
+    position: absolute;
+    top: 0px;
+    left: 240px;
+    right: 0px;
+    bottom: 0px;
+    background-color: #090a0f;
+    padding: 24px 32px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.tab-pane {
+    display: block;
+    width: 100%;
+}
+
+.pane-header {
+    display: block;
+    margin-bottom: 22px;
+}
+
+.pane-title {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #f8fafc;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+}
+
+.pane-desc {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.card {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #10121a;
+    border: 1px #1a1e2d;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    display: block;
+    font-size: 11px;
+    font-weight: bold;
+    color: #8c92a8;
+    letter-spacing: 1.5px;
+    border-bottom: 1px #161924;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   SETTING ROWS & COLUMNS (TABLE-CELL ENGINE TO PREVENT OVERLAP)
+   ========================================================================== */
+
+.setting-row, .form-row {
+    display: table;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 0px;
+    border-bottom: 1px #151824;
+}
+
+.setting-row:last-child, .form-row:last-child {
+    border-bottom: 0px;
+}
+
+.col-info, .field-info {
+    display: table-cell;
+    width: 42%;
+    vertical-align: middle;
+}
+
+.field-title {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #e2e8f0;
+    margin-bottom: 2px;
+}
+
+.interactive-title {
+    cursor: pointer;
+}
+
+.interactive-title:hover {
+    color: #ffffff;
+}
+
+.col-info[data-event-click] {
+    cursor: pointer;
+}
+
+.field-desc {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.col-control, .field-control {
+    display: table-cell;
+    width: 58%;
+    text-align: right;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   INTERACTIVE CONTROLS
+   ========================================================================== */
+
+/* Segmented Buttons */
+.seg-group, .segmented-bar {
+    display: inline-block;
+    white-space: nowrap;
+    background-color: #06070a;
+    border: 1px #191c29;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.seg-btn {
+    display: inline-block;
+    background-color: transparent;
+    border: 0px;
+    color: #7b8196;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 6px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.seg-btn:hover {
+    color: #ffffff;
+    background-color: #141724;
+}
+
+.seg-btn.selected {
+    background-color: #8f1818;
+    color: #ffffff;
+}
+
+.action-btn {
+    display: inline-block;
+    background-color: #171b29;
+    border: 1px #2a3147;
+    color: #e2e8f0;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    background-color: #8f1818;
+    border-color: #8f1818;
+    color: #ffffff;
+}
+
+.action-btn.disabled {
+    background-color: #12151e;
+    border-color: #1e2230;
+    color: #4b5563;
+    cursor: not-allowed;
+}
+
+/* Extraction Progress Card */
+.extract-progress-card {
+    display: block;
+    box-sizing: border-box;
+    background-color: #0b0d14;
+    border: 1px #8f1818;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-top: 10px;
+}
+
+/* Update 1.09 Alert and Badges */
+.badge-version {
+    display: inline-block;
+    background-color: #1e293b;
+    color: #38bdf8;
+    border: 1px #334155;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: JetBrainsMono NF;
+    margin-left: 6px;
+}
+
+.action-btn-update {
+    background-color: #1e1b4b;
+    border: 1px #6366f1;
+    color: #e0e7ff;
+}
+
+.action-btn-update:hover {
+    background-color: #312e81;
+    border-color: #818cf8;
+    color: #ffffff;
+}
+
+.update-alert-card {
+    display: block;
+    box-sizing: border-box;
+    background-color: #1f130b;
+    border: 1px #d97706;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-top: 10px;
+}
+
+.update-alert-header {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.update-alert-tag {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    color: #f59e0b;
+    letter-spacing: 1px;
+}
+
+.update-alert-info {
+    display: inline-block;
+    float: right;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    color: #fbbf24;
+}
+
+.update-alert-desc {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #fde68a;
+    line-height: 14px;
+}
+
+.extract-header-row {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.extract-label {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    color: #e2e8f0;
+    letter-spacing: 1px;
+}
+
+.extract-percent {
+    display: inline-block;
+    float: right;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    color: #ef4444;
+}
+
+.progress-bar-track {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 8px;
+    background-color: #181d2a;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+    display: block;
+    height: 100%;
+    background-color: #8f1818;
+    border-radius: 4px;
+}
+
+.extract-detail {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Text Inputs */
+.input-text {
+    display: inline-block;
+    background-color: #06070a;
+    border: 1px #1d2131;
+    border-radius: 4px;
+    color: #f1f5f9;
+    font-family: JetBrainsMono NF;
+    font-size: 12px;
+    padding: 6px 10px;
+    box-sizing: border-box;
+}
+
+.input-text:focus {
+    border-color: #8f1818;
+}
+
+.input-path {
+    width: 100%;
+    max-width: 360px;
+    min-width: 160px;
+    cursor: pointer;
+}
+
+.input-short {
+    width: 80px;
+    text-align: center;
+}
+
+/* Checkboxes */
+.input-checkbox {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: #06070a;
+    border: 1px #1d2131;
+    border-radius: 4px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.input-checkbox:checked {
+    background-color: #8f1818;
+    border-color: #aa1e1e;
+}
+
+/* ==========================================================================
+   PERSISTENT FOOTER
+   ========================================================================== */
+
+#footer {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    height: 64px;
+    background-color: #0d0f15;
+    border-top: 1px #1a1e2d;
+    padding: 12px 24px;
+    box-sizing: border-box;
+}
+
+.status-box, .status-container {
+    float: left;
+    padding-top: 10px;
+}
+
+.status-dot, .status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.status-dot.valid, .status-indicator.valid {
+    background-color: #10b981;
+}
+
+.status-dot.invalid, .status-indicator.invalid {
+    background-color: #ef4444;
+}
+
+.status-msg, .status-label {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.status-msg.valid, .status-label.valid {
+    color: #6ee7b7;
+}
+
+.status-msg.invalid, .status-label.invalid {
+    color: #fca5a5;
+}
+
+.footer-actions {
+    float: right;
+}
+
+.console-trigger {
+    display: inline-block;
+    background-color: #12151f;
+    border: 1px #1f2537;
+    border-radius: 4px;
+    color: #94a3b8;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 9px 16px;
+    margin-right: 12px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.console-trigger:hover {
+    background-color: #1a1f2e;
+    color: #ffffff;
+    border-color: #2b334a;
+}
+
+.console-trigger.active {
+    background-color: #1d2233;
+    border-color: #8f1818;
+    color: #ffffff;
+}
+
+.console-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+    background-color: #475569;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.console-dot.running {
+    background-color: #10b981;
+}
+
+.hunt-button {
+    display: inline-block;
+    background-color: #8f1818;
+    border: 1px #a81d1d;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: Noto Sans;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 10px 28px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.hunt-button:hover {
+    background-color: #aa1e1e;
+    border-color: #c92424;
+}
+
+.hunt-button:active {
+    background-color: #6d1111;
+}
+
+.hunt-button.disabled {
+    background-color: #141722;
+    border-color: #1c202e;
+    color: #475569;
+    cursor: default;
+}
+
+/* ==========================================================================
+   COLLAPSIBLE SYSTEM CONSOLE DRAWER
+   ========================================================================== */
+
+#console-drawer {
+    position: absolute;
+    left: 240px;
+    right: 0px;
+    bottom: 64px;
+    height: 260px;
+    background-color: #050608;
+    border-top: 1px #1d2130;
+    border-left: 1px #1d2130;
+    box-sizing: border-box;
+    z-index: 100;
+}
+
+.console-header {
+    display: table;
+    width: 100%;
+    height: 34px;
+    background-color: #0b0d13;
+    border-bottom: 1px #161924;
+    padding: 0px 14px;
+    box-sizing: border-box;
+}
+
+.console-title-area {
+    display: table-cell;
+    vertical-align: middle;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    font-weight: bold;
+    color: #94a3b8;
+}
+
+.console-prompt {
+    color: #8f1818;
+    margin-right: 6px;
+}
+
+.console-heading {
+    color: #cbd5e1;
+    letter-spacing: 1px;
+}
+
+.console-status-pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-left: 10px;
+    background-color: #1e2433;
+    color: #64748b;
+    vertical-align: middle;
+}
+
+.console-status-pill.running {
+    background-color: #064e3b;
+    color: #34d399;
+}
+
+.console-actions {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
+}
+
+.console-action-btn {
+    display: inline-block;
+    background-color: #12151f;
+    border: 1px #1f2537;
+    border-radius: 3px;
+    color: #94a3b8;
+    font-family: JetBrainsMono NF;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 10px;
+    margin-left: 6px;
+    cursor: pointer;
+}
+
+.console-action-btn:hover {
+    background-color: #1e2436;
+    color: #ffffff;
+}
+
+.console-action-btn.stop-btn {
+    background-color: #3b1111;
+    border-color: #5c1818;
+    color: #fca5a5;
+}
+
+.console-action-btn.stop-btn:hover {
+    background-color: #8f1818;
+    border-color: #b32020;
+    color: #ffffff;
+}
+
+.console-action-btn.close-btn:hover {
+    background-color: #8f1818;
+    border-color: #b32020;
+    color: #ffffff;
+}
+
+.console-body {
+    display: block;
+    height: 226px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    background-color: #050608;
+}
+
+.console-text {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #a6adc8;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBAR
+   ========================================================================== */
+
+scrollbarvertical {
+    width: 8px;
+}
+
+scrollbarvertical slidertrack {
+    background-color: transparent;
+}
+
+scrollbarvertical sliderbar {
+    width: 6px;
+    min-height: 24px;
+    background-color: #1e2230;
+    border-radius: 3px;
+}
+
+scrollbarvertical sliderbar:hover {
+    background-color: #333a52;
+}
+
+scrollbarvertical sliderbar:active {
+    background-color: #8f1818;
+}
+
+/* ==========================================================================
+   RESPONSIVE & ADAPTIVE BREAKPOINTS
+   ========================================================================== */
+
+@media (max-width: 860px) {
+    #sidebar {
+        width: 190px;
+        padding: 20px 12px;
+    }
+
+    .brand {
+        margin-bottom: 20px;
+        padding-left: 4px;
+    }
+
+    .brand-title {
+        font-size: 15px;
+        letter-spacing: 2px;
+    }
+
+    .nav-item {
+        font-size: 12px;
+        padding: 9px 10px;
+    }
+
+    #content {
+        left: 190px;
+        padding: 20px 22px;
+    }
+
+    .setting-row, .form-row {
+        display: block;
+        padding: 12px 0px;
+    }
+
+    .col-info, .field-info {
+        display: block;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .col-control, .field-control {
+        display: block;
+        width: 100%;
+        text-align: left;
+    }
+
+    .input-path {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .seg-group, .segmented-bar {
+        display: inline-block;
+    }
+
+    #console-drawer {
+        left: 190px;
+    }
+}
+
+
+/* ==========================================================================
+   LANGUAGE SELECTOR
+   ========================================================================== */
+
+.lang-selector {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.lang-label {
+    display: inline-block;
+    font-size: 11px;
+    color: #64748b;
+    margin-right: 6px;
+}
+
+.lang-btn {
+    display: inline-block;
+    background-color: #161a29;
+    color: #94a3b8;
+    border: 1px #22283d;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 4px;
+}
+
+.lang-btn:hover {
+    background-color: #1e2438;
+    color: #e2e8f0;
+}
+
+.lang-btn.active {
+    background-color: #8b0000;
+    color: #ffffff;
+    border-color: #c53030;
+}
+
+/* ==========================================================================
+   MODS & PATCHES
+   ========================================================================== */
+
+.mods-list, .patches-list {
+    display: block;
+    margin-top: 8px;
+}
+
+.mod-item, .patch-item {
+    display: block;
+    background-color: #131622;
+    border: 1px #1e2438;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+}
+
+.mod-item:hover, .patch-item:hover {
+    border-color: #2d3748;
+}
+
+.mod-left {
+    display: inline-block;
+    width: 80%;
+    vertical-align: middle;
+}
+
+.mod-left input {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 12px;
+}
+
+.mod-info, .patch-info {
+    display: inline-block;
+    vertical-align: middle;
+    width: 85%;
+}
+
+.mod-title, .patch-title {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #f1f5f9;
+}
+
+.mod-path, .patch-author {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.mod-actions {
+    display: inline-block;
+    width: 18%;
+    text-align: right;
+    vertical-align: middle;
+}
+
+.btn-tiny {
+    display: inline-block;
+    background-color: #1e2438;
+    color: #94a3b8;
+    border: 1px #2d3748;
+    padding: 4px 8px;
+    font-size: 10px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.btn-tiny:hover {
+    background-color: #2d3748;
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   TROPHIES
+   ========================================================================== */
+
+.trophy-summary-card {
+    background-color: #131622;
+    border: 1px #1e2438;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.trophy-summary-header {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.trophy-summary-title {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #cbd5e1;
+}
+
+.trophy-summary-stat {
+    display: inline-block;
+    float: right;
+    font-size: 13px;
+    font-weight: bold;
+    color: #e2e8f0;
+}
+
+.trophy-progress-fill {
+    background-color: #d4af37;
+}
+
+.trophy-grid {
+    display: block;
+}
+
+.trophy-card {
+    display: block;
+    background-color: #111420;
+    border: 1px #1c2236;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+}
+
+.trophy-card.unlocked {
+    opacity: 1.0;
+    border-color: #2d3748;
+    background-color: #141828;
+}
+
+.trophy-grade-badge {
+    display: inline-block;
+    vertical-align: middle;
+    width: 80px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+}
+
+.trophy-grade-badge.plat {
+    color: #99ccff;
+}
+
+.trophy-grade-badge.gold {
+    color: #ffd700;
+}
+
+.trophy-grade-badge.silver {
+    color: #c0c0c0;
+}
+
+.trophy-grade-badge.bronze {
+    color: #cd7f32;
+}
+
+.trophy-content {
+    display: inline-block;
+    vertical-align: middle;
+    width: 80%;
+}
+
+.trophy-title {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    color: #f1f5f9;
+}
+
+.trophy-detail {
+    display: block;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+.trophy-date {
+    display: block;
+    font-size: 11px;
+    color: #d4af37;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   LOG & CONSOLE TAB
+   ========================================================================== */
+
+.log-card {
+    padding: 16px;
+}
+
+.log-controls {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.log-viewport {
+    display: block;
+    background-color: #050608;
+    border: 1px #161a29;
+    padding: 14px;
+    height: 480px;
+    overflow-y: auto;
+}
+
+.log-text {
+    font-family: JetBrainsMono NF;
+    font-size: 12px;
+    color: #a0aec0;
+    white-space: pre-wrap;
+    line-height: 1.4;
+}
+
+.toggle-grid {
+    display: block;
+}
+
+.toggle-grid .toggle-label {
+    display: inline-block;
+    width: 48%;
+    margin-bottom: 12px;
+}
