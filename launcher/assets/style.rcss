@@ -16,9 +16,9 @@ body {
     bottom: 0px;
     margin: 0px;
     padding: 0px;
-    background-color: #090a0f;
-    color: #cbd5e1;
-    font-family: Noto Sans;
+    background-color: #08070a;
+    color: #ede5d8;
+    font-family: Source Sans 3;
     font-size: 13px;
     overflow: hidden;
 }
@@ -33,8 +33,8 @@ body {
     left: 0px;
     bottom: 0px;
     width: 240px;
-    background-color: #0d0f15;
-    border-right: 1px #1a1e2d;
+    background-color: #0d0b10;
+    border-right: 1px #1a1720;
     padding: 24px 16px;
     box-sizing: border-box;
 }
@@ -47,16 +47,18 @@ body {
 
 .brand-title {
     display: block;
-    font-size: 18px;
+    font-family: Cinzel;
+    font-size: 19px;
     font-weight: bold;
-    color: #ffffff;
-    letter-spacing: 3px;
+    color: #ede5d8;
+    letter-spacing: 4px;
     margin-bottom: 4px;
 }
 
 .brand-subtitle {
     display: block;
-    font-size: 9px;
+    font-family: Cormorant;
+    font-size: 11px;
     font-weight: bold;
     color: #a81d1d;
     letter-spacing: 2px;
@@ -82,10 +84,11 @@ body {
     background-color: transparent;
     border: 0px;
     border-left: 3px transparent;
-    color: #7b8196;
-    font-family: Noto Sans;
-    font-size: 13px;
+    color: #8c8275;
+    font-family: Cinzel;
+    font-size: 12px;
     font-weight: bold;
+    letter-spacing: 1px;
     text-align: left;
     padding: 11px 14px;
     margin-bottom: 4px;
@@ -94,14 +97,14 @@ body {
 }
 
 .nav-item:hover {
-    background-color: #141722;
-    color: #f1f5f9;
+    background-color: #15111b;
+    color: #ede5d8;
 }
 
 .nav-item.active {
-    background-color: #161925;
+    background-color: #1a1218;
     border-left: 3px #8f1818;
-    color: #ffffff;
+    color: #ede5d8;
 }
 
 .sidebar-footer {
@@ -158,17 +161,19 @@ body {
 
 .pane-title {
     display: block;
-    font-size: 18px;
+    font-family: Cinzel;
+    font-size: 20px;
     font-weight: bold;
-    color: #f8fafc;
+    color: #ede5d8;
     margin-bottom: 4px;
-    letter-spacing: 0.5px;
+    letter-spacing: 2px;
 }
 
 .pane-desc {
     display: block;
-    font-size: 12px;
-    color: #64748b;
+    font-family: Cormorant;
+    font-size: 14px;
+    color: #8c8275;
     line-height: 1.4;
 }
 
@@ -176,8 +181,8 @@ body {
     display: block;
     width: 100%;
     box-sizing: border-box;
-    background-color: #10121a;
-    border: 1px #1a1e2d;
+    background-color: #131017;
+    border: 1px #1e1925;
     border-radius: 6px;
     padding: 16px 20px;
     margin-bottom: 20px;
@@ -185,11 +190,12 @@ body {
 
 .card-header, .card-title {
     display: block;
+    font-family: Cinzel;
     font-size: 11px;
     font-weight: bold;
-    color: #8c92a8;
-    letter-spacing: 1.5px;
-    border-bottom: 1px #161924;
+    color: #d4c4a8;
+    letter-spacing: 2.5px;
+    border-bottom: 1px #1a1522;
     padding-bottom: 8px;
     margin-bottom: 14px;
 }
@@ -268,8 +274,8 @@ body {
     display: inline-block;
     background-color: transparent;
     border: 0px;
-    color: #7b8196;
-    font-family: JetBrainsMono NF;
+    color: #8c8275;
+    font-family: Source Sans 3;
     font-size: 11px;
     font-weight: bold;
     padding: 7px 12px;
@@ -279,8 +285,8 @@ body {
 }
 
 .seg-btn:hover, .sel-btn:hover {
-    color: #ffffff;
-    background-color: #141724;
+    color: #ede5d8;
+    background-color: #1a1522;
 }
 
 .seg-btn.selected, .seg-btn.active, .sel-btn.active, .sel-btn.selected {
@@ -303,28 +309,28 @@ body {
 }
 
 .action-btn:hover, .btn-action:hover {
-    background-color: #242b42;
-    color: #ffffff;
-    border-color: #4a5568;
+    background-color: #201a26;
+    color: #ede5d8;
+    border-color: #d4c4a8;
 }
 
 .btn-secondary {
     display: inline-block;
-    background-color: #121520;
-    border: 1px #20263a;
+    background-color: #141119;
+    border: 1px #221c2b;
     border-radius: 4px;
-    color: #94a3b8;
-    font-family: JetBrainsMono NF;
-    font-size: 11px;
+    color: #8c8275;
+    font-family: Source Sans 3;
+    font-size: 12px;
     padding: 8px 16px;
     cursor: pointer;
     margin-right: 10px;
 }
 
 .btn-secondary:hover {
-    background-color: #1c2235;
-    color: #ffffff;
-    border-color: #333d59;
+    background-color: #1d1825;
+    color: #ede5d8;
+    border-color: #d4c4a8;
 }
 
 .action-btn:hover {
@@ -599,30 +605,30 @@ input.checkbox:checked, .input-checkbox:checked {
     background-color: #8f1818;
     border: 1px #aa1e1e;
     border-radius: 4px;
-    color: #ffffff;
-    font-family: Noto Sans;
-    font-size: 15px;
+    color: #ede5d8;
+    font-family: Cinzel;
+    font-size: 16px;
     font-weight: bold;
-    letter-spacing: 2px;
-    padding: 14px 24px;
+    letter-spacing: 3px;
+    padding: 16px 24px;
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
 }
 
 .btn-launch:hover, .hunt-button:hover {
-    background-color: #b02222;
-    border-color: #d12e2e;
+    background-color: #aa1e1e;
+    border-color: #d4c4a8;
 }
 
 .btn-stop {
     display: block;
     width: 100%;
-    background-color: #551111;
-    border: 1px #771818;
+    background-color: #4a0d0d;
+    border: 1px #661212;
     border-radius: 4px;
-    color: #ffffff;
-    font-family: Noto Sans;
+    color: #ede5d8;
+    font-family: Cinzel;
     font-size: 15px;
     font-weight: bold;
     letter-spacing: 2px;

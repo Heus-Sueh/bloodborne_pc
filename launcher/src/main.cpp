@@ -113,6 +113,28 @@ int main(int argc, char** argv) {
   const std::string ss_reg = resolve_font_path("launcher/assets/fonts/SourceSans3-Regular.ttf");
   const std::string ss_bold = resolve_font_path("launcher/assets/fonts/SourceSans3-Bold.ttf");
 
+  const std::string cinzel_reg = resolve_font_path("launcher/assets/fonts/Cinzel-Regular.ttf");
+  const std::string cinzel_bold = resolve_font_path("launcher/assets/fonts/Cinzel-Bold.ttf");
+  const std::string cormorant_reg = resolve_font_path("launcher/assets/fonts/Cormorant-Regular.ttf");
+  const std::string cormorant_bold = resolve_font_path("launcher/assets/fonts/Cormorant-Bold.ttf");
+
+  if (fs::exists(cinzel_reg)) {
+    Rml::LoadFontFace(cinzel_reg, "Cinzel", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Normal, false);
+  }
+  if (fs::exists(cinzel_bold)) {
+    Rml::LoadFontFace(cinzel_bold, "Cinzel", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Bold, false);
+  }
+  if (fs::exists(cormorant_reg)) {
+    Rml::LoadFontFace(cormorant_reg, "Cormorant", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Normal, false);
+  }
+  if (fs::exists(cormorant_bold)) {
+    Rml::LoadFontFace(cormorant_bold, "Cormorant", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Bold, false);
+  }
+
   if (fs::exists(noto_reg)) {
     Rml::LoadFontFace(noto_reg, "Noto Sans", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Normal, true);
