@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
   const std::string oswald_bold = resolve_font_path("launcher/assets/fonts/Oswald-Bold.ttf");
   const std::string ss_reg = resolve_font_path("launcher/assets/fonts/SourceSans3-Regular.ttf");
   const std::string ss_bold = resolve_font_path("launcher/assets/fonts/SourceSans3-Bold.ttf");
+  const std::string cjk_reg = resolve_font_path("launcher/assets/fonts/NotoSansCJK-Regular.ttc");
 
   const std::string cinzel_reg = resolve_font_path("launcher/assets/fonts/Cinzel-Regular.ttf");
   const std::string cinzel_bold = resolve_font_path("launcher/assets/fonts/Cinzel-Bold.ttf");
@@ -133,6 +134,35 @@ int main(int argc, char** argv) {
   if (fs::exists(cormorant_bold)) {
     Rml::LoadFontFace(cormorant_bold, "Cormorant", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Bold, false);
+  }
+
+  // Load CJK font (Simplified Chinese at face_index 2) as universal fallback
+  bool cjk_loaded = false;
+  if (fs::exists(cjk_reg)) {
+    cjk_loaded = Rml::LoadFontFace(cjk_reg, "Noto Sans CJK SC", Rml::Style::FontStyle::Normal,
+                                   Rml::Style::FontWeight::Normal, /*fallback_face=*/true, /*face_index=*/2);
+  }
+  if (!cjk_loaded) {
+    const std::vector<std::string> system_cjk_paths = {
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc",
+    };
+    for (const auto& sys_path : system_cjk_paths) {
+      if (fs::exists(sys_path)) {
+        if (Rml::LoadFontFace(sys_path, "Noto Sans CJK SC", Rml::Style::FontStyle::Normal,
+                              Rml::Style::FontWeight::Normal, /*fallback_face=*/true, /*face_index=*/2) ||
+            Rml::LoadFontFace(sys_path, "Noto Sans CJK", Rml::Style::FontStyle::Normal,
+                              Rml::Style::FontWeight::Normal, /*fallback_face=*/true, /*face_index=*/0)) {
+          cjk_loaded = true;
+          break;
+        }
+      }
+    }
   }
 
   if (fs::exists(noto_reg)) {

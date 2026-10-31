@@ -359,6 +359,15 @@ void test_i18n() {
   std::cout << "PASS: test_i18n\n";
 }
 
+void test_cjk_font_resolution() {
+  const std::string local_cjk = "launcher/assets/fonts/NotoSansCJK-Regular.ttc";
+  const std::string sys_cjk = "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc";
+
+  bool found_cjk = fs::exists(local_cjk) || fs::exists(sys_cjk);
+  assert(found_cjk && "CJK Font must exist either locally in assets/fonts or in system font paths");
+  std::cout << "PASS: test_cjk_font_resolution\n";
+}
+
 int main() {
   std::cout << "=== Running Bloodborne Launcher Test Suite ===\n";
   test_default_settings();
@@ -367,6 +376,7 @@ int main() {
   test_mods_manager();
   test_trophy_manager();
   test_i18n();
-  std::cout << "=== All 6 Test Suites Passed Successfully (100% Success Rate) ===\n";
+  test_cjk_font_resolution();
+  std::cout << "=== All 7 Test Suites Passed Successfully (100% Success Rate) ===\n";
   return 0;
 }
