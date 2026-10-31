@@ -47,59 +47,92 @@ struct ProcessHandle {
 };
 
 struct LauncherSettings {
-  // Paths & General
+  // Section: Game
+  std::string ui_language = "en";
   std::string game_dir;
   std::string user_dir = "user";
   std::string mods_dir = "mods";
   std::string patches_dir = "patches";
-  std::string ui_language = "en";
+  int language = 1; // 1 = English
+  std::string game_text_language = "auto";
+  std::string game_voice_language = "auto";
+  bool skip_network_choice = true;
 
-  // Display & Graphics
-  std::string output_res = "auto";
+  // Section: Display
+  std::string display;
   bool fullscreen = false;
   bool borderless = false;
-  bool vsync = true;
+  std::string present_mode = "Mailbox";
   bool hdr = false;
   std::string aspect_ratio = "auto";
-  std::string fps_mode = "uncap";
-  int fps_limit = 60;
+  std::string output_res = "auto";
+
+  // Section: Graphics
   std::string upscaler = "fsr4";
   int preset = 4;
+  std::string frame_generation = "off";
   bool sharpen = true;
   float sharpness = 0.50f;
   std::string anti_aliasing = "auto";
+  std::string texture_quality = "auto";
+  int model_lod = 0;
+  bool object_motion = true;
   bool vbao = false;
   bool show_fps = true;
-  bool object_motion = true;
 
-  // Effects & Engine
-  bool motion_blur = true;
-  bool bloom = true;
+  // Section: Effects
   bool chromatic_aberration = true;
   bool dof = true;
+  bool motion_blur = true;
+  bool bloom = true;
   bool ssao = true;
   bool dynamic_shadows = true;
-  std::string low_latency = "on";
+  bool effect_ssr = false;
+  bool skip_intro = false;
+  bool debug_camera = false;
+  bool debug_menu = false;
 
-  // Controls & Input
+  // Section: Performance
+  std::string fps_mode = "uncap";
+  int fps_limit = 0;
+  std::string low_latency = "on";
+  std::string draw_pipe;
+  std::string gpu;
+
+  // Section: Controls
+  std::string gamepad;
+  std::string button_prompts = "auto";
   bool mouse_look = true;
   float mouse_sensitivity = 1.0f;
   bool mouse_invert_y = false;
   bool mouse_invert_x = false;
   float camera_speed_x = 1.0f;
   float camera_speed_y = 1.0f;
-  std::string button_prompts = "auto";
 
-  // Online & Co-op
+  // Section: Mods
+  bool mods_enabled = true;
+
+  // Section: Online
   bool online_enabled = false;
   std::string online_pool = "seamless";
+  std::string online_community = "http://play.seamlesshunt.com";
   std::string online_server = "play.seamlesshunt.com:31313";
-  std::string discord_token;
+  std::string online_webapi = "http://play.seamlesshunt.com:31315";
   bool local_bbsc = true;
+  std::string online_npid;
+  std::string online_password;
+  std::string thd_server;
+  std::string discord_token;
+  bool online_upnp = true;
 
-  // Developer
-  bool vk_validation = false;
+  // Section: Developer
   bool save_log = false;
+  bool frame_stats = false;
+  bool gpu_profile = false;
+  bool crash_diag = false;
+  bool vk_validation = false;
+  bool mangohud = false;
+  std::string extra_env;
 };
 
 class ConfigManager {
@@ -109,6 +142,8 @@ public:
 
   static LauncherSettings Load();
   static bool Save(const LauncherSettings& settings);
+
+  static void ValidateSettings(LauncherSettings& s);
 
   static bool ValidateGameDirectory(const std::string& path);
   static std::string GetGameVersion(const std::string& path);

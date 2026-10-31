@@ -113,3 +113,20 @@ add_custom_command(TARGET bb-launcher POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:bb-launcher>/assets"
 )
+
+# Unit tests
+enable_testing()
+add_executable(test_launcher
+    tests/test_launcher.cpp
+    src/config_manager.cpp
+    src/mods_manager.cpp
+    src/trophy_manager.cpp
+    src/i18n.cpp
+)
+set_target_properties(test_launcher PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+target_include_directories(test_launcher PRIVATE src)
+add_test(NAME test_launcher COMMAND test_launcher)
+

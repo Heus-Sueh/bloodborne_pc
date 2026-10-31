@@ -48,8 +48,6 @@
                 <button class="lang-btn" data-class-active="ui_language == 'zh_CN'" data-event-click="set_language('zh_CN')">ZH</button>
                 <button class="lang-btn" data-class-active="ui_language == 'fr_FR'" data-event-click="set_language('fr_FR')">FR</button>
             </div>
-            <div class="meta-label">ARCHITECTURE</div>
-            <div class="meta-value">C++ · SDL3 · OpenGL · Vulkan</div>
         </div>
     </div>
 
@@ -120,6 +118,24 @@
                 </div>
             </div>
 
+            <div class="card">
+                <div class="card-title">IN-GAME LANGUAGE &amp; STARTUP</div>
+                <div class="form-group">
+                    <label>In-Game Text Language</label>
+                    <input type="text" class="text-input" data-value="game_text_language" data-event-change="save" />
+                </div>
+                <div class="form-group">
+                    <label>In-Game Voice Language</label>
+                    <input type="text" class="text-input" data-value="game_voice_language" data-event-change="save" />
+                </div>
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="skip_network_choice" data-event-change="save" />
+                        Skip Startup Network Selection Prompt
+                    </label>
+                </div>
+            </div>
+
             <!-- LAUNCH CONTROLS -->
             <div class="launch-bar">
                 <button class="btn-launch" data-if="!is_game_running" data-event-click="play">
@@ -139,7 +155,7 @@
             </div>
 
             <div class="card">
-                <div class="card-title">DISPLAY MODE</div>
+                <div class="card-title">DISPLAY MODE &amp; PRESENTATION</div>
                 <div class="form-group">
                     <label>Target Resolution</label>
                     <div class="button-selector">
@@ -147,6 +163,27 @@
                         <button class="sel-btn" data-class-active="output_res == '1920x1080'" data-event-click="set_resolution('1920x1080')">1080p</button>
                         <button class="sel-btn" data-class-active="output_res == '2560x1440'" data-event-click="set_resolution('2560x1440')">1440p</button>
                         <button class="sel-btn" data-class-active="output_res == '3840x2160'" data-event-click="set_resolution('3840x2160')">4K UHD</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Aspect Ratio</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="aspect_ratio == 'auto'" data-event-click="set_aspect_ratio('auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '16:9'" data-event-click="set_aspect_ratio('16:9')">16:9</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '21:9'" data-event-click="set_aspect_ratio('21:9')">21:9 (Ultrawide)</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '32:9'" data-event-click="set_aspect_ratio('32:9')">32:9 (Superwide)</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '16:10'" data-event-click="set_aspect_ratio('16:10')">16:10</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Vulkan Presentation Mode</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="present_mode == 'Mailbox'" data-event-click="set_present_mode('Mailbox')">Mailbox (Uncapped/Fast)</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'Fifo'" data-event-click="set_present_mode('Fifo')">FIFO (Standard VSync)</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'FifoRelaxed'" data-event-click="set_present_mode('FifoRelaxed')">FIFO Relaxed</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'Immediate'" data-event-click="set_present_mode('Immediate')">Immediate (No VSync)</button>
                     </div>
                 </div>
 
@@ -158,10 +195,6 @@
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="borderless" data-event-change="save" />
                         Borderless Windowed
-                    </label>
-                    <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="vsync" data-event-change="save" />
-                        Vertical Sync (VSync)
                     </label>
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="hdr" data-event-change="save" />
@@ -176,10 +209,52 @@
                     <label>Upscaler Backend</label>
                     <div class="button-selector">
                         <button class="sel-btn" data-class-active="upscaler == 'fsr4'" data-event-click="set_upscaler('fsr4')">AMD FSR 4</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr31'" data-event-click="set_upscaler('fsr31')">AMD FSR 3.1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr411'" data-event-click="set_upscaler('fsr411')">FSR 4.1.1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr3'" data-event-click="set_upscaler('fsr3')">AMD FSR 3.1</button>
                         <button class="sel-btn" data-class-active="upscaler == 'dlss'" data-event-click="set_upscaler('dlss')">NVIDIA DLSS</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr1'" data-event-click="set_upscaler('fsr1')">FSR 1 (Lightweight)</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'none'" data-event-click="set_upscaler('none')">Native</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr1'" data-event-click="set_upscaler('fsr1')">FSR 1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'taa'" data-event-click="set_upscaler('taa')">Native TAA</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'off'" data-event-click="set_upscaler('off')">Off</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Frame Generation</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="frame_generation == 'off'" data-event-click="set_frame_generation('off')">Off</button>
+                        <button class="sel-btn" data-class-active="frame_generation == 'fsr'" data-event-click="set_frame_generation('fsr')">AMD FSR 3.1 FG</button>
+                        <button class="sel-btn" data-class-active="frame_generation == 'dlss'" data-event-click="set_frame_generation('dlss')">DLSS Frame Gen</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Anti-Aliasing</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'auto'" data-event-click="set_anti_aliasing('auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'game'" data-event-click="set_anti_aliasing('game')">Game Original</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'fxaa'" data-event-click="set_anti_aliasing('fxaa')">FXAA2_GS</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'smaa'" data-event-click="set_anti_aliasing('smaa')">SMAA</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'off'" data-event-click="set_anti_aliasing('off')">Off</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Texture Quality</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="texture_quality == 'auto'" data-event-click="set_texture_quality('auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'full'" data-event-click="set_texture_quality('full')">Full (Original)</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'half'" data-event-click="set_texture_quality('half')">Half (VRAM Saver)</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'quarter'" data-event-click="set_texture_quality('quarter')">Quarter</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Model Level of Detail (LOD)</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="model_lod == 0" data-event-click="set_model_lod('0')">High (0)</button>
+                        <button class="sel-btn" data-class-active="model_lod == -2" data-event-click="set_model_lod('-2')">Maximum Distance (-2)</button>
+                        <button class="sel-btn" data-class-active="model_lod == 1" data-event-click="set_model_lod('1')">Medium (1)</button>
+                        <button class="sel-btn" data-class-active="model_lod == 2" data-event-click="set_model_lod('2')">Low (2)</button>
                     </div>
                 </div>
 
@@ -212,7 +287,7 @@
             </div>
 
             <div class="card">
-                <div class="card-title">POST-PROCESSING EFFECTS</div>
+                <div class="card-title">POST-PROCESSING &amp; CINEMATIC EFFECTS</div>
                 <div class="toggle-grid">
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="motion_blur" data-event-change="save" />
@@ -238,20 +313,76 @@
                         <input type="checkbox" class="input-checkbox" data-checked="dynamic_shadows" data-event-change="save" />
                         High-Resolution Dynamic Shadows
                     </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_ssr" data-event-change="save" />
+                        Screen-Space Reflections (SSR)
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="skip_intro" data-event-change="save" />
+                        Skip Opening Logos / Intro
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="debug_camera" data-event-change="save" />
+                        Free Debug Camera Mode
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="debug_menu" data-event-change="save" />
+                        In-Game Debug Menu (Hold L3+R3)
+                    </label>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-title">RENDER LATENCY &amp; DIAGNOSTICS</div>
+                <div class="card-title">PERFORMANCE &amp; PIPELINE</div>
+                <div class="form-group">
+                    <label>Framerate Mode</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="fps_mode == 'uncap'" data-event-click="set_fps_mode('uncap')">Uncapped</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '60'" data-event-click="set_fps_mode('60')">60 FPS Cap</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '90'" data-event-click="set_fps_mode('90')">90 FPS Cap</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '30'" data-event-click="set_fps_mode('30')">30 FPS (Vanilla)</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Low Latency (NVIDIA Reflex / AMD Anti-Lag 2)</label>
+                    <div class="button-selector">
+                        <button class="sel-btn" data-class-active="low_latency == 'on'" data-event-click="set_low_latency('on')">On</button>
+                        <button class="sel-btn" data-class-active="low_latency == 'boost'" data-event-click="set_low_latency('boost')">On + Boost</button>
+                        <button class="sel-btn" data-class-active="low_latency == 'off'" data-event-click="set_low_latency('off')">Off</button>
+                    </div>
+                </div>
+
                 <div class="toggle-grid">
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="vk_validation" data-event-change="save" />
                         Vulkan Validation Layers
                     </label>
                     <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="mangohud" data-event-change="save" />
+                        Enable MangoHud Overlay
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="frame_stats" data-event-change="save" />
+                        Collect Detailed Frame Stats
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="gpu_profile" data-event-change="save" />
+                        GPU Profiling Trace
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="crash_diag" data-event-change="save" />
+                        Crash Diagnostics Memory Dump
+                    </label>
+                    <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="save_log" data-event-change="save" />
                         Save Process Output to Log File
                     </label>
+                </div>
+
+                <div class="form-group" style="margin-top: 14px;">
+                    <label>Extra Environment Variables (e.g. VK_LAYER_PATH=/path)</label>
+                    <input type="text" class="text-input" data-value="extra_env" data-event-change="save" />
                 </div>
             </div>
         </div>
@@ -264,7 +395,17 @@
             </div>
 
             <div class="card">
-                <div class="card-title">MOUSE LOOK EMULATION</div>
+                <div class="card-title">CONTROLLER BUTTON PROMPTS</div>
+                <div class="button-selector">
+                    <button class="sel-btn" data-class-active="button_prompts == 'auto'" data-event-click="set_button_prompts('auto')">Auto-Detect</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'playstation'" data-event-click="set_button_prompts('playstation')">PlayStation (○ ✕ □ △)</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'xbox'" data-event-click="set_button_prompts('xbox')">Xbox (A B X Y)</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'keyboard'" data-event-click="set_button_prompts('keyboard')">Keyboard &amp; Mouse</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">MOUSE LOOK &amp; CAMERA SETTINGS</div>
                 <div class="toggle-row">
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="mouse_look" data-event-change="save" />
@@ -287,6 +428,16 @@
             <div class="pane-header">
                 <h2>MODS &amp; SHADPS4 PATCHES</h2>
                 <p class="pane-desc">Manage installed game modifications, load order priority, and XML runtime patches.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title">GLOBAL MODS STATUS</div>
+                <div class="toggle-row">
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="mods_enabled" data-event-change="save" />
+                        Enable All Game Modifications
+                    </label>
+                </div>
             </div>
 
             <div class="card">
@@ -371,19 +522,33 @@
                         <input type="checkbox" class="input-checkbox" data-checked="local_bbsc" data-event-change="save" />
                         Run Local BBSC Co-op Relay Server
                     </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" class="input-checkbox" data-checked="online_upnp" data-event-change="save" />
+                        Enable UPnP Port Forwarding
+                    </label>
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">
                     <label>Matchmaking Pool</label>
                     <div class="button-selector">
                         <button class="sel-btn" data-class-active="online_pool == 'seamless'" data-event-click="set_pool('seamless')">Seamless Hunt + BBSC</button>
-                        <button class="sel-btn" data-class-active="online_pool == 'thd'" data-event-click="set_pool('thd')">The Hunter's Dream</button>
+                        <button class="sel-btn" data-class-active="online_pool == 'huntersdream'" data-event-click="set_pool('huntersdream')">The Hunter's Dream</button>
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">
                     <label>Multiplayer Server Address</label>
                     <input type="text" class="text-input" data-value="online_server" data-event-change="save" />
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Custom Online NPID</label>
+                    <input type="text" class="text-input" data-value="online_npid" data-event-change="save" />
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Matchmaking Password (Co-op Session Filter)</label>
+                    <input type="text" class="text-input" data-value="online_password" data-event-change="save" />
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">

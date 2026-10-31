@@ -136,59 +136,92 @@ void LauncherModel::BindModel() {
   }
   constructor.RegisterArray<std::vector<TrophyItem>>();
 
-  // Bind settings
+  // Section: Game
+  constructor.Bind("ui_language", &settings.ui_language);
   constructor.Bind("game_dir", &settings.game_dir);
   constructor.Bind("user_dir", &settings.user_dir);
   constructor.Bind("mods_dir", &settings.mods_dir);
   constructor.Bind("patches_dir", &settings.patches_dir);
-  constructor.Bind("ui_language", &settings.ui_language);
+  constructor.Bind("language", &settings.language);
+  constructor.Bind("game_text_language", &settings.game_text_language);
+  constructor.Bind("game_voice_language", &settings.game_voice_language);
+  constructor.Bind("skip_network_choice", &settings.skip_network_choice);
 
-  // Display & Graphics
-  constructor.Bind("output_res", &settings.output_res);
+  // Section: Display
+  constructor.Bind("display", &settings.display);
   constructor.Bind("fullscreen", &settings.fullscreen);
   constructor.Bind("borderless", &settings.borderless);
-  constructor.Bind("vsync", &settings.vsync);
+  constructor.Bind("present_mode", &settings.present_mode);
   constructor.Bind("hdr", &settings.hdr);
   constructor.Bind("aspect_ratio", &settings.aspect_ratio);
-  constructor.Bind("fps_mode", &settings.fps_mode);
-  constructor.Bind("fps_limit", &settings.fps_limit);
+  constructor.Bind("output_res", &settings.output_res);
+
+  // Section: Graphics
   constructor.Bind("upscaler", &settings.upscaler);
   constructor.Bind("preset", &settings.preset);
+  constructor.Bind("frame_generation", &settings.frame_generation);
   constructor.Bind("sharpen", &settings.sharpen);
   constructor.Bind("sharpness", &settings.sharpness);
   constructor.Bind("anti_aliasing", &settings.anti_aliasing);
+  constructor.Bind("texture_quality", &settings.texture_quality);
+  constructor.Bind("model_lod", &settings.model_lod);
+  constructor.Bind("object_motion", &settings.object_motion);
   constructor.Bind("vbao", &settings.vbao);
   constructor.Bind("show_fps", &settings.show_fps);
-  constructor.Bind("object_motion", &settings.object_motion);
 
-  // Effects
-  constructor.Bind("motion_blur", &settings.motion_blur);
-  constructor.Bind("bloom", &settings.bloom);
+  // Section: Effects
   constructor.Bind("chromatic_aberration", &settings.chromatic_aberration);
   constructor.Bind("dof", &settings.dof);
+  constructor.Bind("motion_blur", &settings.motion_blur);
+  constructor.Bind("bloom", &settings.bloom);
   constructor.Bind("ssao", &settings.ssao);
   constructor.Bind("dynamic_shadows", &settings.dynamic_shadows);
-  constructor.Bind("low_latency", &settings.low_latency);
+  constructor.Bind("effect_ssr", &settings.effect_ssr);
+  constructor.Bind("skip_intro", &settings.skip_intro);
+  constructor.Bind("debug_camera", &settings.debug_camera);
+  constructor.Bind("debug_menu", &settings.debug_menu);
 
-  // Controls
+  // Section: Performance
+  constructor.Bind("fps_mode", &settings.fps_mode);
+  constructor.Bind("fps_limit", &settings.fps_limit);
+  constructor.Bind("low_latency", &settings.low_latency);
+  constructor.Bind("draw_pipe", &settings.draw_pipe);
+  constructor.Bind("gpu", &settings.gpu);
+
+  // Section: Controls
+  constructor.Bind("gamepad", &settings.gamepad);
+  constructor.Bind("button_prompts", &settings.button_prompts);
   constructor.Bind("mouse_look", &settings.mouse_look);
   constructor.Bind("mouse_sensitivity", &settings.mouse_sensitivity);
   constructor.Bind("mouse_invert_y", &settings.mouse_invert_y);
   constructor.Bind("mouse_invert_x", &settings.mouse_invert_x);
   constructor.Bind("camera_speed_x", &settings.camera_speed_x);
   constructor.Bind("camera_speed_y", &settings.camera_speed_y);
-  constructor.Bind("button_prompts", &settings.button_prompts);
 
-  // Online
+  // Section: Mods
+  constructor.Bind("mods_enabled", &settings.mods_enabled);
+
+  // Section: Online
   constructor.Bind("online_enabled", &settings.online_enabled);
   constructor.Bind("online_pool", &settings.online_pool);
+  constructor.Bind("online_community", &settings.online_community);
   constructor.Bind("online_server", &settings.online_server);
-  constructor.Bind("discord_token", &settings.discord_token);
+  constructor.Bind("online_webapi", &settings.online_webapi);
   constructor.Bind("local_bbsc", &settings.local_bbsc);
+  constructor.Bind("online_npid", &settings.online_npid);
+  constructor.Bind("online_password", &settings.online_password);
+  constructor.Bind("thd_server", &settings.thd_server);
+  constructor.Bind("discord_token", &settings.discord_token);
+  constructor.Bind("online_upnp", &settings.online_upnp);
 
-  // Developer
-  constructor.Bind("vk_validation", &settings.vk_validation);
+  // Section: Developer
   constructor.Bind("save_log", &settings.save_log);
+  constructor.Bind("frame_stats", &settings.frame_stats);
+  constructor.Bind("gpu_profile", &settings.gpu_profile);
+  constructor.Bind("crash_diag", &settings.crash_diag);
+  constructor.Bind("vk_validation", &settings.vk_validation);
+  constructor.Bind("mangohud", &settings.mangohud);
+  constructor.Bind("extra_env", &settings.extra_env);
 
   // UI State
   constructor.Bind("active_tab", &active_tab);
@@ -224,7 +257,7 @@ void LauncherModel::BindModel() {
   constructor.Bind("tr_launch_game", &tr_launch_game);
   constructor.Bind("tr_stop_game", &tr_stop_game);
 
-  // Actions & Events
+  // Event Callbacks
   constructor.BindEventCallback(
       "play", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { Launch(); });
 
@@ -263,10 +296,100 @@ void LauncherModel::BindModel() {
       });
 
   constructor.BindEventCallback(
+      "set_aspect_ratio", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.aspect_ratio = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("aspect_ratio");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_present_mode", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.present_mode = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("present_mode");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
       "set_upscaler", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
         if (!args.empty()) {
           settings.upscaler = args[0].Get<Rml::String>();
           model_handle_.DirtyVariable("upscaler");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_preset", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.preset = std::stoi(args[0].Get<Rml::String>());
+          model_handle_.DirtyVariable("preset");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_frame_generation", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.frame_generation = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("frame_generation");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_anti_aliasing", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.anti_aliasing = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("anti_aliasing");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_texture_quality", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.texture_quality = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("texture_quality");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_model_lod", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.model_lod = std::stoi(args[0].Get<Rml::String>());
+          model_handle_.DirtyVariable("model_lod");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_fps_mode", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.fps_mode = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("fps_mode");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_low_latency", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.low_latency = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("low_latency");
+          ConfigManager::Save(settings);
+        }
+      });
+
+  constructor.BindEventCallback(
+      "set_button_prompts", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+        if (!args.empty()) {
+          settings.button_prompts = args[0].Get<Rml::String>();
+          model_handle_.DirtyVariable("button_prompts");
           ConfigManager::Save(settings);
         }
       });
@@ -416,7 +539,6 @@ void LauncherModel::Update() {
     SaveLogToFile(pending_log_save_path_);
   }
 
-  // Flush pending log lines
   std::vector<std::string> lines_to_process;
   {
     std::lock_guard<std::mutex> lock(log_mutex_);
@@ -600,7 +722,6 @@ void LauncherModel::ChooseDumpToExtract() {
         if (filelist && *filelist && **filelist) {
           auto* self = static_cast<LauncherModel*>(userdata);
           self->pending_dump_to_extract_ = *filelist;
-          // Prompt for destination
           SDL_ShowOpenFolderDialog(
               [](void* udata, const char* const* flist, int) {
                 if (flist && *flist && **flist) {
@@ -629,7 +750,6 @@ void LauncherModel::StartExtraction(const std::string& dump_path, const std::str
   }
 
   extract_thread_ = std::thread([this, dump_path, out_dir]() {
-    // Run extraction helper tool
     std::string cmd = "./tools/extractor/extract_dump.sh \"" + dump_path + "\" \"" + out_dir + "\" 2>&1";
     FILE* pipe = popen(cmd.c_str(), "r");
     if (pipe) {
