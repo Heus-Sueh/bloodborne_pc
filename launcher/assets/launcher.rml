@@ -54,21 +54,114 @@
     <!-- MAIN VIEWPORT -->
     <div id="content">
 
-        <!-- TAB: PLAY -->
+        <!-- TAB: PLAY / THE HUNT -->
         <div class="tab-pane" data-if="active_tab == 'play'">
-            <div class="pane-header">
-                <h2>THE HUNT AWAITS</h2>
-                <p class="pane-desc">Configure directory paths, verify update 1.09 status, and awaken in Yharnam.</p>
+            <!-- TOP SECTION: HERO BANNER & CHRONICLES CARD (RUSTY MCLA REFERENCE) -->
+            <div class="dashboard-top">
+                <div class="hero-card">
+                    <div class="hero-art-bg">
+                        <div class="hero-badge">THE HUNTER'S DREAM</div>
+                        <div class="hero-title">YHARNAM CALLS</div>
+                        <div class="hero-quote">&#8220;Farewell, good hunter. May you find your worth in the waking world.&#8221;</div>
+                    </div>
+
+                    <div class="hero-action-bar">
+                        <button class="hero-play-btn" data-if="!is_game_running" data-event-click="play">
+                            {{ tr_launch_game }} &#9654;
+                        </button>
+                        <button class="hero-stop-btn" data-if="is_game_running" data-event-click="stop_game">
+                            {{ tr_stop_game }} &#9632;
+                        </button>
+                        <div class="hero-status-block">
+                            <div class="hero-status-tag" data-class-warn="is_update_needed">
+                                <span data-if="!is_game_running &amp;&amp; is_valid">AWAKENED &amp; READY</span>
+                                <span data-if="!is_game_running &amp;&amp; is_update_needed">UPDATE 1.09 REQUIRED</span>
+                                <span data-if="!is_game_running &amp;&amp; !is_valid &amp;&amp; !is_update_needed">GAME DATA NOT FOUND</span>
+                                <span data-if="is_game_running">HUNTING IN YHARNAM</span>
+                            </div>
+                            <div class="hero-status-desc">
+                                Bloodborne PC v{{ game_version }} &bull; {{ game_title_id }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="notes-card">
+                    <div class="card-label">CHRONICLES &amp; NOTES</div>
+                    <div class="notes-title">Release Notes</div>
+                    <div class="notes-ver-tag">
+                        <span class="badge-ver">v0.7.0</span>
+                        <span class="badge-tag">LATEST</span>
+                        <span class="badge-date">Linux Native</span>
+                    </div>
+                    <div class="notes-body">
+                        <div class="note-bullet">&bull; FSR 3.1 &amp; Temporal Upscaling integration</div>
+                        <div class="note-bullet">&bull; Uncapped framerate support (60+ FPS)</div>
+                        <div class="note-bullet">&bull; Dynamic Shadows, SSR &amp; SSAO pipeline</div>
+                        <div class="note-bullet">&bull; Native SDL3 low-latency audio engine</div>
+                        <div class="note-bullet">&bull; Trophy XML parser &amp; local achievement tracker</div>
+                        <div class="note-bullet">&bull; Seamless co-op server &amp; P2P matchmaking</div>
+                    </div>
+                </div>
             </div>
 
-            <div class="card status-card" data-class-valid="is_valid" data-class-warning="is_update_needed">
-                <div class="status-body">
-                    <div class="status-title">{{ status_text }}</div>
-                    <div class="status-meta">
-                        <span class="tag">ID: {{ game_title_id }}</span>
-                        <span class="tag">VER: {{ game_version }}</span>
-                        <span class="tag" data-if="is_valid">VALIDATED</span>
-                        <span class="tag tag-warn" data-if="is_update_needed">UPDATE REQUIRED</span>
+            <!-- 4 MODULAR UTILITY CARDS GRID (RUSTY MCLA REFERENCE) -->
+            <div class="utility-grid">
+                <!-- CARD 1: THE ARCHIVES (INSTALL) -->
+                <div class="util-card">
+                    <div class="card-label">THE ARCHIVES</div>
+                    <div class="util-status">
+                        <span class="status-check" data-if="is_valid">&#10003;</span>
+                        <span class="status-text" data-if="is_valid">Data Linked</span>
+                        <span class="status-text" data-if="!is_valid">Unlinked</span>
+                    </div>
+                    <div class="util-detail">{{ game_dir }}</div>
+                    <div class="util-sub">Disc image verified &bull; 29.8 GB</div>
+                    <div class="util-actions">
+                        <button class="btn-micro" data-event-click="choose_game_dir">LOCATE</button>
+                        <button class="btn-micro" data-event-click="extract_dump">EXTRACT</button>
+                    </div>
+                </div>
+
+                <!-- CARD 2: SAVED MEMORIES (SAVES) -->
+                <div class="util-card">
+                    <div class="card-label">SAVED MEMORIES</div>
+                    <div class="util-status">
+                        <span class="status-check">&#10003;</span>
+                        <span class="status-text">Save Active</span>
+                    </div>
+                    <div class="util-detail">{{ user_dir }}</div>
+                    <div class="util-sub">Profile: savedata_00.bin</div>
+                    <div class="util-actions">
+                        <button class="btn-micro" data-event-click="choose_user_dir">BACKUP</button>
+                        <button class="btn-micro" data-event-click="choose_user_dir">FOLDER</button>
+                    </div>
+                </div>
+
+                <!-- CARD 3: CHALICE &amp; MODS (MODS) -->
+                <div class="util-card">
+                    <div class="card-label">CHALICE &amp; MODS</div>
+                    <div class="util-status">
+                        <span class="status-check">&#10003;</span>
+                        <span class="status-text">Engine Ready</span>
+                    </div>
+                    <div class="util-detail">{{ mods_dir }}</div>
+                    <div class="util-sub">Patches &amp; FSR enabled</div>
+                    <div class="util-actions">
+                        <button class="btn-micro" data-event-click="set_tab('mods')">MANAGE</button>
+                    </div>
+                </div>
+
+                <!-- CARD 4: WORKSHOP DIAGNOSTICS (LOGS & BUG REPORT) -->
+                <div class="util-card last">
+                    <div class="card-label">WORKSHOP DIAGNOSTICS</div>
+                    <div class="util-status">
+                        <span class="status-text">Something wrong?</span>
+                    </div>
+                    <div class="util-sub">Export Hunter's logs for issues.</div>
+                    <div class="util-actions">
+                        <button class="btn-micro btn-red" data-event-click="set_tab('log')">EXPORT LOGS</button>
+                        <button class="btn-micro" data-event-click="set_tab('log')">CONSOLE</button>
                     </div>
                 </div>
             </div>
@@ -87,7 +180,7 @@
 
             <!-- PATH CONFIGURATION -->
             <div class="card">
-                <div class="card-title">DIRECTORY PATHS</div>
+                <div class="card-title">DIRECTORY PATHS &amp; PACKAGES</div>
                 <div class="form-group">
                     <label>Game Directory (eboot.bin &amp; dvdroot_ps4)</label>
                     <div class="input-row">
@@ -134,16 +227,6 @@
                         Skip Startup Network Selection Prompt
                     </label>
                 </div>
-            </div>
-
-            <!-- LAUNCH CONTROLS -->
-            <div class="launch-bar">
-                <button class="btn-launch" data-if="!is_game_running" data-event-click="play">
-                    {{ tr_launch_game }}
-                </button>
-                <button class="btn-stop" data-if="is_game_running" data-event-click="stop_game">
-                    {{ tr_stop_game }}
-                </button>
             </div>
         </div>
 

@@ -201,6 +201,334 @@ body {
 }
 
 /* ==========================================================================
+   DASHBOARD HERO & UTILITY CARDS GRID (RUSTY MCLA REFERENCE)
+   ========================================================================== */
+
+.dashboard-top {
+    display: block;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.hero-card {
+    display: inline-block;
+    width: 66%;
+    vertical-align: top;
+    background-color: #100d14;
+    border: 1px #221a28;
+    border-radius: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.hero-art-bg {
+    display: block;
+    height: 190px;
+    background-color: #160f1c;
+    decorator: vertical-gradient(#1e1426 #0d0a12);
+    padding: 24px 28px;
+    box-sizing: border-box;
+    border-bottom: 1px #251b2d;
+}
+
+.hero-badge {
+    display: inline-block;
+    font-family: Cinzel;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: #d4c4a8;
+    background-color: #331114;
+    border: 1px #8f1818;
+    border-radius: 3px;
+    padding: 4px 10px;
+    margin-bottom: 12px;
+}
+
+.hero-title {
+    display: block;
+    font-family: Cinzel;
+    font-size: 26px;
+    font-weight: bold;
+    color: #ede5d8;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+}
+
+.hero-quote {
+    display: block;
+    font-family: Cormorant;
+    font-size: 15px;
+    color: #8c8275;
+    line-height: 1.4;
+}
+
+.hero-action-bar {
+    display: block;
+    padding: 18px 24px;
+    background-color: #0e0a12;
+}
+
+.hero-play-btn {
+    display: inline-block;
+    vertical-align: middle;
+    width: 250px;
+    background-color: #8f1818;
+    border: 1px #aa1e1e;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: Cinzel;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    padding: 16px 20px;
+    cursor: pointer;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.hero-play-btn:hover {
+    background-color: #aa1e1e;
+    border-color: #d4c4a8;
+}
+
+.hero-stop-btn {
+    display: inline-block;
+    vertical-align: middle;
+    width: 250px;
+    background-color: #4a0d0d;
+    border: 1px #661212;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: Cinzel;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    padding: 16px 20px;
+    cursor: pointer;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.hero-stop-btn:hover {
+    background-color: #661212;
+    border-color: #d4c4a8;
+}
+
+.hero-status-block {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 20px;
+}
+
+.hero-status-tag {
+    display: block;
+    font-family: Cinzel;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #d4c4a8;
+    margin-bottom: 4px;
+}
+
+.hero-status-tag.warn {
+    color: #e09438;
+}
+
+.hero-status-desc {
+    display: block;
+    font-family: Source Sans 3;
+    font-size: 12px;
+    color: #8c8275;
+}
+
+.notes-card {
+    display: inline-block;
+    width: 32%;
+    margin-left: 2%;
+    vertical-align: top;
+    height: 288px;
+    background-color: #131017;
+    border: 1px #1e1925;
+    border-radius: 8px;
+    padding: 20px 22px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.card-label {
+    display: block;
+    font-family: Cinzel;
+    font-size: 10px;
+    font-weight: bold;
+    color: #d4c4a8;
+    letter-spacing: 2.5px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.notes-title {
+    display: block;
+    font-family: Cinzel;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ede5d8;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.notes-ver-tag {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.badge-ver {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 10px;
+    font-weight: bold;
+    color: #d4c4a8;
+    border: 1px #8f1818;
+    border-radius: 3px;
+    padding: 2px 7px;
+    margin-right: 6px;
+}
+
+.badge-tag {
+    display: inline-block;
+    font-family: Source Sans 3;
+    font-size: 10px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #8f1818;
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-right: 6px;
+}
+
+.badge-date {
+    display: inline-block;
+    font-family: Source Sans 3;
+    font-size: 11px;
+    color: #8c8275;
+}
+
+.notes-body {
+    display: block;
+    border-top: 1px #1e1925;
+    padding-top: 10px;
+}
+
+.note-bullet {
+    display: block;
+    font-family: Source Sans 3;
+    font-size: 12px;
+    color: #9e9485;
+    line-height: 1.45;
+    margin-bottom: 6px;
+}
+
+/* 4 MODULAR UTILITY CARDS GRID */
+.utility-grid {
+    display: block;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.util-card {
+    display: inline-block;
+    width: 23.5%;
+    margin-right: 2%;
+    vertical-align: top;
+    background-color: #131017;
+    border: 1px #1e1925;
+    border-radius: 6px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+}
+
+.util-card.last {
+    margin-right: 0%;
+}
+
+.util-status {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 6px;
+}
+
+.status-check {
+    display: inline-block;
+    color: #3da87b;
+    font-size: 14px;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.status-text {
+    display: inline-block;
+    font-family: Cinzel;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ede5d8;
+}
+
+.util-detail {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #8c8275;
+    overflow: hidden;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.util-sub {
+    display: block;
+    font-family: Source Sans 3;
+    font-size: 11px;
+    color: #6e6559;
+    margin-bottom: 12px;
+}
+
+.util-actions {
+    display: block;
+    margin-top: 8px;
+}
+
+.btn-micro {
+    display: inline-block;
+    background-color: #18141e;
+    border: 1px #282032;
+    border-radius: 3px;
+    color: #d4c4a8;
+    font-family: Cinzel;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.btn-micro:hover {
+    background-color: #241d2e;
+    border-color: #d4c4a8;
+    color: #ffffff;
+}
+
+.btn-micro.btn-red {
+    background-color: #661212;
+    border-color: #8f1818;
+    color: #ffffff;
+}
+
+.btn-micro.btn-red:hover {
+    background-color: #8f1818;
+    border-color: #aa1e1e;
+}
+
+/* ==========================================================================
    SETTING ROWS & COLUMNS (TABLE-CELL ENGINE TO PREVENT OVERLAP)
    ========================================================================== */
 
