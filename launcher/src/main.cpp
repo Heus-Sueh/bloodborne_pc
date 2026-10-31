@@ -108,6 +108,10 @@ int main(int argc, char** argv) {
   const std::string noto_bold = resolve_font_path("launcher/assets/fonts/NotoSans-Bold.ttf");
   const std::string jb_reg = resolve_font_path("launcher/assets/fonts/JetBrainsMono-Regular.ttf");
   const std::string jb_bold = resolve_font_path("launcher/assets/fonts/JetBrainsMono-Bold.ttf");
+  const std::string oswald_reg = resolve_font_path("launcher/assets/fonts/Oswald-Regular.ttf");
+  const std::string oswald_bold = resolve_font_path("launcher/assets/fonts/Oswald-Bold.ttf");
+  const std::string ss_reg = resolve_font_path("launcher/assets/fonts/SourceSans3-Regular.ttf");
+  const std::string ss_bold = resolve_font_path("launcher/assets/fonts/SourceSans3-Bold.ttf");
 
   if (fs::exists(noto_reg)) {
     Rml::LoadFontFace(noto_reg, "Noto Sans", Rml::Style::FontStyle::Normal,
@@ -123,6 +127,22 @@ int main(int argc, char** argv) {
   }
   if (fs::exists(jb_bold)) {
     Rml::LoadFontFace(jb_bold, "JetBrainsMono NF", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Bold, false);
+  }
+  if (fs::exists(oswald_reg)) {
+    Rml::LoadFontFace(oswald_reg, "Oswald", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Normal, false);
+  }
+  if (fs::exists(oswald_bold)) {
+    Rml::LoadFontFace(oswald_bold, "Oswald", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Bold, false);
+  }
+  if (fs::exists(ss_reg)) {
+    Rml::LoadFontFace(ss_reg, "Source Sans 3", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Normal, false);
+  }
+  if (fs::exists(ss_bold)) {
+    Rml::LoadFontFace(ss_bold, "Source Sans 3", Rml::Style::FontStyle::Normal,
                       Rml::Style::FontWeight::Bold, false);
   }
 
