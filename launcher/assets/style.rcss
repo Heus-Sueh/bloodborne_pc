@@ -94,18 +94,24 @@ body {
     margin-bottom: 4px;
     border-radius: 0px 4px 4px 0px;
     cursor: pointer;
-    transition: background-color 0.15s cubic-out, color 0.15s cubic-out, border-color 0.15s cubic-out;
+    transition: background-color 0.15s cubic-out, color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.12s cubic-out;
 }
 
 .nav-item:hover {
     background-color: #15111b;
     color: #ede5d8;
+    transform: translateX(3px);
+}
+
+.nav-item:active {
+    transform: translateX(1px);
 }
 
 .nav-item.active {
     background-color: #1a1218;
     border-left: 3px #8f1818;
     color: #ede5d8;
+    transform: translateX(0px);
 }
 
 .sidebar-footer {
@@ -150,19 +156,21 @@ body {
     overflow-y: auto;
 }
 
-@keyframes fadeIn {
+@keyframes tabEnter {
     from {
         opacity: 0.0;
+        transform: translateY(4px);
     }
     to {
         opacity: 1.0;
+        transform: translateY(0px);
     }
 }
 
 .tab-pane {
     display: block;
     width: 100%;
-    animation: fadeIn 0.18s cubic-out;
+    animation: tabEnter 0.2s cubic-out;
 }
 
 .pane-header {
@@ -197,6 +205,11 @@ body {
     border-radius: 6px;
     padding: 16px 20px;
     margin-bottom: 20px;
+    transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out;
+}
+
+.card:hover {
+    border-color: #2e2639;
 }
 
 .card-header, .card-title {
@@ -379,6 +392,11 @@ body {
     padding: 20px 22px;
     box-sizing: border-box;
     overflow: hidden;
+    transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out;
+}
+
+.notes-card:hover {
+    border-color: #2e2639;
 }
 
 .card-label {
@@ -483,6 +501,13 @@ body {
     border-radius: 6px;
     padding: 16px 18px;
     box-sizing: border-box;
+    transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out, transform 0.12s cubic-out;
+}
+
+.util-card:hover {
+    border-color: #3b2c4c;
+    background-color: #171320;
+    transform: translateY(-2px);
 }
 
 .util-status {
@@ -863,6 +888,7 @@ body {
     height: 100%;
     background-color: #8f1818;
     border-radius: 4px;
+    transition: width 0.2s cubic-out;
 }
 
 .extract-detail {
@@ -885,10 +911,17 @@ body {
     font-size: 12px;
     padding: 7px 10px;
     box-sizing: border-box;
+    transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out;
+}
+
+.input-text:hover, .text-input:hover, input.text:hover {
+    border-color: #3b2c4c;
+    background-color: #0c0a12;
 }
 
 .input-text:focus, .text-input:focus, input.text:focus {
     border-color: #8f1818;
+    background-color: #0c0a12;
 }
 
 .input-path {
@@ -1563,14 +1596,18 @@ scrollbarvertical sliderbar:active {
 
 .mod-item, .patch-item {
     display: block;
-    background-color: #131622;
-    border: 1px #1e2438;
+    background-color: #131017;
+    border: 1px #1e1925;
+    border-radius: 4px;
     padding: 10px 14px;
     margin-bottom: 8px;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .mod-item:hover, .patch-item:hover {
-    border-color: #2d3748;
+    background-color: #1a1422;
+    border-color: #3b2c4c;
+    transform: translateX(2px);
 }
 
 .mod-left {
@@ -1614,18 +1651,28 @@ scrollbarvertical sliderbar:active {
 
 .btn-tiny {
     display: inline-block;
-    background-color: #1e2438;
-    color: #94a3b8;
-    border: 1px #2d3748;
+    background-color: #1a1422;
+    color: #d4c4a8;
+    border: 1px #2d2038;
+    border-radius: 3px;
     padding: 4px 8px;
     font-size: 10px;
+    font-weight: bold;
     cursor: pointer;
     margin-left: 4px;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .btn-tiny:hover {
-    background-color: #2d3748;
+    background-color: #2a1f36;
+    border-color: #d4c4a8;
     color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.btn-tiny:active {
+    background-color: #140e1b;
+    transform: translateY(1px) scale(0.98);
 }
 
 /* ==========================================================================
@@ -1669,17 +1716,31 @@ scrollbarvertical sliderbar:active {
 
 .trophy-card {
     display: block;
-    background-color: #111420;
-    border: 1px #1c2236;
+    background-color: #110e17;
+    border: 1px #1d1726;
+    border-radius: 6px;
     padding: 14px 16px;
     margin-bottom: 10px;
     opacity: 0.6;
+    transition: opacity 0.15s cubic-out, border-color 0.15s cubic-out, background-color 0.15s cubic-out, transform 0.1s cubic-out;
+}
+
+.trophy-card:hover {
+    opacity: 0.85;
+    border-color: #3b2c4c;
+    background-color: #171320;
+    transform: translateY(-1px);
 }
 
 .trophy-card.unlocked {
     opacity: 1.0;
-    border-color: #2d3748;
-    background-color: #141828;
+    border-color: #4a3860;
+    background-color: #1a1424;
+}
+
+.trophy-card.unlocked:hover {
+    border-color: #d4af37;
+    transform: translateY(-2px);
 }
 
 .trophy-grade-badge {
