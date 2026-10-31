@@ -94,6 +94,7 @@ body {
     margin-bottom: 4px;
     border-radius: 0px 4px 4px 0px;
     cursor: pointer;
+    transition: background-color 0.15s cubic-out, color 0.15s cubic-out, border-color 0.15s cubic-out;
 }
 
 .nav-item:hover {
@@ -149,9 +150,19 @@ body {
     overflow-y: auto;
 }
 
+@keyframes fadeIn {
+    from {
+        opacity: 0.0;
+    }
+    to {
+        opacity: 1.0;
+    }
+}
+
 .tab-pane {
     display: block;
     width: 100%;
+    animation: fadeIn 0.18s cubic-out;
 }
 
 .pane-header {
@@ -285,11 +296,18 @@ body {
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .hero-play-btn:hover {
     background-color: #aa1e1e;
     border-color: #d4c4a8;
+    transform: translateY(-1px);
+}
+
+.hero-play-btn:active {
+    background-color: #7a1414;
+    transform: translateY(1px) scale(0.99);
 }
 
 .hero-stop-btn {
@@ -308,11 +326,18 @@ body {
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .hero-stop-btn:hover {
     background-color: #661212;
     border-color: #d4c4a8;
+    transform: translateY(-1px);
+}
+
+.hero-stop-btn:active {
+    background-color: #3b0a0a;
+    transform: translateY(1px) scale(0.99);
 }
 
 .hero-status-block {
@@ -531,12 +556,19 @@ body {
     margin-right: 6px;
     vertical-align: middle;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .btn-micro:hover {
     background-color: #241d2e;
     border-color: #d4c4a8;
     color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.btn-micro:active {
+    background-color: #120e17;
+    transform: translateY(1px) scale(0.98);
 }
 
 .btn-micro.btn-red {
@@ -548,6 +580,12 @@ body {
 .btn-micro.btn-red:hover {
     background-color: #8f1818;
     border-color: #aa1e1e;
+    transform: translateY(-1px);
+}
+
+.btn-micro.btn-red:active {
+    background-color: #4a0d0d;
+    transform: translateY(1px) scale(0.98);
 }
 
 /* ==========================================================================
@@ -632,11 +670,16 @@ body {
     border-radius: 3px;
     cursor: pointer;
     margin-right: 4px;
+    transition: background-color 0.15s cubic-out, color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .seg-btn:hover, .sel-btn:hover {
     color: #ede5d8;
     background-color: #1a1522;
+}
+
+.seg-btn:active, .sel-btn:active {
+    transform: scale(0.97);
 }
 
 .seg-btn.selected, .seg-btn.active, .sel-btn.active, .sel-btn.selected {
@@ -656,12 +699,19 @@ body {
     border-radius: 4px;
     cursor: pointer;
     text-align: center;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .action-btn:hover, .btn-action:hover {
     background-color: #201a26;
     color: #ede5d8;
     border-color: #d4c4a8;
+    transform: translateY(-1px);
+}
+
+.action-btn:active, .btn-action:active {
+    background-color: #121520;
+    transform: translateY(1px) scale(0.98);
 }
 
 .btn-secondary {
@@ -900,16 +950,22 @@ input.checkbox, .input-checkbox {
     margin-right: 10px;
     cursor: pointer;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 input.checkbox:hover, .input-checkbox:hover {
-    border-color: #4a5568;
+    border-color: #aa1e1e;
     background-color: #111420;
+    transform: scale(1.05);
 }
 
 input.checkbox:checked, .input-checkbox:checked {
     background-color: #8f1818;
-    border-color: #c53030;
+    border-color: #d4c4a8;
+}
+
+input.checkbox:active, .input-checkbox:active {
+    transform: scale(0.95);
 }
 
 .toggle-row {
@@ -964,11 +1020,18 @@ input.checkbox:checked, .input-checkbox:checked {
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .btn-launch:hover, .hunt-button:hover {
     background-color: #aa1e1e;
     border-color: #d4c4a8;
+    transform: translateY(-1px);
+}
+
+.btn-launch:active, .hunt-button:active {
+    background-color: #771313;
+    transform: translateY(1px) scale(0.99);
 }
 
 .btn-stop {
@@ -986,10 +1049,18 @@ input.checkbox:checked, .input-checkbox:checked {
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
+    transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .btn-stop:hover {
     background-color: #771818;
+    border-color: #d4c4a8;
+    transform: translateY(-1px);
+}
+
+.btn-stop:active {
+    background-color: #3b0a0a;
+    transform: translateY(1px) scale(0.99);
 }
 
 .status-card {
@@ -1461,11 +1532,18 @@ scrollbarvertical sliderbar:active {
     font-weight: bold;
     cursor: pointer;
     margin-right: 4px;
+    transition: background-color 0.15s cubic-out, color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
 }
 
 .lang-btn:hover {
     background-color: #1e2438;
     color: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.lang-btn:active {
+    background-color: #10131e;
+    transform: translateY(1px);
 }
 
 .lang-btn.active {
