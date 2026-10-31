@@ -183,7 +183,7 @@ body {
     margin-bottom: 20px;
 }
 
-.card-header {
+.card-header, .card-title {
     display: block;
     font-size: 11px;
     font-weight: bold;
@@ -191,7 +191,7 @@ body {
     letter-spacing: 1.5px;
     border-bottom: 1px #161924;
     padding-bottom: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
 
 /* ==========================================================================
@@ -255,16 +255,16 @@ body {
    ========================================================================== */
 
 /* Segmented Buttons */
-.seg-group, .segmented-bar {
-    display: inline-block;
-    white-space: nowrap;
+.seg-group, .segmented-bar, .button-selector {
+    display: block;
     background-color: #06070a;
     border: 1px #191c29;
     border-radius: 4px;
-    padding: 2px;
+    padding: 3px;
+    margin-top: 4px;
 }
 
-.seg-btn {
+.seg-btn, .sel-btn {
     display: inline-block;
     background-color: transparent;
     border: 0px;
@@ -272,22 +272,23 @@ body {
     font-family: JetBrainsMono NF;
     font-size: 11px;
     font-weight: bold;
-    padding: 6px 10px;
+    padding: 7px 12px;
     border-radius: 3px;
     cursor: pointer;
+    margin-right: 4px;
 }
 
-.seg-btn:hover {
+.seg-btn:hover, .sel-btn:hover {
     color: #ffffff;
     background-color: #141724;
 }
 
-.seg-btn.selected {
+.seg-btn.selected, .seg-btn.active, .sel-btn.active, .sel-btn.selected {
     background-color: #8f1818;
     color: #ffffff;
 }
 
-.action-btn {
+.action-btn, .btn-action {
     display: inline-block;
     background-color: #171b29;
     border: 1px #2a3147;
@@ -295,9 +296,35 @@ body {
     font-family: JetBrainsMono NF;
     font-size: 11px;
     font-weight: bold;
-    padding: 6px 14px;
+    padding: 7px 14px;
     border-radius: 4px;
     cursor: pointer;
+    text-align: center;
+}
+
+.action-btn:hover, .btn-action:hover {
+    background-color: #242b42;
+    color: #ffffff;
+    border-color: #4a5568;
+}
+
+.btn-secondary {
+    display: inline-block;
+    background-color: #121520;
+    border: 1px #20263a;
+    border-radius: 4px;
+    color: #94a3b8;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    padding: 8px 16px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.btn-secondary:hover {
+    background-color: #1c2235;
+    color: #ffffff;
+    border-color: #333d59;
 }
 
 .action-btn:hover {
@@ -442,7 +469,7 @@ body {
 }
 
 /* Text Inputs */
-.input-text {
+.input-text, .text-input, input.text {
     display: inline-block;
     background-color: #06070a;
     border: 1px #1d2131;
@@ -450,11 +477,11 @@ body {
     color: #f1f5f9;
     font-family: JetBrainsMono NF;
     font-size: 12px;
-    padding: 6px 10px;
+    padding: 7px 10px;
     box-sizing: border-box;
 }
 
-.input-text:focus {
+.input-text:focus, .text-input:focus, input.text:focus {
     border-color: #8f1818;
 }
 
@@ -470,21 +497,241 @@ body {
     text-align: center;
 }
 
+.form-group {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 6px;
+}
+
+.input-row {
+    display: block;
+    width: 100%;
+}
+
+.input-row .text-input {
+    display: inline-block;
+    width: 78%;
+    vertical-align: middle;
+}
+
+.input-row .btn-action {
+    display: inline-block;
+    width: 18%;
+    margin-left: 2%;
+    vertical-align: middle;
+}
+
+.button-row {
+    display: block;
+    margin-top: 14px;
+}
+
 /* Checkboxes */
-.input-checkbox {
+input.checkbox, .input-checkbox {
     display: inline-block;
     width: 20px;
     height: 20px;
     background-color: #06070a;
-    border: 1px #1d2131;
+    border: 1px #2a3147;
     border-radius: 4px;
     vertical-align: middle;
+    margin-right: 10px;
     cursor: pointer;
+    box-sizing: border-box;
 }
 
-.input-checkbox:checked {
+input.checkbox:hover, .input-checkbox:hover {
+    border-color: #4a5568;
+    background-color: #111420;
+}
+
+input.checkbox:checked, .input-checkbox:checked {
     background-color: #8f1818;
-    border-color: #aa1e1e;
+    border-color: #c53030;
+}
+
+.toggle-row {
+    display: block;
+    margin-top: 10px;
+}
+
+.toggle-grid {
+    display: block;
+    margin-top: 10px;
+}
+
+.toggle-label {
+    display: inline-block;
+    font-size: 13px;
+    color: #cbd5e1;
+    vertical-align: middle;
+    cursor: pointer;
+    line-height: 24px;
+    margin-right: 20px;
+    margin-bottom: 12px;
+}
+
+.toggle-grid .toggle-label {
+    width: 48%;
+    margin-right: 2%;
+    box-sizing: border-box;
+}
+
+.toggle-label:hover {
+    color: #ffffff;
+}
+
+.launch-bar {
+    display: block;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.btn-launch, .hunt-button {
+    display: block;
+    width: 100%;
+    background-color: #8f1818;
+    border: 1px #aa1e1e;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: Noto Sans;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 14px 24px;
+    cursor: pointer;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.btn-launch:hover, .hunt-button:hover {
+    background-color: #b02222;
+    border-color: #d12e2e;
+}
+
+.btn-stop {
+    display: block;
+    width: 100%;
+    background-color: #551111;
+    border: 1px #771818;
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: Noto Sans;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    padding: 14px 24px;
+    cursor: pointer;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.btn-stop:hover {
+    background-color: #771818;
+}
+
+.status-card {
+    background-color: #0c0e14;
+    border-left: 3px #8f1818;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+}
+
+.status-card.valid {
+    border-left-color: #2e7d32;
+}
+
+.status-card.warning {
+    border-left-color: #c77700;
+}
+
+.status-body {
+    display: block;
+}
+
+.status-title {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+}
+
+.status-meta {
+    display: block;
+}
+
+.tag {
+    display: inline-block;
+    background-color: #141724;
+    border: 1px #1d2131;
+    border-radius: 3px;
+    color: #94a3b8;
+    font-family: JetBrainsMono NF;
+    font-size: 10px;
+    padding: 2px 6px;
+    margin-right: 6px;
+}
+
+.tag.tag-warn {
+    background-color: #3d2300;
+    border-color: #734300;
+    color: #ffb74d;
+}
+
+.extract-card {
+    background-color: #0c0e14;
+    border: 1px #8f1818;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+}
+
+.extract-header {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.extract-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: bold;
+    color: #cbd5e1;
+}
+
+.extract-pct {
+    display: inline-block;
+    float: right;
+    font-size: 11px;
+    font-weight: bold;
+    color: #8f1818;
+}
+
+.progress-bar {
+    display: block;
+    width: 100%;
+    height: 6px;
+    background-color: #06070a;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-fill {
+    display: block;
+    height: 100%;
+    background-color: #8f1818;
+}
+
+.extract-status {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
 }
 
 /* ==========================================================================

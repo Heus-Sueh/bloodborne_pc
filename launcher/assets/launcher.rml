@@ -14,28 +14,28 @@
 
         <div class="nav-menu">
             <button class="nav-item" data-class-active="active_tab == 'play'" data-event-click="set_tab('play')">
-                <span class="nav-icon">⚔</span> {{ tr_tab_play }}
+                {{ tr_tab_play }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'graphics'" data-event-click="set_tab('graphics')">
-                <span class="nav-icon">👁</span> {{ tr_tab_graphics }}
+                {{ tr_tab_graphics }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'effects'" data-event-click="set_tab('effects')">
-                <span class="nav-icon">✦</span> {{ tr_tab_effects }}
+                {{ tr_tab_effects }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'controls'" data-event-click="set_tab('controls')">
-                <span class="nav-icon">🎮</span> {{ tr_tab_controls }}
+                {{ tr_tab_controls }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'mods'" data-event-click="set_tab('mods')">
-                <span class="nav-icon">📦</span> {{ tr_tab_mods }}
+                {{ tr_tab_mods }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'trophies'" data-event-click="set_tab('trophies')">
-                <span class="nav-icon">🏆</span> {{ tr_tab_trophies }}
+                {{ tr_tab_trophies }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'online'" data-event-click="set_tab('online')">
-                <span class="nav-icon">🌐</span> {{ tr_tab_online }}
+                {{ tr_tab_online }}
             </button>
             <button class="nav-item" data-class-active="active_tab == 'log'" data-event-click="set_tab('log')">
-                <span class="nav-icon">📜</span> {{ tr_tab_log }}
+                {{ tr_tab_log }}
             </button>
         </div>
 
@@ -64,7 +64,6 @@
             </div>
 
             <div class="card status-card" data-class-valid="is_valid" data-class-warning="is_update_needed">
-                <div class="status-indicator"></div>
                 <div class="status-body">
                     <div class="status-title">{{ status_text }}</div>
                     <div class="status-meta">
@@ -153,19 +152,19 @@
 
                 <div class="toggle-row">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="fullscreen" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="fullscreen" data-event-change="save" />
                         Fullscreen Mode
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="borderless" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="borderless" data-event-change="save" />
                         Borderless Windowed
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="vsync" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="vsync" data-event-change="save" />
                         Vertical Sync (VSync)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="hdr" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="hdr" data-event-change="save" />
                         HDR Output (Vulkan)
                     </label>
                 </div>
@@ -186,19 +185,19 @@
 
                 <div class="toggle-row">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="sharpen" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="sharpen" data-event-change="save" />
                         CAS Sharpening Filter
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="vbao" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="vbao" data-event-change="save" />
                         GT-VBAO Ambient Occlusion
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="show_fps" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="show_fps" data-event-change="save" />
                         In-Game FPS Counter
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="object_motion" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="object_motion" data-event-change="save" />
                         Object Motion Vectors
                     </label>
                 </div>
@@ -216,27 +215,27 @@
                 <div class="card-title">POST-PROCESSING EFFECTS</div>
                 <div class="toggle-grid">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="motion_blur" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="motion_blur" data-event-change="save" />
                         Motion Blur
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="bloom" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="bloom" data-event-change="save" />
                         Bloom Lighting
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="chromatic_aberration" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="chromatic_aberration" data-event-change="save" />
                         Chromatic Aberration
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="dof" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="dof" data-event-change="save" />
                         Depth of Field (DoF)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="ssao" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="ssao" data-event-change="save" />
                         Screen-Space Ambient Occlusion (SSAO)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="dynamic_shadows" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="dynamic_shadows" data-event-change="save" />
                         High-Resolution Dynamic Shadows
                     </label>
                 </div>
@@ -246,11 +245,11 @@
                 <div class="card-title">RENDER LATENCY &amp; DIAGNOSTICS</div>
                 <div class="toggle-grid">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="vk_validation" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="vk_validation" data-event-change="save" />
                         Vulkan Validation Layers
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="save_log" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="save_log" data-event-change="save" />
                         Save Process Output to Log File
                     </label>
                 </div>
@@ -268,15 +267,15 @@
                 <div class="card-title">MOUSE LOOK EMULATION</div>
                 <div class="toggle-row">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="mouse_look" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="mouse_look" data-event-change="save" />
                         Enable Mouse Look (Camera Navigation)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="mouse_invert_y" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="mouse_invert_y" data-event-change="save" />
                         Invert Y Axis
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="mouse_invert_x" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="mouse_invert_x" data-event-change="save" />
                         Invert X Axis
                     </label>
                 </div>
@@ -295,7 +294,7 @@
                 <div class="mods-list">
                     <div class="mod-item" data-for="mod : mods_list">
                         <div class="mod-left">
-                            <input type="checkbox" data-checked="mod.enabled" data-event-change="toggle_mod(mod.id)" />
+                            <input type="checkbox" class="input-checkbox" data-checked="mod.enabled" data-event-change="toggle_mod(mod.id)" />
                             <div class="mod-info">
                                 <div class="mod-title">{{ mod.name }}</div>
                                 <div class="mod-path">{{ mod.path }}</div>
@@ -313,7 +312,7 @@
                 <div class="card-title">SHADPS4 XML PATCHES</div>
                 <div class="patches-list">
                     <div class="patch-item" data-for="patch : patches_list">
-                        <input type="checkbox" data-checked="patch.enabled" data-event-change="toggle_patch(patch.id)" />
+                        <input type="checkbox" class="input-checkbox" data-checked="patch.enabled" data-event-change="toggle_patch(patch.id)" />
                         <div class="patch-info">
                             <div class="patch-title">{{ patch.name }}</div>
                             <div class="patch-author" data-if="patch.author != ''">Author: {{ patch.author }}</div>
@@ -365,11 +364,11 @@
                 <div class="card-title">MULTIPLAYER CONFIGURATION</div>
                 <div class="toggle-row">
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="online_enabled" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="online_enabled" data-event-change="save" />
                         Enable Online Multiplayer
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" data-checked="local_bbsc" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="local_bbsc" data-event-change="save" />
                         Run Local BBSC Co-op Relay Server
                     </label>
                 </div>
