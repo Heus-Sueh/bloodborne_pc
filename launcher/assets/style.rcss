@@ -428,27 +428,36 @@ body {
     margin-bottom: 6px;
 }
 
-/* 4 MODULAR UTILITY CARDS GRID */
+/* 4 MODULAR UTILITY CARDS GRID (EQUAL TABLE-CELL DISTRIBUTION) */
 .utility-grid {
-    display: block;
+    display: table;
     width: 100%;
-    margin-bottom: 20px;
+    box-sizing: border-box;
+    margin-bottom: 22px;
+}
+
+.util-col {
+    display: table-cell;
+    width: 25%;
+    box-sizing: border-box;
+    padding-right: 14px;
+    vertical-align: top;
+}
+
+.util-col:last-child {
+    padding-right: 0px;
 }
 
 .util-card {
-    display: inline-block;
-    width: 23.5%;
-    margin-right: 2%;
-    vertical-align: top;
+    display: block;
+    width: 100%;
+    height: 165px;
+    position: relative;
     background-color: #131017;
     border: 1px #1e1925;
     border-radius: 6px;
     padding: 16px 18px;
     box-sizing: border-box;
-}
-
-.util-card.last {
-    margin-right: 0%;
 }
 
 .util-status {
@@ -462,15 +471,20 @@ body {
     color: #3da87b;
     font-size: 14px;
     font-weight: bold;
-    margin-right: 5px;
+    margin-right: 6px;
+    vertical-align: middle;
+    line-height: 16px;
 }
 
 .status-text {
     display: inline-block;
     font-family: Cinzel;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
     color: #ede5d8;
+    letter-spacing: 1.5px;
+    vertical-align: middle;
+    line-height: 16px;
 }
 
 .util-detail {
@@ -480,7 +494,9 @@ body {
     color: #8c8275;
     overflow: hidden;
     white-space: nowrap;
+    text-overflow: ellipsis;
     margin-bottom: 4px;
+    min-height: 16px;
 }
 
 .util-sub {
@@ -488,12 +504,16 @@ body {
     font-family: Source Sans 3;
     font-size: 11px;
     color: #6e6559;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    min-height: 16px;
 }
 
 .util-actions {
+    position: absolute;
+    bottom: 14px;
+    left: 18px;
+    right: 18px;
     display: block;
-    margin-top: 8px;
 }
 
 .btn-micro {
@@ -506,9 +526,11 @@ body {
     font-size: 10px;
     font-weight: bold;
     letter-spacing: 1px;
-    padding: 5px 10px;
+    padding: 6px 12px;
     cursor: pointer;
     margin-right: 6px;
+    vertical-align: middle;
+    box-sizing: border-box;
 }
 
 .btn-micro:hover {
@@ -1646,7 +1668,13 @@ scrollbarvertical sliderbar:active {
 
 .log-controls {
     display: block;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+}
+
+.log-controls .btn-action {
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
 }
 
 .log-viewport {

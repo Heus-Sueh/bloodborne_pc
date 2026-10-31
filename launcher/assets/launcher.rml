@@ -80,7 +80,7 @@
                                 <span data-if="is_game_running">HUNTING IN YHARNAM</span>
                             </div>
                             <div class="hero-status-desc">
-                                Bloodborne PC v{{ game_version }} &bull; {{ game_title_id }}
+                                Bloodborne PC v{{ game_version }} • {{ game_title_id }}
                             </div>
                         </div>
                     </div>
@@ -95,73 +95,82 @@
                         <span class="badge-date">Linux Native</span>
                     </div>
                     <div class="notes-body">
-                        <div class="note-bullet">&bull; FSR 3.1 &amp; Temporal Upscaling integration</div>
-                        <div class="note-bullet">&bull; Uncapped framerate support (60+ FPS)</div>
-                        <div class="note-bullet">&bull; Dynamic Shadows, SSR &amp; SSAO pipeline</div>
-                        <div class="note-bullet">&bull; Native SDL3 low-latency audio engine</div>
-                        <div class="note-bullet">&bull; Trophy XML parser &amp; local achievement tracker</div>
-                        <div class="note-bullet">&bull; Seamless co-op server &amp; P2P matchmaking</div>
+                        <div class="note-bullet">• FSR 3.1 &amp; Temporal Upscaling integration</div>
+                        <div class="note-bullet">• Uncapped framerate support (60+ FPS)</div>
+                        <div class="note-bullet">• Dynamic Shadows, SSR &amp; SSAO pipeline</div>
+                        <div class="note-bullet">• Native SDL3 low-latency audio engine</div>
+                        <div class="note-bullet">• Trophy XML parser &amp; local achievement tracker</div>
+                        <div class="note-bullet">• Seamless co-op server &amp; P2P matchmaking</div>
                     </div>
                 </div>
             </div>
 
-            <!-- 4 MODULAR UTILITY CARDS GRID (RUSTY MCLA REFERENCE) -->
+            <!-- 4 MODULAR UTILITY CARDS GRID (EQUAL TABLE-CELL DISTRIBUTION) -->
             <div class="utility-grid">
                 <!-- CARD 1: THE ARCHIVES (INSTALL) -->
-                <div class="util-card">
-                    <div class="card-label">THE ARCHIVES</div>
-                    <div class="util-status">
-                        <span class="status-check" data-if="is_valid">&#10003;</span>
-                        <span class="status-text" data-if="is_valid">Data Linked</span>
-                        <span class="status-text" data-if="!is_valid">Unlinked</span>
-                    </div>
-                    <div class="util-detail">{{ game_dir }}</div>
-                    <div class="util-sub">Disc image verified &bull; 29.8 GB</div>
-                    <div class="util-actions">
-                        <button class="btn-micro" data-event-click="choose_game_dir">LOCATE</button>
-                        <button class="btn-micro" data-event-click="extract_dump">EXTRACT</button>
+                <div class="util-col">
+                    <div class="card util-card">
+                        <div class="card-label">THE ARCHIVES</div>
+                        <div class="util-status">
+                            <span class="status-check" data-if="is_valid">&#10003;</span>
+                            <span class="status-text" data-if="is_valid">DATA LINKED</span>
+                            <span class="status-text" data-if="!is_valid">DATA UNLINKED</span>
+                        </div>
+                        <div class="util-detail">{{ game_dir }}</div>
+                        <div class="util-sub">Disc image verified • 29.8 GB</div>
+                        <div class="util-actions">
+                            <button class="btn-micro" data-event-click="choose_game_dir">LOCATE</button>
+                            <button class="btn-micro" data-event-click="extract_dump">EXTRACT</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- CARD 2: SAVED MEMORIES (SAVES) -->
-                <div class="util-card">
-                    <div class="card-label">SAVED MEMORIES</div>
-                    <div class="util-status">
-                        <span class="status-check">&#10003;</span>
-                        <span class="status-text">Save Active</span>
-                    </div>
-                    <div class="util-detail">{{ user_dir }}</div>
-                    <div class="util-sub">Profile: savedata_00.bin</div>
-                    <div class="util-actions">
-                        <button class="btn-micro" data-event-click="choose_user_dir">BACKUP</button>
-                        <button class="btn-micro" data-event-click="choose_user_dir">FOLDER</button>
+                <div class="util-col">
+                    <div class="card util-card">
+                        <div class="card-label">SAVED MEMORIES</div>
+                        <div class="util-status">
+                            <span class="status-check">&#10003;</span>
+                            <span class="status-text">SAVE ACTIVE</span>
+                        </div>
+                        <div class="util-detail">{{ user_dir }}</div>
+                        <div class="util-sub">Profile: savedata_00.bin</div>
+                        <div class="util-actions">
+                            <button class="btn-micro" data-event-click="choose_user_dir">BACKUP</button>
+                            <button class="btn-micro" data-event-click="choose_user_dir">FOLDER</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- CARD 3: CHALICE &amp; MODS (MODS) -->
-                <div class="util-card">
-                    <div class="card-label">CHALICE &amp; MODS</div>
-                    <div class="util-status">
-                        <span class="status-check">&#10003;</span>
-                        <span class="status-text">Engine Ready</span>
-                    </div>
-                    <div class="util-detail">{{ mods_dir }}</div>
-                    <div class="util-sub">Patches &amp; FSR enabled</div>
-                    <div class="util-actions">
-                        <button class="btn-micro" data-event-click="set_tab('mods')">MANAGE</button>
+                <div class="util-col">
+                    <div class="card util-card">
+                        <div class="card-label">CHALICE &amp; MODS</div>
+                        <div class="util-status">
+                            <span class="status-check">&#10003;</span>
+                            <span class="status-text">ENGINE READY</span>
+                        </div>
+                        <div class="util-detail">{{ mods_dir }}</div>
+                        <div class="util-sub">Patches &amp; FSR enabled</div>
+                        <div class="util-actions">
+                            <button class="btn-micro" data-event-click="set_tab('mods')">MANAGE</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- CARD 4: WORKSHOP DIAGNOSTICS (LOGS & BUG REPORT) -->
-                <div class="util-card last">
-                    <div class="card-label">WORKSHOP DIAGNOSTICS</div>
-                    <div class="util-status">
-                        <span class="status-text">Something wrong?</span>
-                    </div>
-                    <div class="util-sub">Export Hunter's logs for issues.</div>
-                    <div class="util-actions">
-                        <button class="btn-micro btn-red" data-event-click="set_tab('log')">EXPORT LOGS</button>
-                        <button class="btn-micro" data-event-click="set_tab('log')">CONSOLE</button>
+                <div class="util-col">
+                    <div class="card util-card">
+                        <div class="card-label">WORKSHOP DIAGNOSTICS</div>
+                        <div class="util-status">
+                            <span class="status-text">SOMETHING WRONG?</span>
+                        </div>
+                        <div class="util-detail">Runtime logs &amp; debug data</div>
+                        <div class="util-sub">Export Hunter's logs for issues.</div>
+                        <div class="util-actions">
+                            <button class="btn-micro btn-red" data-event-click="set_tab('log')">EXPORT LOGS</button>
+                            <button class="btn-micro" data-event-click="set_tab('log')">CONSOLE</button>
+                        </div>
                     </div>
                 </div>
             </div>
