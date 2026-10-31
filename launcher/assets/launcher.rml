@@ -14,39 +14,52 @@
 
         <div class="nav-menu">
             <button class="nav-item" data-class-active="active_tab == 'play'" data-event-click="set_tab('play')">
-                {{ tr_tab_play }}
+                <span class="nav-icon">&#9876;</span>
+                <span class="nav-text">{{ tr_tab_play }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'graphics'" data-event-click="set_tab('graphics')">
-                {{ tr_tab_graphics }}
+                <span class="nav-icon">&#9638;</span>
+                <span class="nav-text">{{ tr_tab_graphics }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'effects'" data-event-click="set_tab('effects')">
-                {{ tr_tab_effects }}
+                <span class="nav-icon">&#10024;</span>
+                <span class="nav-text">{{ tr_tab_effects }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'controls'" data-event-click="set_tab('controls')">
-                {{ tr_tab_controls }}
+                <span class="nav-icon">&#127918;</span>
+                <span class="nav-text">{{ tr_tab_controls }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'mods'" data-event-click="set_tab('mods')">
-                {{ tr_tab_mods }}
+                <span class="nav-icon">&#9881;</span>
+                <span class="nav-text">{{ tr_tab_mods }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'trophies'" data-event-click="set_tab('trophies')">
-                {{ tr_tab_trophies }}
+                <span class="nav-icon">&#127942;</span>
+                <span class="nav-text">{{ tr_tab_trophies }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'online'" data-event-click="set_tab('online')">
-                {{ tr_tab_online }}
+                <span class="nav-icon">&#127760;</span>
+                <span class="nav-text">{{ tr_tab_online }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'log'" data-event-click="set_tab('log')">
-                {{ tr_tab_log }}
+                <span class="nav-icon">&#128220;</span>
+                <span class="nav-text">{{ tr_tab_log }}</span>
             </button>
         </div>
 
         <div class="sidebar-footer">
             <div class="lang-selector">
-                <span class="lang-label">Lang:</span>
-                <button class="lang-btn" data-class-active="ui_language == 'en'" data-event-click="set_language('en')">EN</button>
-                <button class="lang-btn" data-class-active="ui_language == 'pt_BR'" data-event-click="set_language('pt_BR')">PT</button>
-                <button class="lang-btn" data-class-active="ui_language == 'ru'" data-event-click="set_language('ru')">RU</button>
-                <button class="lang-btn" data-class-active="ui_language == 'zh_CN'" data-event-click="set_language('zh_CN')">ZH</button>
-                <button class="lang-btn" data-class-active="ui_language == 'fr_FR'" data-event-click="set_language('fr_FR')">FR</button>
+                <span class="lang-label">Language:</span>
+                <div class="lang-btns">
+                    <button class="lang-btn" data-class-active="ui_language == 'en'" data-event-click="set_language('en')">EN</button>
+                    <button class="lang-btn" data-class-active="ui_language == 'pt_BR'" data-event-click="set_language('pt_BR')">PT</button>
+                    <button class="lang-btn" data-class-active="ui_language == 'ru'" data-event-click="set_language('ru')">RU</button>
+                    <button class="lang-btn" data-class-active="ui_language == 'zh_CN'" data-event-click="set_language('zh_CN')">ZH</button>
+                    <button class="lang-btn" data-class-active="ui_language == 'fr_FR'" data-event-click="set_language('fr_FR')">FR</button>
+                </div>
+            </div>
+            <div class="sidebar-meta">
+                <span class="meta-client">Client v0.7.0 • Vulkan</span>
             </div>
         </div>
     </div>
@@ -56,51 +69,55 @@
 
         <!-- TAB: PLAY / THE HUNT -->
         <div class="tab-pane" data-if="active_tab == 'play'">
-            <!-- TOP SECTION: HERO BANNER & CHRONICLES CARD (RUSTY MCLA REFERENCE) -->
+            <!-- TOP SECTION: HERO BANNER & CHRONICLES CARD (TABLE-CELL NO-WRAP ENGINE) -->
             <div class="dashboard-top">
-                <div class="hero-card">
-                    <div class="hero-art-bg">
-                        <div class="hero-badge">THE HUNTER'S DREAM</div>
-                        <div class="hero-title">YHARNAM CALLS</div>
-                        <div class="hero-quote">&#8220;Farewell, good hunter. May you find your worth in the waking world.&#8221;</div>
-                    </div>
+                <div class="hero-col">
+                    <div class="hero-card">
+                        <div class="hero-art-bg">
+                            <div class="hero-badge">THE HUNTER'S DREAM</div>
+                            <div class="hero-title">YHARNAM CALLS</div>
+                            <div class="hero-quote">&#8220;Farewell, good hunter. May you find your worth in the waking world.&#8221;</div>
+                        </div>
 
-                    <div class="hero-action-bar">
-                        <button class="hero-play-btn" data-if="!is_game_running" data-event-click="play">
-                            {{ tr_launch_game }} &#9654;
-                        </button>
-                        <button class="hero-stop-btn" data-if="is_game_running" data-event-click="stop_game">
-                            {{ tr_stop_game }} &#9632;
-                        </button>
-                        <div class="hero-status-block">
-                            <div class="hero-status-tag" data-class-warn="is_update_needed">
-                                <span data-if="!is_game_running &amp;&amp; is_valid">AWAKENED &amp; READY</span>
-                                <span data-if="!is_game_running &amp;&amp; is_update_needed">UPDATE 1.09 REQUIRED</span>
-                                <span data-if="!is_game_running &amp;&amp; !is_valid &amp;&amp; !is_update_needed">GAME DATA NOT FOUND</span>
-                                <span data-if="is_game_running">HUNTING IN YHARNAM</span>
-                            </div>
-                            <div class="hero-status-desc">
-                                Bloodborne PC v{{ game_version }} • {{ game_title_id }}
+                        <div class="hero-action-bar">
+                            <button class="hero-play-btn" data-if="!is_game_running" data-event-click="play">
+                                <span class="btn-play-text">{{ tr_launch_game }} &#9654;</span>
+                            </button>
+                            <button class="hero-stop-btn" data-if="is_game_running" data-event-click="stop_game">
+                                <span class="btn-stop-text">{{ tr_stop_game }} &#9632;</span>
+                            </button>
+                            <div class="hero-status-block">
+                                <div class="hero-status-tag" data-class-warn="is_update_needed">
+                                    <span class="status-indicator ready" data-if="!is_game_running &amp;&amp; is_valid">&#9679; AWAKENED &amp; READY</span>
+                                    <span class="status-indicator update" data-if="!is_game_running &amp;&amp; is_update_needed">&#9679; UPDATE 1.09 REQUIRED</span>
+                                    <span class="status-indicator unlinked" data-if="!is_game_running &amp;&amp; !is_valid &amp;&amp; !is_update_needed">&#9679; GAME DATA NOT FOUND</span>
+                                    <span class="status-indicator running" data-if="is_game_running">&#9679; HUNTING IN YHARNAM</span>
+                                </div>
+                                <div class="hero-status-desc">
+                                    Bloodborne PC v{{ game_version }} • {{ game_title_id }}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="notes-card">
-                    <div class="card-label">CHRONICLES &amp; NOTES</div>
-                    <div class="notes-title">Release Notes</div>
-                    <div class="notes-ver-tag">
-                        <span class="badge-ver">v0.7.0</span>
-                        <span class="badge-tag">LATEST</span>
-                        <span class="badge-date">Linux Native</span>
-                    </div>
-                    <div class="notes-body">
-                        <div class="note-bullet">• FSR 3.1 &amp; Temporal Upscaling integration</div>
-                        <div class="note-bullet">• Uncapped framerate support (60+ FPS)</div>
-                        <div class="note-bullet">• Dynamic Shadows, SSR &amp; SSAO pipeline</div>
-                        <div class="note-bullet">• Native SDL3 low-latency audio engine</div>
-                        <div class="note-bullet">• Trophy XML parser &amp; local achievement tracker</div>
-                        <div class="note-bullet">• Seamless co-op server &amp; P2P matchmaking</div>
+                <div class="notes-col">
+                    <div class="notes-card">
+                        <div class="card-label">CHRONICLES &amp; NOTES</div>
+                        <div class="notes-title">Release Notes</div>
+                        <div class="notes-ver-tag">
+                            <span class="badge-ver">v0.7.0</span>
+                            <span class="badge-tag">LATEST</span>
+                            <span class="badge-date">Linux Native</span>
+                        </div>
+                        <div class="notes-body">
+                            <div class="note-bullet">• FSR 3.1 &amp; Temporal Upscaling integration</div>
+                            <div class="note-bullet">• Uncapped framerate support (60+ FPS)</div>
+                            <div class="note-bullet">• Dynamic Shadows, SSR &amp; SSAO pipeline</div>
+                            <div class="note-bullet">• Native SDL3 low-latency audio engine</div>
+                            <div class="note-bullet">• Trophy XML parser &amp; local achievement tracker</div>
+                            <div class="note-bullet">• Seamless co-op server &amp; P2P matchmaking</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -113,8 +130,9 @@
                         <div class="card-label">THE ARCHIVES</div>
                         <div class="util-status">
                             <span class="status-check" data-if="is_valid">&#10003;</span>
+                            <span class="status-warn" data-if="!is_valid">&#9888;</span>
                             <span class="status-text" data-if="is_valid">DATA LINKED</span>
-                            <span class="status-text" data-if="!is_valid">DATA UNLINKED</span>
+                            <span class="status-text warn" data-if="!is_valid">DATA UNLINKED</span>
                         </div>
                         <div class="util-detail">{{ game_dir }}</div>
                         <div class="util-sub">Disc image verified • 29.8 GB</div>
@@ -142,7 +160,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 3: CHALICE &amp; MODS (MODS) -->
+                <!-- CARD 3: CHALICE & MODS (MODS) -->
                 <div class="util-col">
                     <div class="card util-card">
                         <div class="card-label">CHALICE &amp; MODS</div>
@@ -163,10 +181,10 @@
                     <div class="card util-card">
                         <div class="card-label">WORKSHOP DIAGNOSTICS</div>
                         <div class="util-status">
-                            <span class="status-text">SOMETHING WRONG?</span>
+                            <span class="status-text">RUNTIME LOGS</span>
                         </div>
-                        <div class="util-detail">Runtime logs &amp; debug data</div>
-                        <div class="util-sub">Export Hunter's logs for issues.</div>
+                        <div class="util-detail">Live stream &amp; crash traces</div>
+                        <div class="util-sub">Export Hunter's logs for issues</div>
                         <div class="util-actions">
                             <button class="btn-micro btn-red" data-event-click="set_tab('log')">EXPORT LOGS</button>
                             <button class="btn-micro" data-event-click="set_tab('log')">CONSOLE</button>
@@ -242,8 +260,8 @@
         <!-- TAB: GRAPHICS & DISPLAY -->
         <div class="tab-pane" data-if="active_tab == 'graphics'">
             <div class="pane-header">
-                <h2>DISPLAY &amp; GRAPHICS</h2>
-                <p class="pane-desc">Resolution scaling, refresh rate limits, and Vulkan presentation parameters.</p>
+                <div class="pane-title">DISPLAY &amp; GRAPHICS</div>
+                <div class="pane-desc">Resolution scaling, refresh rate limits, and Vulkan presentation parameters.</div>
             </div>
 
             <div class="card">
@@ -374,8 +392,8 @@
         <!-- TAB: EFFECTS & ENGINE -->
         <div class="tab-pane" data-if="active_tab == 'effects'">
             <div class="pane-header">
-                <h2>EFFECTS &amp; ENGINE</h2>
-                <p class="pane-desc">Graphical post-processing effects, shadows, and low-latency rendering pipeline.</p>
+                <div class="pane-title">EFFECTS &amp; ENGINE</div>
+                <div class="pane-desc">Graphical post-processing effects, shadows, and low-latency rendering pipeline.</div>
             </div>
 
             <div class="card">
@@ -482,8 +500,8 @@
         <!-- TAB: CONTROLS & INPUT -->
         <div class="tab-pane" data-if="active_tab == 'controls'">
             <div class="pane-header">
-                <h2>CONTROLS &amp; INPUT</h2>
-                <p class="pane-desc">Camera look mechanics, mouse emulation sensitivity, and controller button layouts.</p>
+                <div class="pane-title">CONTROLS &amp; INPUT</div>
+                <div class="pane-desc">Camera look mechanics, mouse emulation sensitivity, and controller button layouts.</div>
             </div>
 
             <div class="card">
@@ -518,8 +536,8 @@
         <!-- TAB: MODS & PATCHES -->
         <div class="tab-pane" data-if="active_tab == 'mods'">
             <div class="pane-header">
-                <h2>MODS &amp; SHADPS4 PATCHES</h2>
-                <p class="pane-desc">Manage installed game modifications, load order priority, and XML runtime patches.</p>
+                <div class="pane-title">MODS &amp; SHADPS4 PATCHES</div>
+                <div class="pane-desc">Manage installed game modifications, load order priority, and XML runtime patches.</div>
             </div>
 
             <div class="card">
@@ -568,8 +586,8 @@
         <!-- TAB: TROPHIES -->
         <div class="tab-pane" data-if="active_tab == 'trophies'">
             <div class="pane-header">
-                <h2>ACHIEVEMENTS &amp; TROPHIES</h2>
-                <p class="pane-desc">Decrypted game trophies, unlock milestones, and Yharnam hunter completion.</p>
+                <div class="pane-title">ACHIEVEMENTS &amp; TROPHIES</div>
+                <div class="pane-desc">Decrypted game trophies, unlock milestones, and Yharnam hunter completion.</div>
             </div>
 
             <div class="card trophy-summary-card">
@@ -599,8 +617,8 @@
         <!-- TAB: ONLINE -->
         <div class="tab-pane" data-if="active_tab == 'online'">
             <div class="pane-header">
-                <h2>NETWORK &amp; CO-OP</h2>
-                <p class="pane-desc">Seamless multiplayer matchmaking, BBSC local server, and NP communication pools.</p>
+                <div class="pane-title">NETWORK &amp; CO-OP</div>
+                <div class="pane-desc">Seamless multiplayer matchmaking, BBSC local server, and NP communication pools.</div>
             </div>
 
             <div class="card">
@@ -653,8 +671,8 @@
         <!-- TAB: LOG & CONSOLE -->
         <div class="tab-pane" data-if="active_tab == 'log'">
             <div class="pane-header">
-                <h2>LOG &amp; PROCESS CONSOLE</h2>
-                <p class="pane-desc">Live output stream from execution layer, Vulkan initialization, and runtime diagnostics.</p>
+                <div class="pane-title">LOG &amp; PROCESS CONSOLE</div>
+                <div class="pane-desc">Live output stream from execution layer, Vulkan initialization, and runtime diagnostics.</div>
             </div>
 
             <div class="card log-card">

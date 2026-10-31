@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-  const int initial_width = 1000;
-  const int initial_height = 700;
+  const int initial_width = 1200;
+  const int initial_height = 760;
 
   SDL_Window* window = SDL_CreateWindow("Bloodborne PC Launcher", initial_width, initial_height,
                                         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
@@ -47,6 +47,8 @@ int main(int argc, char** argv) {
     SDL_Quit();
     return 1;
   }
+
+  SDL_SetWindowMinimumSize(window, 1024, 680);
 
   SDL_GLContext gl_context = SDL_GL_CreateContext(window);
   if (!gl_context) {
@@ -129,6 +131,8 @@ int main(int argc, char** argv) {
   }
   if (fs::exists(cormorant_reg)) {
     Rml::LoadFontFace(cormorant_reg, "Cormorant", Rml::Style::FontStyle::Normal,
+                      Rml::Style::FontWeight::Normal, false);
+    Rml::LoadFontFace(cormorant_reg, "Cormorant", Rml::Style::FontStyle::Italic,
                       Rml::Style::FontWeight::Normal, false);
   }
   if (fs::exists(cormorant_bold)) {
