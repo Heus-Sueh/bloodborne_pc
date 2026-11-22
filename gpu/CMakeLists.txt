@@ -16,6 +16,7 @@ project(bbgpu LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Shared C/C++ Runtime-GPU ABI header (src/runtime_gpu_abi.h) across bbgpu, bbnet20, and GPU tests.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../src")
 if (NOT CMAKE_BUILD_TYPE)
