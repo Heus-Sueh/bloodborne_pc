@@ -373,8 +373,9 @@ int main(int argc, char** argv) {
     const float hidpi = float(pixel_w) / float(logical_w);
     rml_context->SetDensityIndependentPixelRatio(std::clamp(hidpi, 0.85f, 3.0f));
 
-    document->SetClass("compact", logical_w < 1080);
-    document->SetClass("narrow", logical_w < 840);
+    document->SetClass("compact", logical_w < 1140);
+    document->SetClass("narrow", logical_w < 740);
+    rml_context->Update();
   };
 
   apply_responsive_layout();

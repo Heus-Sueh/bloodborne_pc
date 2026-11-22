@@ -33,7 +33,7 @@ jobs:
             libfuse2t64 libvulkan-dev libgl-dev libx11-dev libxext-dev libxrandr-dev \
             libxi-dev libxcursor-dev libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev \
             libdrm-dev libgbm-dev libasound2-dev libpulse-dev libudev-dev libdbus-1-dev \
-            libfreetype-dev libxxhash-dev libboost-dev tsl-robin-map-dev libzydis-dev \
+            libfreetype-dev libxxhash-dev libboost-dev robin-map-dev libzydis-dev \
             libssl-dev libprotobuf-dev protobuf-compiler nlohmann-json3-dev libminiupnpc-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
             libfmt-dev
@@ -208,9 +208,6 @@ jobs:
             mingw-w64-clang-x86_64-protobuf
             mingw-w64-clang-x86_64-nlohmann-json
             mingw-w64-clang-x86_64-miniupnpc
-            mingw-w64-clang-x86_64-vulkan-memory-allocator
-            mingw-w64-clang-x86_64-xbyak
-            mingw-w64-clang-x86_64-miniz
 
       - name: Prepare icons (packaging/bbport.icon, packaging/bbport.ico, packaging/bbport.png) & FSR-Vulkan patches
         run: |

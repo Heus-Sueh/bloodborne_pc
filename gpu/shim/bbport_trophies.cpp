@@ -54,8 +54,24 @@ std::vector<std::uint8_t> ReadFile(const fs::path& path) {
 }
 
 int SystemLanguageId() {
-    const char* env = bb_env("BB_LANGUAGE");
-    return env && *env ? std::atoi(env) : 1;
+    if (const char* env = bb_env("BB_LANGUAGE"); env && *env) {
+        const int id = std::atoi(env);
+        if (id > 0) return id;
+    }
+    const char* const vars[] = {bb_env("BB_MENU_LANGUAGE"), std::getenv("LC_ALL"), std::getenv("LANG")};
+    for (const char* var : vars) {
+        if (!var || !*var) continue;
+        if (std::strncmp(var, "pt", 2) == 0) return 17;
+        if (std::strncmp(var, "ru", 2) == 0) return 8;
+        if (std::strncmp(var, "fr", 2) == 0) return 2;
+        if (std::strncmp(var, "es", 2) == 0) return 3;
+        if (std::strncmp(var, "de", 2) == 0) return 4;
+        if (std::strncmp(var, "it", 2) == 0) return 5;
+        if (std::strncmp(var, "nl", 2) == 0) return 6;
+        if (std::strncmp(var, "pl", 2) == 0) return 16;
+        if (std::strncmp(var, "tr", 2) == 0) return 21;
+    }
+    return 1;
 }
 
 // Extract unencrypted .PNG trophy icons from trophy00.trp even when no BB_TROPHY_KEY is present.
@@ -192,8 +208,7 @@ bool Extract(const fs::path& trp_path, const std::string& np_comm_id, const std:
 // TROP_XX.XML of the game's language (BB_LANGUAGE, the PS4 numbers the runtime reports: 1 English
 // US, 8 Russian; 0 .. 30), else TROP.XML.
 fs::path LanguageFile() {
-    const char* env = bb_env("BB_LANGUAGE");
-    const int language = env ? std::atoi(env) : 1;
+    const int language = SystemLanguageId();
     char xx[16];
     std::snprintf(xx, sizeof(xx), "TROP_%02d.XML", language);
     const fs::path lang = folder / xx;

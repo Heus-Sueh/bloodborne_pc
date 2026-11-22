@@ -359,13 +359,12 @@ body.narrow #content {
 }
 
 /* ==========================================================================
-   DASHBOARD HERO & CHRONICLES SECTION (ADAPTIVE FLEXBOX ENGINE)
+   DASHBOARD HERO & CHRONICLES SECTION (ADAPTIVE BLOCK + FLEXBOX ENGINE)
    ========================================================================== */
 
 .dashboard-top {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
     align-items: stretch;
     gap: 16px;
     width: 100%;
@@ -373,30 +372,41 @@ body.narrow #content {
     margin-bottom: 18px;
 }
 
+body.compact .dashboard-top,
+body.narrow .dashboard-top {
+    display: block;
+}
+
 .hero-col {
-    display: flex;
-    flex-direction: column;
-    flex: 2 1 360px;
+    display: block;
+    width: 65%;
     min-width: 0px;
     box-sizing: border-box;
+}
+
+body.compact .hero-col,
+body.narrow .hero-col {
+    width: 100%;
+    margin-bottom: 14px;
 }
 
 .notes-col {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 240px;
+    display: block;
+    width: 35%;
     min-width: 0px;
     box-sizing: border-box;
 }
 
+body.compact .notes-col,
+body.narrow .notes-col {
+    width: 100%;
+}
+
 .hero-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    display: block;
     width: 100%;
     height: auto;
-    min-height: 244px;
+    min-height: 284px;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 8px;
@@ -405,16 +415,19 @@ body.narrow #content {
     transition: border-color 0.15s cubic-out;
 }
 
+body.compact .hero-card,
+body.narrow .hero-card {
+    min-height: 0px;
+}
+
 .hero-card:hover {
     border-color: #3e2e52;
 }
 
 .hero-art-bg {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    display: block;
     height: auto;
+    min-height: 186px;
     background-color: #1a1223;
     decorator: vertical-gradient(#271735 #110b19);
     padding: 22px 24px;
@@ -422,9 +435,14 @@ body.narrow #content {
     border-bottom: 1px #23192e;
 }
 
+body.compact .hero-art-bg,
+body.narrow .hero-art-bg {
+    min-height: 0px;
+    padding: 18px 22px;
+}
+
 .hero-badge {
     display: inline-block;
-    align-self: flex-start;
     font-family: Cinzel;
     font-size: 10px;
     font-weight: bold;
@@ -574,17 +592,22 @@ body.compact .hero-title {
 
 /* Notes / Chronicles Card */
 .notes-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    display: block;
     width: 100%;
     height: auto;
+    min-height: 284px;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 8px;
     padding: 18px 20px;
     box-sizing: border-box;
     transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out;
+}
+
+body.compact .notes-card,
+body.narrow .notes-card {
+    min-height: 0px;
+    padding: 15px 18px;
 }
 
 .notes-card:hover {
@@ -656,6 +679,13 @@ body.compact .hero-title {
     padding-top: 10px;
 }
 
+body.compact .notes-body {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
 .note-bullet {
     display: block;
     font-family: Source Sans 3;
@@ -665,8 +695,13 @@ body.compact .hero-title {
     margin-bottom: 5px;
 }
 
+body.compact .note-bullet {
+    flex: 1 1 240px;
+    margin-bottom: 2px;
+}
+
 /* ==========================================================================
-   4 MODULAR UTILITY CARDS GRID (ADAPTIVE 4-COL / 2x2 / 1-COL FLEXBOX)
+   4 MODULAR UTILITY CARDS GRID (SYMMETRICAL 1x4 WIDE / 2x2 COMPACT / 1-COL NARROW)
    ========================================================================== */
 
 .utility-grid {
@@ -681,21 +716,24 @@ body.compact .hero-title {
 }
 
 .util-col {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 205px;
+    display: block;
+    flex: 1 1 22%;
     min-width: 0px;
     box-sizing: border-box;
 }
 
+body.compact .util-col {
+    flex: 1 1 46%;
+}
+
+body.narrow .util-col {
+    flex: 1 1 100%;
+}
+
 .util-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    display: block;
     width: 100%;
     height: auto;
-    min-height: 156px;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 6px;
@@ -777,7 +815,7 @@ body.compact .hero-title {
     font-family: Source Sans 3;
     font-size: 11px;
     color: #6a6173;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .util-actions {
@@ -787,8 +825,7 @@ body.compact .hero-title {
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-top: auto;
-    padding-top: 6px;
+    margin-top: 4px;
 }
 
 .btn-micro {

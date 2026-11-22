@@ -969,8 +969,9 @@ public:
     }
 
     static bool IsPortuguese() {
-        if (const char* m = bb_env("BB_MENU_LANGUAGE"); m && std::strncmp(m, "pt", 2) == 0) {
-            return true;
+        const char* const vars[] = {bb_env("BB_MENU_LANGUAGE"), std::getenv("LC_ALL"), std::getenv("LANG")};
+        for (const char* m : vars) {
+            if (m && std::strncmp(m, "pt", 2) == 0) return true;
         }
         if (const char* l = bb_env("BB_LANGUAGE")) {
             const int id = std::atoi(l);
