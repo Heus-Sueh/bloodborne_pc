@@ -1,6 +1,17 @@
 # bbport GPU library: shadPS4 video core + shader recompiler + Gnm/VideoOut
 # drivers, adapted to the native_probe runtime through shims in shim/.
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.24...3.31)
+if (POLICY CMP0069)
+    cmake_policy(SET CMP0069 NEW)
+endif()
+if (POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+if (POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
+endif()
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 project(bbgpu LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -80,7 +91,10 @@ if(NOT BB_VK_HAS_MIXED_DOT)
     endforeach()
 endif()
 find_package(fmt REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost CONFIG QUIET)
+if (NOT Boost_FOUND)
+    find_package(Boost REQUIRED)
+endif()
 # 0.9.6 moved the headers into include/magic_enum/, as the sources include them (Fedora 44 ships
 # 0.9.5, with the headers directly in include/).
 find_package(magic_enum 0.9.6 QUIET)
@@ -173,7 +187,8 @@ if (NOT TARGET xbyak::xbyak)
         FetchContent_Declare(xbyak
             GIT_REPOSITORY https://github.com/herumi/xbyak.git
             GIT_TAG v7.24
-            GIT_SHALLOW TRUE)
+            GIT_SHALLOW TRUE
+            SOURCE_SUBDIR none)
         FetchContent_MakeAvailable(xbyak)
         if (NOT TARGET xbyak::xbyak)
             add_library(xbyak::xbyak INTERFACE IMPORTED)

@@ -36,7 +36,7 @@ jobs:
             libfreetype-dev libxxhash-dev libboost-dev robin-map-dev libzydis-dev \
             libssl-dev libprotobuf-dev protobuf-compiler nlohmann-json3-dev libminiupnpc-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
-            libfmt-dev
+            libfmt-dev libxbyak-dev
 
       - name: Build and install SDL3 (>= 3.4.0)
         run: |
@@ -183,8 +183,37 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
-          update: true
-          install: >-
+          update: false
+          pacboy: false
+
+      - name: Install MSYS2 CLANG64 toolchain & dependencies (resilient mirrors & timeout disabled)
+        run: |
+          set -euo pipefail
+          # Disable pacman 10-second low-speed timeout and skip unused 32-bit/ARM/MINGW64 repos
+          if ! grep -q "DisableDownloadTimeout" /etc/pacman.conf; then
+            sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
+          fi
+          sed -i 's/^ParallelDownloads.*/ParallelDownloads = 3/' /etc/pacman.conf
+          awk '
+            /^\[(clangarm64|clang32|mingw32|mingw64|ucrt64)\]$/ { skip=1; next }
+            /^\[/ { skip=0 }
+            !skip { print }
+          ' /etc/pacman.conf > /etc/pacman.conf.tmp && mv /etc/pacman.conf.tmp /etc/pacman.conf
+
+          cat > /etc/pacman.d/mirrorlist.clang64 <<'EOF'
+          Server = https://repo.msys2.org/mingw/clang64/
+          Server = https://mirror.umd.edu/msys2/mingw/clang64/
+          Server = https://ftp.osuosl.org/pub/msys2/mingw/clang64/
+          Server = https://mirror.msys2.org/mingw/clang64/
+          EOF
+          cat > /etc/pacman.d/mirrorlist.msys <<'EOF'
+          Server = https://repo.msys2.org/msys/$arch/
+          Server = https://mirror.umd.edu/msys2/msys/$arch/
+          Server = https://ftp.osuosl.org/pub/msys2/msys/$arch/
+          Server = https://mirror.msys2.org/msys/$arch/
+          EOF
+
+          PKGS=(
             git zip unzip
             mingw-w64-clang-x86_64-clang
             mingw-w64-clang-x86_64-lld
@@ -203,11 +232,21 @@ jobs:
             mingw-w64-clang-x86_64-robin-map
             mingw-w64-clang-x86_64-xxhash
             mingw-w64-clang-x86_64-zydis
+            mingw-w64-clang-x86_64-xbyak
             mingw-w64-clang-x86_64-ffmpeg
             mingw-w64-clang-x86_64-openssl
             mingw-w64-clang-x86_64-protobuf
             mingw-w64-clang-x86_64-nlohmann-json
             mingw-w64-clang-x86_64-miniupnpc
+          )
+
+          for attempt in 1 2 3 4 5; do
+            if pacman -Sy --noconfirm --needed "${PKGS[@]}"; then
+              break
+            fi
+            echo "pacman attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
 
       - name: Prepare icons (packaging/bbport.icon, packaging/bbport.ico, packaging/bbport.png) & FSR-Vulkan patches
         run: |
@@ -221,7 +260,8 @@ jobs:
       - name: Build Windows Port (bb-probe.exe, bbnet20.dll, bb-gpu-capabilities.exe) & Native C++ RmlUi Launcher (Bloodborne.exe)
         run: |
           set -euo pipefail
-          cmake -S gpu -B out/win-gpu -G Ninja \
+          cmake -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
+            -S gpu -B out/win-gpu -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DBB_LTO=OFF \
             -DBB_PGO=off
