@@ -7,6 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Threads REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(Vulkan REQUIRED)
 
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
@@ -90,6 +91,7 @@ endif()
 # Deep headless core library (SettingsStore, LaunchEnvCompiler, ContentStores, ProcessRunner, LauncherCore)
 add_library(bbport_launcher_core STATIC
     src/port_paths.cpp
+    src/gpu_capabilities.cpp
     src/system_probe.cpp
     src/settings_store.cpp
     src/launch_env.cpp
@@ -109,8 +111,15 @@ target_include_directories(bbport_launcher_core
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../gpu/shim"
 )
 target_link_libraries(bbport_launcher_core
+    PUBLIC Vulkan::Vulkan
     PRIVATE nlohmann_json::nlohmann_json Threads::Threads
 )
+if(SDL3_FOUND)
+    target_link_libraries(bbport_launcher_core PUBLIC ${SDL3_LIBRARIES})
+    target_include_directories(bbport_launcher_core PUBLIC ${SDL3_INCLUDE_DIRS})
+elseif(TARGET SDL3::SDL3)
+    target_link_libraries(bbport_launcher_core PUBLIC SDL3::SDL3)
+endif()
 
 set(BB_LAUNCHER_SOURCES
     src/main.cpp

@@ -48,31 +48,23 @@ if [[ ${BB_SAVE_LOG:-} == 1 ]]; then
     exec > >(while IFS= read -r line || [[ -n $line ]]; do printf '%s\n' "$line"; printf '%s\n' "$line" >&$log_fd; done) 2>&1
 fi
 [[ -f VERSION ]] && echo "bbport $(<VERSION)"
-# GPU capability probe path (used by the launch planner and RADV detection below).
-if [[ -n ${BB_PROBE:-} ]]; then caps=$(dirname -- "$BB_PROBE")/bb-gpu-capabilities
-elif [[ -n ${BB_PREBUILT:-} ]]; then caps=bin/bb-gpu-capabilities
-else caps=out/bb-gpu-capabilities; fi
-# Native C++ Launch Planner (out/bb-launcher or bin/bb-launcher) runs with zero Python dependency;
-# falls back to scripts/launch_plan.py only when bb-launcher is not built yet.
+if [[ -n ${BB_PREBUILT:-} ]]; then
+    probe=${BB_PROBE:-bin/bb-probe}
+else
+    bash build.sh
+    probe=${BB_PROBE:-out/bb-probe}
+fi
+# Native C++ Launch Planner & GPU capability module integrated into out/bb-launcher (or bin/bb-launcher).
 planner_bin=''
 for candidate in out/bb-launcher bin/bb-launcher out/launcher/bb-launcher; do
     if [[ -x $candidate ]]; then planner_bin=$candidate; break; fi
 done
-plan_file=$out/launch.plan.$$
-if [[ -n $planner_bin ]]; then
-    "$planner_bin" --port-dir "$PWD" --data-dir "$data" --caps "$caps" --plan-file "$plan_file"
-else
-    if [[ -z ${PYTHON:-} ]]; then
-        PYTHON=$(command -v python3 || true)
-        if [[ -z $PYTHON ]]; then
-            for candidate in /nix/store/*-python3-*/bin/python3; do
-                if [[ -x $candidate ]]; then PYTHON=$candidate; break; fi
-            done
-        fi
-    fi
-    if [[ -z ${PYTHON:-} ]]; then echo 'Build out/bb-launcher (bash build.sh) or install Python 3.' >&2; exit 1; fi
-    "$PYTHON" scripts/launch_plan.py --port-dir "$PWD" --data-dir "$data" --caps "$caps" --plan-file "$plan_file"
+if [[ -z $planner_bin ]]; then
+    echo 'out/bb-launcher not found; run bash build.sh first.' >&2
+    exit 1
 fi
+plan_file=$out/launch.plan.$$
+"$planner_bin" --port-dir "$PWD" --data-dir "$data" --plan-file "$plan_file"
 mod_game='' bbsc_shadnet=''
 probe_args=()
 while IFS= read -r -d '' kind && IFS= read -r -d '' key && IFS= read -r -d '' val; do
@@ -88,14 +80,14 @@ while IFS= read -r -d '' kind && IFS= read -r -d '' key && IFS= read -r -d '' va
         ARG) probe_args+=("$val") ;;
     esac
 done < "$plan_file"
-rm -f "$plan_file" 2>/dev/null || { [[ -n ${PYTHON:-} ]] && "$PYTHON" -c 'import os,sys; os.unlink(sys.argv[1])' "$plan_file" 2>/dev/null; } || true
+rm -f "$plan_file" 2>/dev/null || true
 if [[ -n $mod_game ]]; then
     trap 'rm -rf "$mod_game" 2>/dev/null || true' EXIT
 fi
 # GCN 3-5 under RADV (Polaris, Vega and their APUs): RADV_DEBUG=nohiz fixes depth compression artifacts.
 gpu_vendor= gpu_name=
 if [[ ${BB_AUTO_NOHIZ:-1} != 0 && -z ${RADV_DEBUG:-} ]]; then
-    IFS=$'\t' read -r gpu_vendor gpu_name < <("$caps" --device 2> /dev/null) || true
+    IFS=$'\t' read -r gpu_vendor gpu_name < <("$planner_bin" --device 2> /dev/null) || true
 fi
 if [[ ${BB_AUTO_NOHIZ:-1} != 0 && -z ${RADV_DEBUG:-} && $gpu_name == *"(RADV "* ]]; then
     for chip in TONGA ICELAND CARRIZO FIJI STONEY POLARIS VEGA RAVEN RENOIR; do
@@ -119,14 +111,8 @@ if [[ ${MANGOHUD:-0} == 1 ]]; then
     fi
 fi
 # FSR 4: faster post passes next to the downloaded ones (incremental; tools/fsr4_optimize.sh).
-if [[ -z ${BB_PREBUILT:-} && -d fsr4_shaders ]] && command -v spirv-cross >/dev/null; then
+if [[ -z ${BB_PREBUILT:-} && -d fsr4_shaders && -f tools/fsr4_optimize.sh ]] && command -v spirv-cross >/dev/null; then
     bash tools/fsr4_optimize.sh || echo 'FSR 4: optimized post passes not built' >&2
-fi
-if [[ -n ${BB_PREBUILT:-} ]]; then
-    probe=${BB_PROBE:-bin/bb-probe}
-else
-    bash build.sh
-    probe=${BB_PROBE:-out/bb-probe}
 fi
 # Local BBSC co-op game server watcher when launch_plan.py selected 127.0.0.1 fallback.
 if [[ -n $bbsc_shadnet && -f scripts/bbsc_gameserver/bbsc_gameserver.py ]]; then

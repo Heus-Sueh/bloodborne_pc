@@ -4,6 +4,7 @@
 #define RMLUI_SDL_VERSION_MAJOR 3
 #endif
 
+#include "gpu_capabilities.hpp"
 #include "launcher_core.hpp"
 #include "launcher_model.hpp"
 #include "native_launch_planner.hpp"
@@ -85,16 +86,13 @@ int RunHeadlessPlay(const fs::path& exe_path) {
 
 #ifdef _WIN32
   const char* probe_name = "bb-probe.exe";
-  const char* caps_name = "bb-gpu-capabilities.exe";
 #else
   const char* probe_name = "bb-probe";
-  const char* caps_name = "bb-gpu-capabilities";
 #endif
   std::error_code ec;
   fs::path direct_probe = paths.port_dir / (paths.packaged ? "bin" : "out") / probe_name;
   if (!fs::is_regular_file(direct_probe, ec)) direct_probe = paths.port_dir / "bin" / probe_name;
   if (!fs::is_regular_file(direct_probe, ec)) direct_probe = paths.port_dir / "out" / probe_name;
-  const fs::path caps = direct_probe.parent_path() / caps_name;
 
   std::map<std::string, std::string> current_env = base_plan.env;
   current_env["BB_PROBE"] = direct_probe.string();
@@ -106,7 +104,7 @@ int RunHeadlessPlay(const fs::path& exe_path) {
     NativeExecutionPlan native_plan;
     const bool skip_prep = (current_env.count("BB_SKIP_PREPARE") && current_env["BB_SKIP_PREPARE"] == "1");
     if (!NativeLaunchPlanner::PlanAndPrepare(
-            current_env, paths.port_dir, paths.data_dir, caps, skip_prep, false, native_plan, &err,
+            current_env, paths.port_dir, paths.data_dir, {}, skip_prep, false, native_plan, &err,
             [](const std::string& line) { std::cout << line << "\n"; })) {
       std::cerr << "bb-launcher --play: " << err << "\n";
       return 1;
@@ -164,7 +162,15 @@ int RunHeadlessPlay(const fs::path& exe_path) {
 int main(int argc, char** argv) {
   const fs::path exe_path = (argc > 0 && argv[0]) ? fs::path(argv[0]) : fs::path{};
 
-  // 1. Headless shortcut checks (--plan-file, --play)
+  // 1. Headless shortcut checks (--plan-file, --play, or integrated GPU/display/input capability queries)
+  if (argc > 1) {
+    const std::string_view first(argv[1]);
+    if (first == "--gpus" || first == "--device" || first == "--live-resolution" ||
+        first == "--displays" || first == "--gamepads" || first == "--read-input" ||
+        first == "--check-blit") {
+      return RunGpuCapabilitiesCli(argc, argv);
+    }
+  }
   for (int i = 1; i < argc; ++i) {
     if (std::string_view(argv[i]) == "--plan-file") {
       return RunHeadlessPlanFile(argc, argv, exe_path);

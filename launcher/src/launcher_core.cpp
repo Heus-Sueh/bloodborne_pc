@@ -327,10 +327,8 @@ ActionResult LauncherCore::LaunchGame() {
   std::error_code ec;
 #ifdef _WIN32
   const char* probe_name = "bb-probe.exe";
-  const char* caps_name = "bb-gpu-capabilities.exe";
 #else
   const char* probe_name = "bb-probe";
-  const char* caps_name = "bb-gpu-capabilities";
 #endif
   fs::path direct_probe = impl_->paths.port_dir / (impl_->paths.packaged ? "bin" : "out") / probe_name;
   if (!fs::is_regular_file(direct_probe, ec)) {
@@ -347,7 +345,6 @@ ActionResult LauncherCore::LaunchGame() {
   spec.inherit_env = false;
 
   if (can_launch_natively) {
-    fs::path caps = direct_probe.parent_path() / caps_name;
     std::map<std::string, std::string> env = plan.env;
     env["BB_PROBE"] = direct_probe.string();
     env["BB_RESTART_BY_EXIT"] = "1";
@@ -364,7 +361,7 @@ ActionResult LauncherCore::LaunchGame() {
             env,
             impl_->paths.port_dir,
             impl_->paths.data_dir,
-            caps,
+            {},
             skip_prep,
             false,
             native_plan,

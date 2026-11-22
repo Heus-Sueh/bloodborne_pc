@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 bbport contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "native_launch_planner.hpp"
+#include "gpu_capabilities.hpp"
 
 #include <algorithm>
 #include <array>
@@ -1729,12 +1730,14 @@ bool CompileAllPatches(const fs::path& out_dir,
 }
 
 // ============================================================================
-// 4. Monitor Resolution Query via bb-gpu-capabilities --displays
+// 4. Monitor Resolution Query (in-process SDL3 with optional external CLI fallback)
 // ============================================================================
 
 std::string QueryMonitorResolution(const fs::path& caps_path, const std::string& wanted_display) {
   std::error_code ec;
-  if (caps_path.empty() || !fs::is_regular_file(caps_path, ec)) return {};
+  if (caps_path.empty() || !fs::is_regular_file(caps_path, ec)) {
+    return ProbeMonitorResolutionInProcess(wanted_display);
+  }
   const std::string cmd = "\"" + caps_path.string() + "\" --displays";
 #ifdef _WIN32
   FILE* pipe = ::_popen(cmd.c_str(), "r");

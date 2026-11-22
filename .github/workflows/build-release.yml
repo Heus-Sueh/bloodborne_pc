@@ -87,18 +87,18 @@ jobs:
 
           # Copy binaries & GPU libraries
           install -m755 out/bb-probe "$APPDIR/usr/share/bbport/out/bb-probe"
-          install -m755 out/bb-gpu-capabilities "$APPDIR/usr/share/bbport/out/bb-gpu-capabilities"
           install -m755 out/bb-launcher "$APPDIR/usr/share/bbport/out/bb-launcher"
           install -m755 out/gpu/libbbgpu.so "$APPDIR/usr/share/bbport/out/gpu/libbbgpu.so"
           if [ -f out/gpu/libbbnet20.so ]; then
             install -m755 out/gpu/libbbnet20.so "$APPDIR/usr/share/bbport/out/gpu/libbbnet20.so"
           fi
 
-          # Copy runtime scripts, assets, and icons
-          cp -a run.sh run.py VERSION LICENSE NOTICE "$APPDIR/usr/share/bbport/"
+          # Copy runtime assets and icons
+          cp -a run.sh VERSION LICENSE NOTICE "$APPDIR/usr/share/bbport/"
           [ -f shader_recipes.bin ] && cp -a shader_recipes.bin "$APPDIR/usr/share/bbport/"
           [ -f image_shapes.txt ] && cp -a image_shapes.txt "$APPDIR/usr/share/bbport/"
-          cp -a scripts patches fsr4_shaders launcher "$APPDIR/usr/share/bbport/"
+          cp -a patches fsr4_shaders launcher "$APPDIR/usr/share/bbport/"
+          [ -d scripts ] && cp -a scripts "$APPDIR/usr/share/bbport/"
           rm -rf "$APPDIR/usr/share/bbport/launcher/build"
           install -m644 packaging/bbport.ico "$APPDIR/usr/share/bbport/packaging/bbport.ico"
           install -m644 packaging/bbport.icon "$APPDIR/usr/share/bbport/packaging/bbport.icon"
@@ -232,7 +232,6 @@ jobs:
             mingw-w64-clang-x86_64-robin-map
             mingw-w64-clang-x86_64-xxhash
             mingw-w64-clang-x86_64-zydis
-            mingw-w64-clang-x86_64-xbyak
             mingw-w64-clang-x86_64-ffmpeg
             mingw-w64-clang-x86_64-openssl
             mingw-w64-clang-x86_64-protobuf
@@ -240,13 +239,16 @@ jobs:
             mingw-w64-clang-x86_64-miniupnpc
           )
 
+          installed=0
           for attempt in 1 2 3 4 5; do
             if pacman -Sy --noconfirm --needed "${PKGS[@]}"; then
+              installed=1
               break
             fi
             echo "pacman attempt $attempt failed, retrying in 5s..."
             sleep 5
           done
+          [ "$installed" -eq 1 ] || exit 1
 
       - name: Prepare icons (packaging/bbport.icon, packaging/bbport.ico, packaging/bbport.png) & FSR-Vulkan patches
         run: |
@@ -257,7 +259,7 @@ jobs:
             fi
           done
 
-      - name: Build Windows Port (bb-probe.exe, bbnet20.dll, bb-gpu-capabilities.exe) & Native C++ RmlUi Launcher (Bloodborne.exe)
+      - name: Build Windows Port (bb-probe.exe, bbnet20.dll) & Native C++ RmlUi Launcher (Bloodborne.exe)
         run: |
           set -euo pipefail
           cmake -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
@@ -269,10 +271,6 @@ jobs:
           if grep -q "build bbnet20.dll" out/win-gpu/build.ninja; then
             ninja -C out/win-gpu bbnet20
           fi
-
-          clang -std=c11 -O2 -Wall -Wextra tools/gpu_capabilities.c \
-            $(pkg-config --cflags --libs vulkan sdl3) \
-            -o out/win-gpu/bb-gpu-capabilities.exe
 
           cmake -S launcher -B out/win-launcher -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -291,7 +289,6 @@ jobs:
 
           # Copy port executables
           llvm-strip --strip-debug -o "$STAGE/bin/bb-probe.exe" out/win-gpu/bb-probe.exe
-          llvm-strip --strip-debug -o "$STAGE/bin/bb-gpu-capabilities.exe" out/win-gpu/bb-gpu-capabilities.exe
           if [ -f out/win-gpu/libbbgpu.dll ]; then
             llvm-strip --strip-debug -o "$STAGE/bin/libbbgpu.dll" out/win-gpu/libbbgpu.dll
           elif [ -f out/win-gpu/bbgpu.dll ]; then
@@ -328,7 +325,7 @@ jobs:
             done
           }
 
-          collect_dlls "$STAGE/bin" "$STAGE/bin/bb-probe.exe" "$STAGE/bin/bb-gpu-capabilities.exe" "$STAGE/bin/"*.dll
+          collect_dlls "$STAGE/bin" "$STAGE/bin/bb-probe.exe" "$STAGE/bin/"*.dll
           collect_dlls "$STAGE" "$STAGE/Bloodborne.exe"
           if [ -f "$STAGE/online/bbnet20.dll" ]; then
             collect_dlls "$STAGE/online" "$STAGE/online/bbnet20.dll"
