@@ -13,7 +13,7 @@
 
 #include "cp/cp_packets.h"
 
-extern "C" std::uintptr_t runtime_memory_resolve(const char* name);
+#include "runtime_gpu_abi.h"
 
 namespace BbCp::Pm4SelfTest {
 

@@ -11,7 +11,7 @@
 #include "bbport_settings.h"
 #include "bbport_guest_code.h"
 #include "bbport_heap_sites.h"
-#include "bbport_toggles.h"
+
 #include "bbport_fx_init_clear.h"
 #include "bbport_effect_flags.h"
 #include "platform/gnm/gnm.h"
@@ -40,8 +40,7 @@
 #include <unistd.h>
 #include <utility>
 
-extern "C" void runtime_memory_note_write(uintptr_t address, uint64_t size);
-extern "C" void runtime_re_watch(uint64_t address);
+#include "runtime_gpu_abi.h"
 
 namespace BbGuestHooks {
 
@@ -103,7 +102,6 @@ inline void WriteJumpOverTrap(u64 address, u8 opcode, std::uint32_t rel) {
 void HeapFind();
 
 // (counted below)
-extern "C" int runtime_memory_is_mapped(uintptr_t address, uint64_t size);
 
 inline u64 JobProbeWord(u64 address) {
     u64 value = 0;

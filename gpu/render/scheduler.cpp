@@ -20,6 +20,7 @@
 #include "bbport_copy.h"
 #include "bbport_threads.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "bbport_wait_trace.h"
 #include "common/thread.h"
 #include "render/vk_gpu_profiler.h"

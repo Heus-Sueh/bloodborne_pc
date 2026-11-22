@@ -55,7 +55,16 @@ if ! fsr_patches_apply --check 2>/dev/null; then
     git -C gpu/third_party/fsr-vulkan checkout -- .
 fi
 fsr_patches_apply
-cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
+CMAKE=${CMAKE:-cmake}
+if ! "$CMAKE" -P /dev/stdin <<<'include(FetchContent)' >/dev/null 2>&1; then
+    for candidate in /usr/bin/cmake "$HOME"/.local/share/mise/installs/cmake/4.*/cmake-*/bin/cmake "$HOME"/.local/share/mise/installs/cmake/*/cmake-*/bin/cmake; do
+        if [[ -x $candidate ]] && "$candidate" -P /dev/stdin <<<'include(FetchContent)' >/dev/null 2>&1; then
+            CMAKE=$candidate
+            break
+        fi
+    done
+fi
+"$CMAKE" -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
     -DBB_LTO="${BB_LTO:-ON}" -DBB_PGO_DIR="$PWD/pgo" > out/gpu-cmake.log
 grep '^-- Online module' out/gpu-cmake.log || true
 echo "GPU library: PGO $pgo, LTO ${BB_LTO:-ON}"
@@ -70,7 +79,7 @@ fi
 # RTX 40 and newer; SDK 310.7 or newer has it). Without them the DLSS upscaler and DLSS Frame
 # Generation are listed as unavailable.
 if [[ -n ${DLSS_SDK_ROOT:-} ]]; then
-    cmake -S gpu/dlss_bridge -B out/dlss-bridge -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    "$CMAKE" -S gpu/dlss_bridge -B out/dlss-bridge -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DDLSS_SDK_ROOT="$DLSS_SDK_ROOT" >/dev/null
     ninja -C out/dlss-bridge >/dev/null
     rm -f out/libnvidia-ngx-dlss.so.* out/libnvidia-ngx-dlssg.so.*
@@ -98,6 +107,13 @@ fi
 echo "Built $PWD/out/bb-probe"
 # GPU check for run.sh (live_resolution=auto) and the launcher's gamepad list (--gamepads).
 "$CC" -std=c11 -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
+# Native RmlUi launcher (out/bb-launcher) when OpenGL + FreeType are available.
+if pkg-config --exists freetype2 && "$CMAKE" -S launcher -B out/launcher -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo > out/launcher-cmake.log 2>&1; then
+    if ninja -C out/launcher bb-launcher > out/launcher-build.log 2>&1; then
+        cp -f out/launcher/bb-launcher out/bb-launcher
+        echo "Built $PWD/out/bb-launcher"
+    fi
+fi
 if [[ ${1:-} == --test ]]; then
     "$CC" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread "${includes[@]}" -I. -Isrc tests/test_pad.c "${libraries[@]}" -lm -o out/pad-test
     out/pad-test

@@ -663,8 +663,9 @@ vk::ClearValue ColorBufferClearValue(const Gcn::ColorBuffer& color_buffer) {
             }
         }
     }
-    // In the target's component order (the bits move as they are, integer or float).
-    color.float32 = color_buffer.Swizzle().Apply(color.float32);
+    // CB_COLORn_CLEAR_WORD is already in memory layout, like fragment exports and CPU uploads.
+    // Only the remap implied by our own format choice is needed (shadPS4 #5526).
+    color.float32 = Gcn::RemapSwizzle(format, Gcn::IdentityMapping).Apply(color.float32);
     return {.color = color};
 }
 

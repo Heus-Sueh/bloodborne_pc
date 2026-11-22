@@ -33,7 +33,7 @@ extern char** environ;
 #endif
 
 #include "bbport_sections.h"
-#include "bbport_toggles.h"
+
 #include "buffers/buffer_cache.h"
 #include "common/hash.h"
 #include "common/scope_exit.h"
@@ -149,6 +149,8 @@ Shader::Profile MakeProfile(const Instance& instance, u32 sparse_page_shift) {
         .needs_unorm_fixup = driver == vk::DriverId::eMesaKosmickrisp,
         .needs_clip_distance_emulation = nvidia,
         .supports_shader_stencil_export = instance.IsShaderStencilExportSupported(),
+        // BB_GCN_NAN=0 reverts to pre-GCN NaN/Inf translation rules for comparison.
+        .gcn_nan_semantics = !bb_env_off("BB_GCN_NAN"),
         // BB_LAYER_MEMORY: buffers over nearly all memory go through the page table.
         .paged_buffers = VideoCore::BufferCache::LayerPagedActive(),
         // The game's buffer copy shader, from its profile (games/).

@@ -1,14 +1,45 @@
 # SPDX-FileCopyrightText: Copyright 2026 bbport contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""The launcher's online page: server pool, THD account, connection test."""
+"""Composed GTK page adapter for the launcher's online page: server pool, THD account, connection test."""
 
-from bbport_launcher_common import *  # noqa: F401,F403
+import threading
+
+from bbport_i18n import tr
+from bbport_launcher_common import Adw, GLib, Gtk, combo_row, combo_value, open_url
+from bbport_launcher_core import online, online_module, save_settings
 
 
 class OnlinePage:
-    """Part of LauncherWindow (bbport_launcher.py)."""
+    """Owns the Online preferences page and its state inside LauncherWindow."""
 
-    def build_online_page(self):
+    def __init__(self, settings):
+        self.settings = settings
+        self.online_row = None
+        self.pool_row = None
+        self.game_group = None
+        self.community_row = None
+        self.coop_group = None
+        self.server_row = None
+        self.webapi_row = None
+        self.bbsc_row = None
+        self.account_group = None
+        self.npid_row = None
+        self.password_row = None
+        self.thd_group = None
+        self.thd_server_row = None
+        self.thd_account_row = None
+        self.thd_sign_button = None
+        self.thd_link = None
+        self.thd_id = ""
+        self.thd_token = ""
+        self.thd_signing = False
+        self.thd_cancel = False
+        self.upnp_row = None
+        self.test_button = None
+        self.test_rows = []
+        self.connection_group = None
+
+    def build(self):
         s = self.settings
         page = Adw.PreferencesPage()
         play = Adw.PreferencesGroup(description=tr(
@@ -37,7 +68,6 @@ class OnlinePage:
         game.add(self.community_row)
         page.add(game)
 
-        coop = None
         coop = Adw.PreferencesGroup(
             title=tr("Сервер кооператива (колокола и призывы)"),
             description=tr("play.seamlesshunt.com:31313 — сервер Seamless Hunt (BBSC). Публичный "
@@ -85,6 +115,7 @@ class OnlinePage:
         self.thd_account_row.add_suffix(self.thd_sign_button)
         thd.add(self.thd_account_row)
         self.thd_group = thd
+        self.thd_link = None
         self.thd_id, self.thd_token = s.get("thd_online_id", ""), s.get("thd_token", "")
         self.thd_signing = False
         self.thd_cancel = False
@@ -111,6 +142,32 @@ class OnlinePage:
         self.on_pool_changed()
         return page
 
+    def read_into(self, settings):
+        settings["online"] = self.online_row.get_active()
+        settings["online_bbsc"] = self.bbsc_row.get_active()
+        settings["online_community"] = self.community_row.get_text().strip()
+        settings["online_server"] = self.server_row.get_text().strip()
+        settings["online_webapi"] = self.webapi_row.get_text().strip()
+        settings["online_npid"] = self.npid_row.get_text().strip()
+        settings["online_password"] = self.password_row.get_text()
+        settings["online_upnp"] = self.upnp_row.get_active()
+        settings["online_pool"] = self.online_pool()
+        settings["thd_server"] = self.thd_server_row.get_text().strip()
+        settings["thd_online_id"] = self.thd_id
+        settings["thd_token"] = self.thd_token
+
+    def is_online_enabled(self):
+        return self.online_row.get_active()
+
+    def set_online_enabled(self, enabled):
+        self.online_row.set_active(enabled)
+
+    def npid(self):
+        return self.npid_row.get_text().strip()
+
+    def has_invalid_npid(self):
+        return self.is_online_enabled() and "@" in self.npid_row.get_text()
+
     def online_pool(self):
         return combo_value(self.pool_row)
 
@@ -126,9 +183,8 @@ class OnlinePage:
             self.pool_row.set_subtitle(tr("В этой сборке нет модуля для этого пула (libbbnet20.so)"))
 
     def show_thd_account(self):
-        link = getattr(self, "thd_link", None)
-        if link is not None:
-            self.thd_account_row.remove(link)
+        if self.thd_link is not None:
+            self.thd_account_row.remove(self.thd_link)
             self.thd_link = None
         if self.thd_id and self.thd_token:
             self.thd_account_row.set_title(tr("Вы вошли как {}").format(GLib.markup_escape_text(self.thd_id)))
@@ -191,7 +247,7 @@ class OnlinePage:
         def work():
             try:
                 name, token = online.thd_sign_in(server, show_code, device="bbport on Linux",
-                                                  cancelled=lambda: self.thd_cancel)
+                                                 cancelled=lambda: self.thd_cancel)
             except ValueError as error:
                 GLib.idle_add(done, "", "", str(error))
                 return
@@ -204,12 +260,7 @@ class OnlinePage:
         webapi = online.webapi_setting(self.webapi_row.get_text(), server, community)
         return server, webapi, community
 
-    def on_test_connection(self, _button):
-        if self.online_pool() == "huntersdream":
-            self.test_thd_connection()
-            return
-        server, webapi, community = self.online_addresses()
-        names = {"game": tr("Игровой сервер"), "shadnet": tr("Сервер shadNet"), "webapi": "WebAPI"}
+    def _run_connection_test(self, names, worker):
         for row in self.test_rows:
             self.connection_group.remove(row)
         self.test_rows = []
@@ -229,34 +280,14 @@ class OnlinePage:
             self.test_button.set_label(tr("Проверить"))
             return False
 
-        def work():
-            results = online.check(server, webapi, community)
-            GLib.idle_add(show, results)
-        threading.Thread(target=work, daemon=True).start()
+        threading.Thread(target=lambda: GLib.idle_add(show, worker()), daemon=True).start()
 
-    def test_thd_connection(self):
-        names = {"game": tr("Игровой сервер"), "service": tr("Сервис кооператива")}
-        server = self.thd_server_row.get_text().strip()
-        for row in self.test_rows:
-            self.connection_group.remove(row)
-        self.test_rows = []
-        self.test_button.set_sensitive(False)
-        self.test_button.set_label(tr("Проверка…"))
-
-        def show(results):
-            for name, address, ok, detail in results:
-                row = Adw.ActionRow(title=GLib.markup_escape_text(f"{names[name]}: {address}"),
-                                    subtitle=GLib.markup_escape_text(
-                                        tr("доступен") if ok else f'{tr("недоступен")} ({detail})'))
-                row.add_prefix(Gtk.Image(icon_name="object-select-symbolic" if ok else "dialog-warning-symbolic"))
-                self.connection_group.add(row)
-                self.test_rows.append(row)
-            self.test_button.set_sensitive(True)
-            self.test_button.set_label(tr("Проверить"))
-            return False
-
-        threading.Thread(target=lambda: GLib.idle_add(show, online.check_thd(server)), daemon=True).start()
-
-    # --- trophies page ------------------------------------------------------------------
-
-    TROPHY_GRADES = {"P": "Платиновый", "G": "Золотой", "S": "Серебряный", "B": "Бронзовый"}
+    def on_test_connection(self, _button):
+        if self.online_pool() == "huntersdream":
+            names = {"game": tr("Игровой сервер"), "service": tr("Сервис кооператива")}
+            server = self.thd_server_row.get_text().strip()
+            self._run_connection_test(names, lambda: online.check_thd(server))
+            return
+        server, webapi, community = self.online_addresses()
+        names = {"game": tr("Игровой сервер"), "shadnet": tr("Сервер shadNet"), "webapi": "WebAPI"}
+        self._run_connection_test(names, lambda: online.check(server, webapi, community))

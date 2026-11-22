@@ -52,12 +52,29 @@ BINARY_EXACT(FPMul32, OpFMul, ctx.F32[1])
 BINARY_EXACT(FPMul64, OpFMul, ctx.F64[1])
 BINARY_EXACT(FPDiv32, OpFDiv, ctx.F32[1])
 BINARY_EXACT(FPDiv64, OpFDiv, ctx.F64[1])
-BINARY(FPMax32, OpFMax, ctx.F32[1])
-BINARY(FPMax64, OpFMax, ctx.F64[1])
-BINARY(FPMin32, OpFMin, ctx.F32[1])
-BINARY(FPMin64, OpFMin, ctx.F64[1])
 BINARY(FPPow, OpPow, ctx.F32[1])
 BINARY(FPLdexp, OpLdexp, ctx.F32[1])
+
+// GCN min/max return the other operand when one is NaN (NMin/NMax); FMin/FMax leave it undefined.
+Id EmitFPMax32(EmitContext& ctx, Id a, Id b) {
+    return ctx.profile.gcn_nan_semantics ? ctx.OpNMax(ctx.F32[1], a, b)
+                                         : ctx.OpFMax(ctx.F32[1], a, b);
+}
+
+Id EmitFPMax64(EmitContext& ctx, Id a, Id b) {
+    return ctx.profile.gcn_nan_semantics ? ctx.OpNMax(ctx.F64[1], a, b)
+                                         : ctx.OpFMax(ctx.F64[1], a, b);
+}
+
+Id EmitFPMin32(EmitContext& ctx, Id a, Id b) {
+    return ctx.profile.gcn_nan_semantics ? ctx.OpNMin(ctx.F32[1], a, b)
+                                         : ctx.OpFMin(ctx.F32[1], a, b);
+}
+
+Id EmitFPMin64(EmitContext& ctx, Id a, Id b) {
+    return ctx.profile.gcn_nan_semantics ? ctx.OpNMin(ctx.F64[1], a, b)
+                                         : ctx.OpFMin(ctx.F64[1], a, b);
+}
 
 Id EmitFPFma32(EmitContext& ctx, IR::Inst*, Id a, Id b, Id c) {
     return Exact(ctx, ctx.OpFma(ctx.F32[1], a, b, c));
@@ -67,9 +84,12 @@ Id EmitFPFma64(EmitContext& ctx, IR::Inst*, Id a, Id b, Id c) {
     return Exact(ctx, ctx.OpFma(ctx.F64[1], a, b, c));
 }
 
-// Three-operand min/max/median: AMD's instructions where available.
+// Three-operand min/max/median: AMD's instructions leave NaN undefined, so only used without GCN NaN rules.
 
 Id EmitFPMinTri32(EmitContext& ctx, Id a, Id b, Id c) {
+    if (ctx.profile.gcn_nan_semantics) {
+        return ctx.OpNMin(ctx.F32[1], a, ctx.OpNMin(ctx.F32[1], b, c));
+    }
     if (ctx.profile.supports_trinary_minmax) {
         return ctx.OpFMin3AMD(ctx.F32[1], a, b, c);
     }
@@ -77,14 +97,26 @@ Id EmitFPMinTri32(EmitContext& ctx, Id a, Id b, Id c) {
 }
 
 Id EmitFPMaxTri32(EmitContext& ctx, Id a, Id b, Id c) {
+    if (ctx.profile.gcn_nan_semantics) {
+        return ctx.OpNMax(ctx.F32[1], a, ctx.OpNMax(ctx.F32[1], b, c));
+    }
     if (ctx.profile.supports_trinary_minmax) {
         return ctx.OpFMax3AMD(ctx.F32[1], a, b, c);
     }
     return ctx.OpFMax(ctx.F32[1], a, ctx.OpFMax(ctx.F32[1], b, c));
 }
 
-/// med3(a, b, c) = max(min(a, b), min(max(a, b), c)).
+/// med3(a, b, c) = max(min(a, b), min(max(a, b), c)); V_MED3_F32 falls back to V_MIN3_F32 on NaN.
 Id EmitFPMedTri32(EmitContext& ctx, Id a, Id b, Id c) {
+    if (ctx.profile.gcn_nan_semantics) {
+        const Id is_nan{ctx.OpLogicalOr(
+            ctx.U1[1], ctx.OpIsNan(ctx.U1[1], a),
+            ctx.OpLogicalOr(ctx.U1[1], ctx.OpIsNan(ctx.U1[1], b), ctx.OpIsNan(ctx.U1[1], c)))};
+        const Id mmx{ctx.OpFMin(ctx.F32[1], ctx.OpFMax(ctx.F32[1], a, b), c)};
+        const Id med3{ctx.OpFMax(ctx.F32[1], ctx.OpFMin(ctx.F32[1], a, b), mmx)};
+        const Id min3{ctx.OpNMin(ctx.F32[1], a, ctx.OpNMin(ctx.F32[1], b, c))};
+        return ctx.OpSelect(ctx.F32[1], is_nan, min3, med3);
+    }
     if (ctx.profile.supports_trinary_minmax) {
         return ctx.OpFMid3AMD(ctx.F32[1], a, b, c);
     }
@@ -109,15 +141,22 @@ Id EmitFPRecip64(EmitContext& ctx, Id value) {
     return ctx.OpFDiv(ctx.F64[1], ctx.Constant(ctx.F64[1], f64{1.0}), value);
 }
 
+// Clamp output modifier: NaN becomes 0 (DX10_CLAMP assumed).
 Id EmitFPSaturate32(EmitContext& ctx, Id value) {
     const Id zero{ctx.ConstF32(f32{0.0})};
     const Id one{ctx.ConstF32(f32{1.0})};
+    if (ctx.profile.gcn_nan_semantics) {
+        return ctx.OpNMin(ctx.F32[1], ctx.OpNMax(ctx.F32[1], value, zero), one);
+    }
     return ctx.OpFClamp(ctx.F32[1], value, zero, one);
 }
 
 Id EmitFPSaturate64(EmitContext& ctx, Id value) {
     const Id zero{ctx.Constant(ctx.F64[1], f64{0.0})};
     const Id one{ctx.Constant(ctx.F64[1], f64{1.0})};
+    if (ctx.profile.gcn_nan_semantics) {
+        return ctx.OpNMin(ctx.F64[1], ctx.OpNMax(ctx.F64[1], value, zero), one);
+    }
     return ctx.OpFClamp(ctx.F64[1], value, zero, one);
 }
 

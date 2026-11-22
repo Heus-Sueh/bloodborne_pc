@@ -1,3 +1,4 @@
-// bbport Windows: the executable manifest (bb-probe.manifest).
+// bbport Windows: executable icon (packaging/bbport.ico) and manifest (bb-probe.manifest).
 #include <winuser.h>
+IDI_ICON1 ICON "../../../packaging/bbport.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "bb-probe.manifest"

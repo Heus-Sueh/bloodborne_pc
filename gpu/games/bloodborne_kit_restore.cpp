@@ -37,11 +37,10 @@
 
 #include "bbgpu.h"
 #include "bbport_guest_code_hooks.h"
-#include "bbport_toggles.h"
+
 #include "common/types.h"
 
-extern "C" const char* runtime_file_user_dir(void);
-extern "C" int runtime_savedata_active_slot(char* dir, size_t size);
+#include "runtime_gpu_abi.h"
 
 namespace BbKitRestore {
 namespace {

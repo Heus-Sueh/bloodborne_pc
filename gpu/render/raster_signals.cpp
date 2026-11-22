@@ -11,6 +11,7 @@
 #include "bbport_copy.h"
 #include "bbport_threads.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include <pthread.h>
 
 namespace Vulkan {

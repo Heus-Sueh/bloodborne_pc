@@ -22,8 +22,8 @@ void LowLatency::Initialize(const Instance& instance) {
                                        : Backend::None;
     available = backend != Backend::None;
     auto& settings = BbSettings::Get();
-    settings.low_latency_supported = available;
-    settings.low_latency_backend = int(backend);
+    BbSettings::Caps().low_latency_supported = available;
+    BbSettings::Caps().low_latency_backend = int(backend);
     if (!available) {
         std::printf("Low latency: neither VK_NV_low_latency2 (NVIDIA Reflex: NVIDIA's driver 550 "
                     "or newer) nor VK_AMD_anti_lag (AMD Anti-Lag 2: AMD's driver, Mesa's anti-lag "

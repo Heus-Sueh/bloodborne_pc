@@ -10,6 +10,8 @@
 #include <filesystem>
 #include "render/raster_internal.h"
 #include <vk_mem_alloc.h>
+#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 

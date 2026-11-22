@@ -28,6 +28,7 @@
 #endif
 
 #include "common/elf_info.h"
+#include "runtime_gpu_abi.h"
 #include "common/logging/line.h"
 #include "common/types.h"
 #include "core/emulator_settings.h"

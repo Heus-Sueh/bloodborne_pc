@@ -23,13 +23,9 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "imstb_truetype.h"
 
+#include "runtime_gpu_abi.h"
+
 extern "C" {
-// runtime_file.c / runtime_pad.c
-int runtime_file_host_path(const char* guest, char* out, std::size_t size);
-int runtime_pad_prompt(const char* name, int prefer_mouse, char* label, int size);
-unsigned runtime_pad_prompt_generation(void);
-int runtime_pad_prompt_device(void);
-int runtime_pad_mouse_look(void);
 // bbport_overlay.cpp: DejaVu Sans, embedded.
 extern const unsigned char bb_font_ttf[];
 }

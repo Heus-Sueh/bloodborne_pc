@@ -93,8 +93,9 @@ GeForce 930MX; other NVIDIA and Intel GPUs by players.
     between two of the game's (2x on RTX 40, up to 4x on RTX 50) from the finished frame, the
     frame before its UI, the scene depth, the motion vectors and the game's camera matrices;
     *Overlay menu → Frame generation*, or the launcher.
-  - **FSR 4.1.2's models from the AMD driver** (INT8 on RDNA2/3 and the *Lite* model), taken
-    from the driver's `amdxcffx64.dll` with the upscaler DLL (*FSR 4 model* in the menus).
+  - **FSR 4.1.2's models** (INT8 RDNA2 and the *Lite* model): AMD's FSR SDK 2.4
+    `amd_fidelityfx_upscaler_dx12.dll` alone, or a 4.1.x DLL together with the driver's
+    `amdxcffx64.dll` (Adrenalin 26.10.1+) (*FSR 4 model* in the menus).
   - **FSR 1** (spatial, no motion vectors) for weak GPUs, and **FSR 3.1 frame generation**
     (experimental, every GPU; the port's own optical-flow and interpolation shaders).
   - **Anti-aliasing** separate from the upscalers: *auto* (the game's AA only without an
@@ -107,7 +108,7 @@ GeForce 930MX; other NVIDIA and Intel GPUs by players.
   and draws are bound and recorded on another (two-stage pipeline), with a Vulkan recording
   thread and helper threads for memory copies. Early on the single GPU thread capped the game
   at ~26 FPS; now it runs at 90–150 FPS depending on resolution and scene.
-- **Settings inside the game's own menu:** *System → Display / Effects* (after *Screen/Sound*),
+- **Settings inside the game's own menu:** *System → Display / Detail / Effects* (after *Screen/Sound*),
   built and drawn by the game itself — output resolution, upscaler, preset, sharpness, FPS
   counter, model detail and the game's effects, in the game's language. Chromatic aberration,
   depth of field, motion blur, SSAO, the game's AA and dynamic-light shadows switch at once;
@@ -454,9 +455,9 @@ GPU choice, the log of the running game, *Stop*.
 **Upscalers:** FSR 3.1 and FSR 4 as on Linux. FSR 4.1.1: choose *Build from an AMD DLL…* and pick
 `amd_fidelityfx_upscaler_dx12.dll` 4.1.x; the recording runs on vkd3d-proton and DXVK from the
 package (`tools\fsr4cap\bin`), so any GPU with Vulkan can build the set (a minute or two, into
-`fsr4_411\`). FSR 4.1.2's models (INT8 for RDNA2/3, *Lite*): pick the driver's `amdxcffx64.dll`
-(Adrenalin 26.10.1 or newer, `C:\Windows\System32\DriverStore\FileRepository\u0*\`) together with
-the upscaler DLL. DLSS and DLSS Frame Generation (GeForce RTX): with `bin\bbport_dlss.dll` and
+`fsr4_411\`). FSR 4.1.2's models (INT8 RDNA2, *Lite*): AMD's FSR SDK 2.4
+`amd_fidelityfx_upscaler_dx12.dll` alone, or a 4.1.x DLL together with the driver's `amdxcffx64.dll`
+(Adrenalin 26.10.1 or newer, `C:\Windows\System32\DriverStore\FileRepository\u0*\`). DLSS and DLSS Frame Generation (GeForce RTX): with `bin\bbport_dlss.dll` and
 NVIDIA's `nvngx_dlss.dll` / `nvngx_dlssg.dll` in the package.
 
 **NVIDIA:** at start the port adds a *prefer maximum performance* power profile for

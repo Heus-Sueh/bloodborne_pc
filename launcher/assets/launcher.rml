@@ -14,35 +14,35 @@
 
         <div class="nav-menu">
             <button class="nav-item" data-class-active="active_tab == 'play'" data-event-click="set_tab('play')">
-                <span class="nav-icon">&#9876;</span>
+                <span class="nav-icon">&#xE2B4;</span>
                 <span class="nav-text">{{ tr_tab_play }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'graphics'" data-event-click="set_tab('graphics')">
-                <span class="nav-icon">&#9638;</span>
+                <span class="nav-icon">&#xE11D;</span>
                 <span class="nav-text">{{ tr_tab_graphics }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'effects'" data-event-click="set_tab('effects')">
-                <span class="nav-icon">&#10024;</span>
+                <span class="nav-icon">&#xE412;</span>
                 <span class="nav-text">{{ tr_tab_effects }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'controls'" data-event-click="set_tab('controls')">
-                <span class="nav-icon">&#127918;</span>
+                <span class="nav-icon">&#xE0DF;</span>
                 <span class="nav-text">{{ tr_tab_controls }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'mods'" data-event-click="set_tab('mods')">
-                <span class="nav-icon">&#9881;</span>
+                <span class="nav-icon">&#xE29C;</span>
                 <span class="nav-text">{{ tr_tab_mods }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'trophies'" data-event-click="set_tab('trophies')">
-                <span class="nav-icon">&#127942;</span>
+                <span class="nav-icon">&#xE373;</span>
                 <span class="nav-text">{{ tr_tab_trophies }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'online'" data-event-click="set_tab('online')">
-                <span class="nav-icon">&#127760;</span>
+                <span class="nav-icon">&#xE0E8;</span>
                 <span class="nav-text">{{ tr_tab_online }}</span>
             </button>
             <button class="nav-item" data-class-active="active_tab == 'log'" data-event-click="set_tab('log')">
-                <span class="nav-icon">&#128220;</span>
+                <span class="nav-icon">&#xE45F;</span>
                 <span class="nav-text">{{ tr_tab_log }}</span>
             </button>
         </div>
@@ -81,14 +81,14 @@
 
                         <div class="hero-action-bar">
                             <button class="hero-play-btn" data-if="!is_game_running" data-event-click="play">
-                                <span class="btn-play-text">{{ tr_launch_game }} &#9654;</span>
+                                <span class="btn-play-text">{{ tr_launch_game }} <span class="lucide-icon">&#xE13C;</span></span>
                             </button>
                             <button class="hero-stop-btn" data-if="is_game_running" data-event-click="stop_game">
-                                <span class="btn-stop-text">{{ tr_stop_game }} &#9632;</span>
+                                <span class="btn-stop-text">{{ tr_stop_game }} <span class="lucide-icon">&#xE167;</span></span>
                             </button>
                             <div class="hero-status-block">
                                 <div class="hero-status-tag" data-class-warn="is_update_needed">
-                                    <span class="status-indicator ready" data-if="!is_game_running &amp;&amp; is_valid">&#9679; AWAKENED &amp; READY</span>
+                                    <span class="status-indicator ready" data-if="!is_game_running &amp;&amp; is_valid &amp;&amp; !is_update_needed">&#9679; AWAKENED &amp; READY</span>
                                     <span class="status-indicator update" data-if="!is_game_running &amp;&amp; is_update_needed">&#9679; UPDATE 1.09 REQUIRED</span>
                                     <span class="status-indicator unlinked" data-if="!is_game_running &amp;&amp; !is_valid &amp;&amp; !is_update_needed">&#9679; GAME DATA NOT FOUND</span>
                                     <span class="status-indicator running" data-if="is_game_running">&#9679; HUNTING IN YHARNAM</span>
@@ -129,8 +129,8 @@
                     <div class="card util-card">
                         <div class="card-label">THE ARCHIVES</div>
                         <div class="util-status">
-                            <span class="status-check" data-if="is_valid">&#10003;</span>
-                            <span class="status-warn" data-if="!is_valid">&#9888;</span>
+                            <span class="status-check" data-if="is_valid">&#xE06C;</span>
+                            <span class="status-warn" data-if="!is_valid">&#xE193;</span>
                             <span class="status-text" data-if="is_valid">DATA LINKED</span>
                             <span class="status-text warn" data-if="!is_valid">DATA UNLINKED</span>
                         </div>
@@ -148,7 +148,7 @@
                     <div class="card util-card">
                         <div class="card-label">SAVED MEMORIES</div>
                         <div class="util-status">
-                            <span class="status-check">&#10003;</span>
+                            <span class="status-check">&#xE06C;</span>
                             <span class="status-text">SAVE ACTIVE</span>
                         </div>
                         <div class="util-detail">{{ user_dir }}</div>
@@ -165,7 +165,7 @@
                     <div class="card util-card">
                         <div class="card-label">CHALICE &amp; MODS</div>
                         <div class="util-status">
-                            <span class="status-check">&#10003;</span>
+                            <span class="status-check">&#xE06C;</span>
                             <span class="status-text">ENGINE READY</span>
                         </div>
                         <div class="util-detail">{{ mods_dir }}</div>
@@ -269,31 +269,31 @@
                 <div class="form-group">
                     <label>Target Resolution</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="output_res == 'auto'" data-event-click="set_resolution('auto')">Auto (Desktop)</button>
-                        <button class="sel-btn" data-class-active="output_res == '1920x1080'" data-event-click="set_resolution('1920x1080')">1080p</button>
-                        <button class="sel-btn" data-class-active="output_res == '2560x1440'" data-event-click="set_resolution('2560x1440')">1440p</button>
-                        <button class="sel-btn" data-class-active="output_res == '3840x2160'" data-event-click="set_resolution('3840x2160')">4K UHD</button>
+                        <button class="sel-btn" data-class-active="output_res == 'auto'" data-event-click="set_setting('output_res', 'auto')">Auto (Desktop)</button>
+                        <button class="sel-btn" data-class-active="output_res == '1920x1080'" data-event-click="set_setting('output_res', '1920x1080')">1080p</button>
+                        <button class="sel-btn" data-class-active="output_res == '2560x1440'" data-event-click="set_setting('output_res', '2560x1440')">1440p</button>
+                        <button class="sel-btn" data-class-active="output_res == '3840x2160'" data-event-click="set_setting('output_res', '3840x2160')">4K UHD</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Aspect Ratio</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="aspect_ratio == 'auto'" data-event-click="set_aspect_ratio('auto')">Auto</button>
-                        <button class="sel-btn" data-class-active="aspect_ratio == '16:9'" data-event-click="set_aspect_ratio('16:9')">16:9</button>
-                        <button class="sel-btn" data-class-active="aspect_ratio == '21:9'" data-event-click="set_aspect_ratio('21:9')">21:9 (Ultrawide)</button>
-                        <button class="sel-btn" data-class-active="aspect_ratio == '32:9'" data-event-click="set_aspect_ratio('32:9')">32:9 (Superwide)</button>
-                        <button class="sel-btn" data-class-active="aspect_ratio == '16:10'" data-event-click="set_aspect_ratio('16:10')">16:10</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == 'auto'" data-event-click="set_setting('aspect_ratio', 'auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '16:9'" data-event-click="set_setting('aspect_ratio', '16:9')">16:9</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '21:9'" data-event-click="set_setting('aspect_ratio', '21:9')">21:9 (Ultrawide)</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '32:9'" data-event-click="set_setting('aspect_ratio', '32:9')">32:9 (Superwide)</button>
+                        <button class="sel-btn" data-class-active="aspect_ratio == '16:10'" data-event-click="set_setting('aspect_ratio', '16:10')">16:10</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Vulkan Presentation Mode</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="present_mode == 'Mailbox'" data-event-click="set_present_mode('Mailbox')">Mailbox (Uncapped/Fast)</button>
-                        <button class="sel-btn" data-class-active="present_mode == 'Fifo'" data-event-click="set_present_mode('Fifo')">FIFO (Standard VSync)</button>
-                        <button class="sel-btn" data-class-active="present_mode == 'FifoRelaxed'" data-event-click="set_present_mode('FifoRelaxed')">FIFO Relaxed</button>
-                        <button class="sel-btn" data-class-active="present_mode == 'Immediate'" data-event-click="set_present_mode('Immediate')">Immediate (No VSync)</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'Mailbox'" data-event-click="set_setting('present_mode', 'Mailbox')">Mailbox (Uncapped/Fast)</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'Fifo'" data-event-click="set_setting('present_mode', 'Fifo')">FIFO (Standard VSync)</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'FifoRelaxed'" data-event-click="set_setting('present_mode', 'FifoRelaxed')">FIFO Relaxed</button>
+                        <button class="sel-btn" data-class-active="present_mode == 'Immediate'" data-event-click="set_setting('present_mode', 'Immediate')">Immediate (No VSync)</button>
                     </div>
                 </div>
 
@@ -301,10 +301,6 @@
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="fullscreen" data-event-change="save" />
                         Fullscreen Mode
-                    </label>
-                    <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="borderless" data-event-change="save" />
-                        Borderless Windowed
                     </label>
                     <label class="toggle-label">
                         <input type="checkbox" class="input-checkbox" data-checked="hdr" data-event-change="save" />
@@ -318,53 +314,53 @@
                 <div class="form-group">
                     <label>Upscaler Backend</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr4'" data-event-click="set_upscaler('fsr4')">AMD FSR 4</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr411'" data-event-click="set_upscaler('fsr411')">FSR 4.1.1</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr3'" data-event-click="set_upscaler('fsr3')">AMD FSR 3.1</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'dlss'" data-event-click="set_upscaler('dlss')">NVIDIA DLSS</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'fsr1'" data-event-click="set_upscaler('fsr1')">FSR 1</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'taa'" data-event-click="set_upscaler('taa')">Native TAA</button>
-                        <button class="sel-btn" data-class-active="upscaler == 'off'" data-event-click="set_upscaler('off')">Off</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr4'" data-event-click="set_setting('upscaler', 'fsr4')">AMD FSR 4</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr411'" data-event-click="set_setting('upscaler', 'fsr411')">FSR 4.1.1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr3'" data-event-click="set_setting('upscaler', 'fsr3')">AMD FSR 3.1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'dlss'" data-event-click="set_setting('upscaler', 'dlss')">NVIDIA DLSS</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'fsr1'" data-event-click="set_setting('upscaler', 'fsr1')">FSR 1</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'taa'" data-event-click="set_setting('upscaler', 'taa')">Native TAA</button>
+                        <button class="sel-btn" data-class-active="upscaler == 'off'" data-event-click="set_setting('upscaler', 'off')">Off</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Frame Generation</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="frame_generation == 'off'" data-event-click="set_frame_generation('off')">Off</button>
-                        <button class="sel-btn" data-class-active="frame_generation == 'fsr'" data-event-click="set_frame_generation('fsr')">AMD FSR 3.1 FG</button>
-                        <button class="sel-btn" data-class-active="frame_generation == 'dlss'" data-event-click="set_frame_generation('dlss')">DLSS Frame Gen</button>
+                        <button class="sel-btn" data-class-active="frame_generation == 'off'" data-event-click="set_setting('frame_generation', 'off')">Off</button>
+                        <button class="sel-btn" data-class-active="frame_generation == 'fsr'" data-event-click="set_setting('frame_generation', 'fsr')">AMD FSR 3.1 FG</button>
+                        <button class="sel-btn" data-class-active="frame_generation == 'dlss'" data-event-click="set_setting('frame_generation', 'dlss')">DLSS Frame Gen</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Anti-Aliasing</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="anti_aliasing == 'auto'" data-event-click="set_anti_aliasing('auto')">Auto</button>
-                        <button class="sel-btn" data-class-active="anti_aliasing == 'game'" data-event-click="set_anti_aliasing('game')">Game Original</button>
-                        <button class="sel-btn" data-class-active="anti_aliasing == 'fxaa'" data-event-click="set_anti_aliasing('fxaa')">FXAA2_GS</button>
-                        <button class="sel-btn" data-class-active="anti_aliasing == 'smaa'" data-event-click="set_anti_aliasing('smaa')">SMAA</button>
-                        <button class="sel-btn" data-class-active="anti_aliasing == 'off'" data-event-click="set_anti_aliasing('off')">Off</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'auto'" data-event-click="set_setting('anti_aliasing', 'auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'game'" data-event-click="set_setting('anti_aliasing', 'game')">Game Original</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'fxaa'" data-event-click="set_setting('anti_aliasing', 'fxaa')">FXAA2_GS</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'smaa'" data-event-click="set_setting('anti_aliasing', 'smaa')">SMAA</button>
+                        <button class="sel-btn" data-class-active="anti_aliasing == 'off'" data-event-click="set_setting('anti_aliasing', 'off')">Off</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Texture Quality</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="texture_quality == 'auto'" data-event-click="set_texture_quality('auto')">Auto</button>
-                        <button class="sel-btn" data-class-active="texture_quality == 'full'" data-event-click="set_texture_quality('full')">Full (Original)</button>
-                        <button class="sel-btn" data-class-active="texture_quality == 'half'" data-event-click="set_texture_quality('half')">Half (VRAM Saver)</button>
-                        <button class="sel-btn" data-class-active="texture_quality == 'quarter'" data-event-click="set_texture_quality('quarter')">Quarter</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'auto'" data-event-click="set_setting('texture_quality', 'auto')">Auto</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'full'" data-event-click="set_setting('texture_quality', 'full')">Full (Original)</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'half'" data-event-click="set_setting('texture_quality', 'half')">Half (VRAM Saver)</button>
+                        <button class="sel-btn" data-class-active="texture_quality == 'quarter'" data-event-click="set_setting('texture_quality', 'quarter')">Quarter</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Model Level of Detail (LOD)</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="model_lod == 0" data-event-click="set_model_lod('0')">High (0)</button>
-                        <button class="sel-btn" data-class-active="model_lod == -2" data-event-click="set_model_lod('-2')">Maximum Distance (-2)</button>
-                        <button class="sel-btn" data-class-active="model_lod == 1" data-event-click="set_model_lod('1')">Medium (1)</button>
-                        <button class="sel-btn" data-class-active="model_lod == 2" data-event-click="set_model_lod('2')">Low (2)</button>
+                        <button class="sel-btn" data-class-active="model_lod == '0'" data-event-click="set_setting('model_lod', '0')">High (0)</button>
+                        <button class="sel-btn" data-class-active="model_lod == '-2'" data-event-click="set_setting('model_lod', '-2')">Maximum Distance (-2)</button>
+                        <button class="sel-btn" data-class-active="model_lod == '1'" data-event-click="set_setting('model_lod', '1')">Medium (1)</button>
+                        <button class="sel-btn" data-class-active="model_lod == '2'" data-event-click="set_setting('model_lod', '2')">Low (2)</button>
                     </div>
                 </div>
 
@@ -400,27 +396,27 @@
                 <div class="card-title">POST-PROCESSING &amp; CINEMATIC EFFECTS</div>
                 <div class="toggle-grid">
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="motion_blur" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_motion_blur" data-event-change="save" />
                         Motion Blur
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="bloom" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_bloom" data-event-change="save" />
                         Bloom Lighting
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="chromatic_aberration" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_chromatic_aberration" data-event-change="save" />
                         Chromatic Aberration
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="dof" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_dof" data-event-change="save" />
                         Depth of Field (DoF)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="ssao" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_ssao" data-event-change="save" />
                         Screen-Space Ambient Occlusion (SSAO)
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="dynamic_shadows" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="effect_dynamic_shadows" data-event-change="save" />
                         High-Resolution Dynamic Shadows
                     </label>
                     <label class="toggle-label">
@@ -447,19 +443,19 @@
                 <div class="form-group">
                     <label>Framerate Mode</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="fps_mode == 'uncap'" data-event-click="set_fps_mode('uncap')">Uncapped</button>
-                        <button class="sel-btn" data-class-active="fps_mode == '60'" data-event-click="set_fps_mode('60')">60 FPS Cap</button>
-                        <button class="sel-btn" data-class-active="fps_mode == '90'" data-event-click="set_fps_mode('90')">90 FPS Cap</button>
-                        <button class="sel-btn" data-class-active="fps_mode == '30'" data-event-click="set_fps_mode('30')">30 FPS (Vanilla)</button>
+                        <button class="sel-btn" data-class-active="fps_mode == 'uncap'" data-event-click="set_setting('fps_mode', 'uncap')">Uncapped</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '60'" data-event-click="set_setting('fps_mode', '60')">60 FPS Cap</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '90'" data-event-click="set_setting('fps_mode', '90')">90 FPS Cap</button>
+                        <button class="sel-btn" data-class-active="fps_mode == '30'" data-event-click="set_setting('fps_mode', '30')">30 FPS (Vanilla)</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Low Latency (NVIDIA Reflex / AMD Anti-Lag 2)</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="low_latency == 'on'" data-event-click="set_low_latency('on')">On</button>
-                        <button class="sel-btn" data-class-active="low_latency == 'boost'" data-event-click="set_low_latency('boost')">On + Boost</button>
-                        <button class="sel-btn" data-class-active="low_latency == 'off'" data-event-click="set_low_latency('off')">Off</button>
+                        <button class="sel-btn" data-class-active="low_latency == 'on'" data-event-click="set_setting('low_latency', 'on')">On</button>
+                        <button class="sel-btn" data-class-active="low_latency == 'boost'" data-event-click="set_setting('low_latency', 'boost')">On + Boost</button>
+                        <button class="sel-btn" data-class-active="low_latency == 'off'" data-event-click="set_setting('low_latency', 'off')">Off</button>
                     </div>
                 </div>
 
@@ -507,10 +503,10 @@
             <div class="card">
                 <div class="card-title">CONTROLLER BUTTON PROMPTS</div>
                 <div class="button-selector">
-                    <button class="sel-btn" data-class-active="button_prompts == 'auto'" data-event-click="set_button_prompts('auto')">Auto-Detect</button>
-                    <button class="sel-btn" data-class-active="button_prompts == 'playstation'" data-event-click="set_button_prompts('playstation')">PlayStation (○ ✕ □ △)</button>
-                    <button class="sel-btn" data-class-active="button_prompts == 'xbox'" data-event-click="set_button_prompts('xbox')">Xbox (A B X Y)</button>
-                    <button class="sel-btn" data-class-active="button_prompts == 'keyboard'" data-event-click="set_button_prompts('keyboard')">Keyboard &amp; Mouse</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'auto'" data-event-click="set_setting('button_prompts', 'auto')">Auto-Detect</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'playstation'" data-event-click="set_setting('button_prompts', 'playstation')">PlayStation (○ ✕ □ △)</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'xbox'" data-event-click="set_setting('button_prompts', 'xbox')">Xbox (A B X Y)</button>
+                    <button class="sel-btn" data-class-active="button_prompts == 'keyboard'" data-event-click="set_setting('button_prompts', 'keyboard')">Keyboard &amp; Mouse</button>
                 </div>
             </div>
 
@@ -562,8 +558,8 @@
                             </div>
                         </div>
                         <div class="mod-actions">
-                            <button class="btn-tiny" data-event-click="move_mod_up(mod.id)">▲</button>
-                            <button class="btn-tiny" data-event-click="move_mod_down(mod.id)">▼</button>
+                            <button class="btn-tiny" data-event-click="move_mod_up(mod.id)">&#xE070;</button>
+                            <button class="btn-tiny" data-event-click="move_mod_down(mod.id)">&#xE06D;</button>
                         </div>
                     </div>
                 </div>
@@ -625,11 +621,11 @@
                 <div class="card-title">MULTIPLAYER CONFIGURATION</div>
                 <div class="toggle-row">
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="online_enabled" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="online" data-event-change="save" />
                         Enable Online Multiplayer
                     </label>
                     <label class="toggle-label">
-                        <input type="checkbox" class="input-checkbox" data-checked="local_bbsc" data-event-change="save" />
+                        <input type="checkbox" class="input-checkbox" data-checked="online_bbsc" data-event-change="save" />
                         Run Local BBSC Co-op Relay Server
                     </label>
                     <label class="toggle-label">
@@ -641,8 +637,8 @@
                 <div class="form-group" style="margin-top: 16px;">
                     <label>Matchmaking Pool</label>
                     <div class="button-selector">
-                        <button class="sel-btn" data-class-active="online_pool == 'seamless'" data-event-click="set_pool('seamless')">Seamless Hunt + BBSC</button>
-                        <button class="sel-btn" data-class-active="online_pool == 'huntersdream'" data-event-click="set_pool('huntersdream')">The Hunter's Dream</button>
+                        <button class="sel-btn" data-class-active="online_pool == 'seamless'" data-event-click="set_setting('online_pool', 'seamless')">Seamless Hunt + BBSC</button>
+                        <button class="sel-btn" data-class-active="online_pool == 'huntersdream'" data-event-click="set_setting('online_pool', 'huntersdream')">The Hunter's Dream</button>
                     </div>
                 </div>
 
@@ -662,8 +658,13 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 16px;">
-                    <label>Discord Login Token (Optional for The Hunter's Dream)</label>
-                    <input type="text" class="text-input" data-value="discord_token" data-event-change="save" />
+                    <label>The Hunter's Dream Online ID (Optional)</label>
+                    <input type="text" class="text-input" data-value="thd_online_id" data-event-change="save" />
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>The Hunter's Dream Token (Optional)</label>
+                    <input type="text" class="text-input" data-value="thd_token" data-event-change="save" />
                 </div>
             </div>
         </div>

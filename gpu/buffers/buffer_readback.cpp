@@ -17,6 +17,7 @@
 #include "shader/profile.h"
 #include "bbport_copy.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "bbport_sections.h"
 #include "bbport_free_check.h"
 #include "bbport_guest_memory.h"

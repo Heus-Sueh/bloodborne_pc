@@ -32,6 +32,7 @@
 #include "platform/gnm/gnm.h"
 #include "gcn/regs_targets.h"
 #include "gcn/regs.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 class Rasterizer;

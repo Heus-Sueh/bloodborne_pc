@@ -5,6 +5,8 @@ project(bbgpu LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# Shared C/C++ Runtime-GPU ABI header (src/runtime_gpu_abi.h) across bbgpu, bbnet20, and GPU tests.
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../src")
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
@@ -55,9 +57,33 @@ elseif (BB_PGO STREQUAL "use")
 endif()
 
 find_package(Vulkan REQUIRED)
+# The renderer uses VK_VALVE_shader_mixed_float_dot_product (Vulkan-Headers 1.4.357). Older system
+# headers (Fedora 44: 1.4.341) get that release's headers in front of them; the loader is still
+# the system's.
+file(STRINGS "${Vulkan_INCLUDE_DIR}/vulkan/vulkan_core.h" BB_VK_HAS_MIXED_DOT
+     REGEX "VK_VALVE_shader_mixed_float_dot_product")
+if(NOT BB_VK_HAS_MIXED_DOT)
+    message(STATUS "Vulkan headers ${Vulkan_VERSION} lack VK_VALVE_shader_mixed_float_dot_product: using Vulkan-Headers 1.4.357")
+    include(FetchContent)
+    FetchContent_Declare(bb_vulkan_headers GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+                         GIT_TAG v1.4.357 GIT_SHALLOW TRUE SOURCE_SUBDIR none)
+    FetchContent_MakeAvailable(bb_vulkan_headers)
+    foreach(target Vulkan::Headers Vulkan::Vulkan)
+        if(TARGET ${target})
+            get_target_property(dirs ${target} INTERFACE_INCLUDE_DIRECTORIES)
+            if(NOT dirs)
+                set(dirs "")
+            endif()
+            list(PREPEND dirs "${bb_vulkan_headers_SOURCE_DIR}/include")
+            set_target_properties(${target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${dirs}")
+        endif()
+    endforeach()
+endif()
 find_package(fmt REQUIRED)
 find_package(Boost REQUIRED)
-find_package(magic_enum QUIET)
+# 0.9.6 moved the headers into include/magic_enum/, as the sources include them (Fedora 44 ships
+# 0.9.5, with the headers directly in include/).
+find_package(magic_enum 0.9.6 QUIET)
 if(NOT magic_enum_FOUND)
     # Header-only; packaged on few systems (the Windows cross build's MSYS2 has none).
     include(FetchContent)
@@ -68,13 +94,24 @@ find_package(tsl-robin-map REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG QUIET)
 if (NOT TARGET GPUOpen::VulkanMemoryAllocator)
     # The header alone, without its CMake package (MSYS2: include/vma/vk_mem_alloc.h).
-    find_path(VMA_INCLUDE_DIR vk_mem_alloc.h PATH_SUFFIXES vma REQUIRED)
-    add_library(GPUOpen::VulkanMemoryAllocator INTERFACE IMPORTED)
-    target_include_directories(GPUOpen::VulkanMemoryAllocator INTERFACE ${VMA_INCLUDE_DIR})
+    find_path(VMA_INCLUDE_DIR vk_mem_alloc.h PATH_SUFFIXES vma)
+    if (VMA_INCLUDE_DIR)
+        add_library(GPUOpen::VulkanMemoryAllocator INTERFACE IMPORTED)
+        target_include_directories(GPUOpen::VulkanMemoryAllocator INTERFACE ${VMA_INCLUDE_DIR})
+    else()
+        # Header-only; not in every distro's official repos (e.g. Arch).
+        include(FetchContent)
+        FetchContent_Declare(VulkanMemoryAllocator
+            GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+            GIT_TAG v3.2.1
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(VulkanMemoryAllocator)
+    endif()
 endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(XXHASH REQUIRED IMPORTED_TARGET libxxhash)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
 if (NOT WIN32)
     pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 endif()
@@ -88,7 +125,33 @@ if(NOT miniz_FOUND)
         add_library(miniz::miniz ALIAS miniz)
     endif()
 endif()
-find_package(Zydis REQUIRED)
+find_package(Zydis QUIET)
+if(NOT TARGET Zydis::Zydis)
+    # Packages with pkg-config only, no CMake config (Fedora).
+    pkg_check_modules(ZYDIS REQUIRED IMPORTED_TARGET zydis)
+    add_library(Zydis::Zydis INTERFACE IMPORTED)
+    target_link_libraries(Zydis::Zydis INTERFACE PkgConfig::ZYDIS)
+endif()
+find_package(xbyak QUIET)
+if (NOT TARGET xbyak::xbyak)
+    find_path(XBYAK_INCLUDE_DIR xbyak/xbyak.h)
+    if (XBYAK_INCLUDE_DIR)
+        add_library(xbyak::xbyak INTERFACE IMPORTED)
+        target_include_directories(xbyak::xbyak INTERFACE ${XBYAK_INCLUDE_DIR})
+    else()
+        # Header-only; not in every distro's official repos (e.g. Arch).
+        include(FetchContent)
+        FetchContent_Declare(xbyak
+            GIT_REPOSITORY https://github.com/herumi/xbyak.git
+            GIT_TAG v7.24
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(xbyak)
+        if (NOT TARGET xbyak::xbyak)
+            add_library(xbyak::xbyak INTERFACE IMPORTED)
+            target_include_directories(xbyak::xbyak INTERFACE "${xbyak_SOURCE_DIR}")
+        endif()
+    endif()
+endif()
 find_program(GLSLANG_COMPILER NAMES glslang glslangValidator REQUIRED)
 
 set(SIRIT_USE_SYSTEM_SPIRV_HEADERS OFF CACHE BOOL "" FORCE)
@@ -263,7 +326,19 @@ if (NOT WIN32)
     # Runtime symbols (runtime_memory_*, runtime_process_*) resolve against bb-probe.
     target_link_options(bbgpu PRIVATE -Wl,--allow-shlib-undefined)
 endif()
-target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable ffx-vulkan::fsr4-v07-vulkan)
+# RmlUi Core (private to libbbgpu.so) for the in-game PS4 Quick Menu (bbport_quick_menu.cpp).
+file(GLOB_RECURSE BB_RMLUI_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/RmlUi/Source/Core/*.cpp")
+add_library(bb_rmlui STATIC ${BB_RMLUI_SOURCES})
+set_target_properties(bb_rmlui PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(bb_rmlui PUBLIC RMLUI_STATIC_LIB RMLUI_FONT_ENGINE_FREETYPE)
+target_compile_options(bb_rmlui PRIVATE -fPIC -fvisibility=hidden -fvisibility-inlines-hidden -w)
+target_include_directories(bb_rmlui PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/RmlUi/Include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/RmlUi/Source/Core"
+)
+target_link_libraries(bb_rmlui PUBLIC PkgConfig::FREETYPE)
+
+target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable ffx-vulkan::fsr4-v07-vulkan bb_rmlui)
 # Trophy names: trophy00.trp decrypted with the user's trophy key (shim/bbport_trophies.cpp).
 # Without OpenSSL the unlocks are kept and shown by number.
 find_package(OpenSSL QUIET COMPONENTS Crypto)
@@ -274,7 +349,7 @@ else()
     message(STATUS "Trophy names: off (OpenSSL's libcrypto missing; unlocks shown by number)")
 endif()
 target_link_libraries(bbgpu PUBLIC Vulkan::Headers fmt::fmt Boost::headers magic_enum::magic_enum
-    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 PkgConfig::FFMPEG miniz::miniz Zydis::Zydis sirit)
+    tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 PkgConfig::FFMPEG miniz::miniz Zydis::Zydis xbyak::xbyak sirit)
 if (NOT WIN32)
     target_link_libraries(bbgpu PUBLIC PkgConfig::X11)
 endif()
@@ -327,6 +402,11 @@ target_include_directories(effect-flags-test PRIVATE shim)
 add_executable(settings-test EXCLUDE_FROM_ALL ../tests/test_settings.cpp shim/bbport_settings.cpp)
 target_compile_options(settings-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 target_include_directories(settings-test PRIVATE .. shim)
+
+add_executable(game-menu-test EXCLUDE_FROM_ALL ../tests/test_game_menu.cpp shim/bbport_settings.cpp)
+target_compile_options(game-menu-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+target_include_directories(game-menu-test PRIVATE . shim)
+target_link_libraries(game-menu-test PRIVATE fmt::fmt PkgConfig::SDL3)
 
 # The clip-space matrices DLSS Frame Generation gets (upscale/camera_matrices.h): no GPU.
 add_executable(camera-matrices-test EXCLUDE_FROM_ALL ../tests/test_camera_matrices.cpp)

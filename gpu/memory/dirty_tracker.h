@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "core/emulator_settings.h"
 #include "memory/page_lock.h"
 #include "memory/page_watch.h"

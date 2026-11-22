@@ -3,6 +3,7 @@
 // bbport guest memory: lazy imports of the runtime's memfd (BB_GUEST_LAZY).
 #include "bbport_guest_memory_internal.h"
 #include "shim/bb_env.h"
+#include "bbport_stats.h"
 
 namespace BbGuestMemory::detail {
 

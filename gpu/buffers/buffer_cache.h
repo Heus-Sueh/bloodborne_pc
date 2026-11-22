@@ -36,6 +36,7 @@ class DirtyTracker;
 #include "buffers/fault_buffer.h"
 #include "buffers/range_set.h"
 #include "vulkan/timeline.h"
+#include "bbport_stats.h"
 
 
 namespace Core {

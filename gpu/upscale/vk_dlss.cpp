@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include "shim/bb_env.h"
+#include <clocale>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -227,6 +228,83 @@ bool CollectExtensions(const VkExtensionProperties* required, u32 count,
     }
     return true;
 }
+
+#ifndef _WIN32
+/// UTF-8 to wchar_t without the C++ global locale: path::wstring() uses the "C" locale, where
+/// non-ASCII bytes fail, leaving NGX search paths empty on Chinese/Japanese/accented folders.
+std::wstring Utf8ToWide(const std::string& text) {
+    std::wstring out;
+    out.reserve(text.size());
+    for (size_t i = 0; i < text.size();) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        unsigned cp = c;
+        int extra = 0;
+        if (c < 0x80) {
+            cp = c;
+        } else if ((c & 0xE0) == 0xC0) {
+            cp = c & 0x1Fu;
+            extra = 1;
+        } else if ((c & 0xF0) == 0xE0) {
+            cp = c & 0x0Fu;
+            extra = 2;
+        } else if ((c & 0xF8) == 0xF0) {
+            cp = c & 0x07u;
+            extra = 3;
+        } else {
+            cp = 0xFFFDu;
+        }
+        if (i + static_cast<size_t>(extra) < text.size()) {
+            for (int k = 1; k <= extra; ++k) {
+                cp = (cp << 6) | (static_cast<unsigned char>(text[i + k]) & 0x3Fu);
+            }
+            i += static_cast<size_t>(extra) + 1;
+        } else {
+            i = text.size();
+            cp = 0xFFFDu;
+        }
+        out.push_back(static_cast<wchar_t>(cp));
+    }
+    return out;
+}
+
+bool IsAscii(const std::string& text) {
+    for (const unsigned char c : text) {
+        if (c >= 0x80) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// NGX converts every search path with wcsrtombs internally, which fails on non-ASCII paths even
+/// when built properly here. Stage any NGX runtime libraries from a non-ASCII directory into an
+/// ASCII temp directory and hand that path to NGX instead.
+std::wstring NgxWideDirectory(const std::filesystem::path& dir,
+                              const std::filesystem::path& stage_root) {
+    const auto native = dir.string();
+    if (IsAscii(native)) {
+        return Utf8ToWide(native);
+    }
+    std::error_code ec;
+    const auto copy_dir = stage_root / "dlss";
+    std::filesystem::create_directories(copy_dir, ec);
+    bool copied = false;
+    for (std::filesystem::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        const auto name = it->path().filename().string();
+        if (name.rfind("libnvidia-ngx-dlss.so", 0) != 0 &&
+            name.rfind("libnvidia-ngx-dlssg.so", 0) != 0) {
+            continue;
+        }
+        std::error_code copy_ec;
+        std::filesystem::copy_file(it->path(), copy_dir / name,
+                                   std::filesystem::copy_options::overwrite_existing, copy_ec);
+        if (!copy_ec) {
+            copied = true;
+        }
+    }
+    return Utf8ToWide(copied ? copy_dir.string() : native);
+}
+#endif
 } // namespace
 
 struct Dlss::Impl {
@@ -306,6 +384,17 @@ Dlss::Dlss() : impl{std::make_unique<Impl>()} {
     }
 #endif
     bool configured = false;
+#ifndef _WIN32
+    // NGX turns path lists back into UTF-8 with wcsrtombs (which reads LC_CTYPE); set it from
+    // the environment while leaving LC_NUMERIC and the rest unchanged.
+    std::setlocale(LC_CTYPE, "");
+    const auto stage_root = std::filesystem::temp_directory_path(error) / "bbport-ngx";
+    const auto ngx_data = IsAscii(data.string()) ? data : stage_root;
+    std::filesystem::create_directories(ngx_data, error);
+    const std::wstring data_wide = Utf8ToWide(ngx_data.string());
+#else
+    const std::wstring data_wide = data.wstring();
+#endif
     if (impl->api->abi >= 2) {
         // Every folder with one of NVIDIA's libraries: the Frame Generation library may be in
         // the player's folder while the package brought Super Resolution's.
@@ -313,16 +402,24 @@ Dlss::Dlss() : impl{std::make_unique<Impl>()} {
         std::vector<std::wstring> storage;
         std::vector<const wchar_t*> pointers;
         for (const auto& directory : directories) {
+#ifndef _WIN32
+            storage.push_back(NgxWideDirectory(directory, stage_root));
+#else
             storage.push_back(directory.wstring());
+#endif
         }
         for (const auto& text : storage) {
             pointers.push_back(text.c_str());
         }
         configured = impl->api->ConfigureDirectories(pointers.data(), u32(pointers.size()),
-                                                     data.wstring().c_str(), BridgeLog) != 0;
+                                                     data_wide.c_str(), BridgeLog) != 0;
     } else {
-        configured =
-            impl->api->Configure(ngx.wstring().c_str(), data.wstring().c_str(), BridgeLog) != 0;
+#ifndef _WIN32
+        const std::wstring ngx_wide = NgxWideDirectory(ngx, stage_root);
+#else
+        const std::wstring ngx_wide = ngx.wstring();
+#endif
+        configured = impl->api->Configure(ngx_wide.c_str(), data_wide.c_str(), BridgeLog) != 0;
     }
     if (!configured) {
         impl->Disable("bridge configuration failed");

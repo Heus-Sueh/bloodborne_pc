@@ -35,21 +35,9 @@
 #include "vulkan/instance.h"
 #include "bblayer_gpu_memory.h"
 #include "buffers/memory_model.h"
-#include "bbport_toggles.h"
-#include "shader/resource.h"
 
-extern "C" void runtime_memory_set_guest_chunk_allocator(int (*alloc)(uint64_t phys,
-                                                                      uint64_t size));
-extern "C" void runtime_memory_set_guest_chunk_whole(int whole);
-extern "C" void runtime_memory_set_guest_chunk_private(int (*import)(uint64_t phys, uint64_t size,
-                                                                     void* pointer));
-extern "C" void* runtime_memory_backing_pointer(uint64_t phys);
-extern "C" int runtime_memory_pool_fd(void);
-extern "C" void runtime_memory_note_pinned(uint64_t phys, uint64_t size);
-extern "C" void runtime_memory_set_guest_chunk_free(void (*free_chunk)(uint64_t phys, uint64_t size));
-extern "C" void runtime_memory_discard_direct(uint64_t phys, uint64_t size);
-extern "C" int runtime_memory_direct_phys(uintptr_t address, uint64_t* phys, uintptr_t* end);
-extern "C" void runtime_memory_set_guest_lazy(int lazy);
+#include "shader/resource.h"
+#include "runtime_gpu_abi.h"
 
 
 namespace BbGuestMemory::detail {

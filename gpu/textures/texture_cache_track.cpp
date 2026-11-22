@@ -14,6 +14,7 @@
 #include "memory/fault_sites.h"
 #include "memory/page_watch.h"
 #include "render/scheduler.h"
+#include "bbport_stats.h"
 
 namespace VideoCore {
 

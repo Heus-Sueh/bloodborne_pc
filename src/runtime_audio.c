@@ -196,8 +196,13 @@ static int32_t output_port(int32_t handle, const void *data, int pace) {
             int low=2*(int)bytes, queued=SDL_GetAudioStreamQueued(p->stream);
             if (queued<(int)bytes) {
                 static const unsigned char silence[2048*8*4];
-                SDL_PutAudioStreamData(p->stream,silence,low-queued<(int)bytes ? low-queued : (int)bytes);
-                queued=low;
+                int to_put=low-queued<(int)bytes ? low-queued : (int)bytes;
+                int frame_bytes=p->channels*p->sample_bytes;
+                if (frame_bytes>0) to_put=(to_put/frame_bytes)*frame_bytes;
+                if (to_put>0) {
+                    SDL_PutAudioStreamData(p->stream,silence,to_put);
+                    queued+=to_put;
+                }
             }
             if (!p->window_count || queued<p->window_min) p->window_min=queued;
             if (++p->window_count==32) {

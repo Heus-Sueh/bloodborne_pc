@@ -1,382 +1,654 @@
-#include "config_manager.hpp"
-#include "i18n.hpp"
-#include "mods_manager.hpp"
-#include "trophy_manager.hpp"
+// SPDX-FileCopyrightText: Copyright 2026 bbport contributors
+// SPDX-License-Identifier: GPL-2.0-or-later
+#include "launcher_core.hpp"
+#include "launch_env.hpp"
+#include "process_runner.hpp"
+#include "settings_store.hpp"
+
 #include <cassert>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <sys/stat.h>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 
 namespace fs = std::filesystem;
 using namespace bbport;
 
-void test_default_settings() {
-  LauncherSettings s;
-  assert(s.ui_language == "en");
-  assert(s.present_mode == "Mailbox");
-  assert(s.output_res == "auto");
-  assert(s.aspect_ratio == "auto");
-  assert(s.upscaler == "fsr4");
-  assert(s.preset == 4);
-  assert(s.frame_generation == "off");
-  assert(s.sharpen == true);
-  assert(s.sharpness == 0.50f);
-  assert(s.anti_aliasing == "auto");
-  assert(s.texture_quality == "auto");
-  assert(s.model_lod == 0);
-  assert(s.object_motion == true);
-  assert(s.vbao == false);
-  assert(s.show_fps == true);
+namespace {
 
-  assert(s.motion_blur == true);
-  assert(s.bloom == true);
-  assert(s.chromatic_aberration == true);
-  assert(s.dof == true);
-  assert(s.ssao == true);
-  assert(s.dynamic_shadows == true);
-  assert(s.effect_ssr == false);
-  assert(s.skip_intro == false);
-  assert(s.debug_camera == false);
-  assert(s.debug_menu == false);
-
-  assert(s.fps_mode == "uncap");
-  assert(s.fps_limit == 0);
-  assert(s.low_latency == "on");
-
-  assert(s.button_prompts == "auto");
-  assert(s.mouse_look == true);
-  assert(s.mouse_sensitivity == 1.0f);
-  assert(s.mouse_invert_y == false);
-  assert(s.mouse_invert_x == false);
-  assert(s.camera_speed_x == 1.0f);
-  assert(s.camera_speed_y == 1.0f);
-
-  assert(s.mods_enabled == true);
-  assert(s.online_enabled == false);
-  assert(s.online_pool == "seamless");
-  assert(s.online_server == "play.seamlesshunt.com:31313");
-  assert(s.online_upnp == true);
-
-  std::cout << "PASS: test_default_settings\n";
+fs::path RepoRoot() {
+#ifdef BBPORT_REPO_ROOT
+  return fs::path(BBPORT_REPO_ROOT);
+#else
+  return fs::current_path();
+#endif
 }
 
-void test_settings_validation_and_clamping() {
-  LauncherSettings s;
-  s.sharpness = 2.5f;       // Should clamp to 1.0
-  s.mouse_sensitivity = -5.0f; // Should clamp to 0.1
-  s.camera_speed_x = 25.0f; // Should clamp to 10.0
-  s.fps_limit = -10;        // Should clamp to 0
-  s.preset = 99;            // Should reset to 4
-  s.ui_language = "";       // Should default to "en"
-  s.upscaler = "";          // Should default to "fsr4"
+struct TempWorkspace {
+  fs::path root;
+  PortPaths paths;
 
-  ConfigManager::ValidateSettings(s);
+  explicit TempWorkspace(const std::string& tag) {
+    root = fs::temp_directory_path() / ("bbport_deep_test_" + tag + "_" + std::to_string(::getpid()));
+    fs::remove_all(root);
+    paths.port_dir = root / "port";
+    paths.data_dir = root / "data";
+    paths.config_dir = root / "config";
 
-  assert(s.sharpness == 1.0f);
-  assert(s.mouse_sensitivity == 0.1f);
-  assert(s.camera_speed_x == 10.0f);
-  assert(s.fps_limit == 0);
-  assert(s.preset == 4);
-  assert(s.ui_language == "en");
-  assert(s.upscaler == "fsr4");
+    fs::create_directories(paths.port_dir / "launcher");
+    fs::create_directories(paths.data_dir);
+    fs::create_directories(paths.config_dir);
 
-  std::cout << "PASS: test_settings_validation_and_clamping\n";
+    // Copy real settings_schema.json from repo into Port Directory
+    fs::copy_file(RepoRoot() / "launcher" / "settings_schema.json", paths.SchemaPath());
+
+    // Create stub run.sh in Port Directory
+    std::ofstream runner(paths.RunnerScriptPath());
+    runner << "#!/usr/bin/env bash\nexit 0\n";
+    runner.close();
+  }
+
+  ~TempWorkspace() {
+    std::error_code ec;
+    fs::remove_all(root, ec);
+  }
+};
+
+// Build a real binary PS4 param.sfo (\0PSF) matching scripts/prepare.py::sfo().
+void WriteParamSfo(const fs::path& sfo_path, const std::vector<std::pair<std::string, std::string>>& entries) {
+  fs::create_directories(sfo_path.parent_path());
+
+  std::vector<std::uint8_t> key_table;
+  std::vector<std::uint8_t> val_table;
+  struct EntryMeta {
+    std::uint16_t key_off;
+    std::uint32_t len;
+    std::uint32_t max_len;
+    std::uint32_t val_off;
+  };
+  std::vector<EntryMeta> metas;
+
+  for (const auto& [k, v] : entries) {
+    EntryMeta m{};
+    m.key_off = static_cast<std::uint16_t>(key_table.size());
+    key_table.insert(key_table.end(), k.begin(), k.end());
+    key_table.push_back(0);
+
+    m.val_off = static_cast<std::uint32_t>(val_table.size());
+    m.len = static_cast<std::uint32_t>(v.size() + 1);
+    m.max_len = (m.len + 3u) & ~3u;
+    val_table.insert(val_table.end(), v.begin(), v.end());
+    val_table.resize(m.val_off + m.max_len, 0);
+    metas.push_back(m);
+  }
+  while (key_table.size() % 4 != 0) key_table.push_back(0);
+
+  const std::uint32_t key_table_start = 20 + static_cast<std::uint32_t>(metas.size() * 16);
+  const std::uint32_t val_table_start = key_table_start + static_cast<std::uint32_t>(key_table.size());
+
+  std::vector<std::uint8_t> out;
+  auto push_u16 = [&](std::uint16_t v) {
+    out.push_back(static_cast<std::uint8_t>(v & 0xFF));
+    out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+  };
+  auto push_u32 = [&](std::uint32_t v) {
+    out.push_back(static_cast<std::uint8_t>(v & 0xFF));
+    out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+    out.push_back(static_cast<std::uint8_t>((v >> 16) & 0xFF));
+    out.push_back(static_cast<std::uint8_t>((v >> 24) & 0xFF));
+  };
+
+  out.insert(out.end(), {0x00, 'P', 'S', 'F'});
+  push_u32(0x00000101);
+  push_u32(key_table_start);
+  push_u32(val_table_start);
+  push_u32(static_cast<std::uint32_t>(metas.size()));
+
+  for (const auto& m : metas) {
+    push_u16(m.key_off);
+    push_u16(0x0204); // UTF-8 null-terminated
+    push_u32(m.len);
+    push_u32(m.max_len);
+    push_u32(m.val_off);
+  }
+  out.insert(out.end(), key_table.begin(), key_table.end());
+  out.insert(out.end(), val_table.begin(), val_table.end());
+
+  std::ofstream f(sfo_path, std::ios::binary);
+  f.write(reinterpret_cast<const char*>(out.data()), static_cast<std::streamsize>(out.size()));
 }
 
-void test_config_save_load() {
-  fs::path tmp_dir = fs::temp_directory_path() / "bbport_test_config";
-  fs::create_directories(tmp_dir);
-
-  fs::path tmp_json = tmp_dir / "settings.json";
-  fs::path tmp_ini = tmp_dir / "bbport.ini";
-
-  setenv("XDG_CONFIG_HOME", tmp_dir.string().c_str(), 1);
-  setenv("BB_CONFIG", tmp_ini.string().c_str(), 1);
-
-  LauncherSettings s;
-  s.ui_language = "pt_BR";
-  s.game_dir = "/path/to/game";
-  s.user_dir = "/path/to/user";
-  s.mods_dir = "/path/to/mods";
-  s.fullscreen = true;
-  s.borderless = true;
-  s.present_mode = "Fifo";
-  s.hdr = true;
-  s.aspect_ratio = "21:9";
-  s.output_res = "2560x1440";
-  s.upscaler = "dlss";
-  s.preset = 2;
-  s.frame_generation = "dlss";
-  s.sharpen = false;
-  s.sharpness = 0.85f;
-  s.anti_aliasing = "smaa";
-  s.texture_quality = "half";
-  s.model_lod = 1;
-  s.object_motion = false;
-  s.vbao = true;
-  s.show_fps = false;
-
-  s.chromatic_aberration = false;
-  s.dof = false;
-  s.motion_blur = false;
-  s.bloom = false;
-  s.ssao = false;
-  s.dynamic_shadows = false;
-  s.effect_ssr = true;
-  s.skip_intro = true;
-  s.debug_camera = true;
-  s.debug_menu = true;
-
-  s.fps_mode = "60";
-  s.fps_limit = 60;
-  s.low_latency = "boost";
-  s.draw_pipe = "1";
-
-  s.button_prompts = "playstation";
-  s.mouse_look = false;
-  s.mouse_sensitivity = 2.2f;
-  s.mouse_invert_y = true;
-  s.mouse_invert_x = true;
-  s.camera_speed_x = 1.5f;
-  s.camera_speed_y = 1.8f;
-
-  s.mods_enabled = false;
-  s.online_enabled = true;
-  s.online_pool = "huntersdream";
-  s.online_server = "custom.server.com:31313";
-  s.online_npid = "TestHunter";
-  s.online_password = "SecretPassword";
-  s.discord_token = "abc123token";
-  s.online_upnp = false;
-
-  s.save_log = true;
-  s.frame_stats = true;
-  s.gpu_profile = true;
-  s.crash_diag = true;
-  s.vk_validation = true;
-  s.mangohud = true;
-  s.extra_env = "MESA_VK_WSI_PRESENT_MODE=mailbox";
-
-  assert(ConfigManager::Save(s));
-
-  // Load back and verify all fields
-  LauncherSettings loaded = ConfigManager::Load();
-  assert(loaded.ui_language == "pt_BR");
-  assert(loaded.game_dir == "/path/to/game");
-  assert(loaded.user_dir == "/path/to/user");
-  assert(loaded.mods_dir == "/path/to/mods");
-  assert(loaded.fullscreen == true);
-  assert(loaded.borderless == true);
-  assert(loaded.present_mode == "Fifo");
-  assert(loaded.hdr == true);
-  assert(loaded.aspect_ratio == "21:9");
-  assert(loaded.output_res == "2560x1440");
-  assert(loaded.upscaler == "dlss");
-  assert(loaded.preset == 2);
-  assert(loaded.frame_generation == "dlss");
-  assert(loaded.sharpen == false);
-  assert(loaded.sharpness == 0.85f);
-  assert(loaded.anti_aliasing == "smaa");
-  assert(loaded.texture_quality == "half");
-  assert(loaded.model_lod == 1);
-  assert(loaded.object_motion == false);
-  assert(loaded.vbao == true);
-  assert(loaded.show_fps == false);
-
-  assert(loaded.chromatic_aberration == false);
-  assert(loaded.dof == false);
-  assert(loaded.motion_blur == false);
-  assert(loaded.bloom == false);
-  assert(loaded.ssao == false);
-  assert(loaded.dynamic_shadows == false);
-  assert(loaded.effect_ssr == true);
-  assert(loaded.skip_intro == true);
-  assert(loaded.debug_camera == true);
-  assert(loaded.debug_menu == true);
-
-  assert(loaded.fps_mode == "60");
-  assert(loaded.fps_limit == 60);
-  assert(loaded.low_latency == "boost");
-  assert(loaded.draw_pipe == "1");
-
-  assert(loaded.button_prompts == "playstation");
-  assert(loaded.mouse_look == false);
-  assert(loaded.mouse_sensitivity == 2.2f);
-  assert(loaded.mouse_invert_y == true);
-  assert(loaded.mouse_invert_x == true);
-  assert(loaded.camera_speed_x == 1.5f);
-  assert(loaded.camera_speed_y == 1.8f);
-
-  assert(loaded.mods_enabled == false);
-  assert(loaded.online_enabled == true);
-  assert(loaded.online_pool == "huntersdream");
-  assert(loaded.online_server == "custom.server.com:31313");
-  assert(loaded.online_npid == "TestHunter");
-  assert(loaded.online_password == "SecretPassword");
-  assert(loaded.discord_token == "abc123token");
-  assert(loaded.online_upnp == false);
-
-  assert(loaded.save_log == true);
-  assert(loaded.frame_stats == true);
-  assert(loaded.gpu_profile == true);
-  assert(loaded.crash_diag == true);
-  assert(loaded.vk_validation == true);
-  assert(loaded.mangohud == true);
-  assert(loaded.extra_env == "MESA_VK_WSI_PRESENT_MODE=mailbox");
-
-  fs::remove_all(tmp_dir);
-  unsetenv("XDG_CONFIG_HOME");
-  unsetenv("BB_CONFIG");
-  std::cout << "PASS: test_config_save_load\n";
+void SeedFakeGameDir(const fs::path& dir, const std::string& title_id, const std::string& app_ver) {
+  fs::create_directories(dir / "dvdroot_ps4");
+  std::ofstream eboot(dir / "eboot.bin", std::ios::binary);
+  eboot << "SELF";
+  WriteParamSfo(dir / "sce_sys" / "param.sfo", {{"APP_VER", app_ver}, {"TITLE_ID", title_id}});
 }
 
-void test_mods_manager() {
-  fs::path tmp_mods = fs::temp_directory_path() / "bbport_test_mods";
-  fs::create_directories(tmp_mods / "Mod_60FPS");
-  fs::create_directories(tmp_mods / "Mod_Textures");
-  fs::create_directories(tmp_mods / "Mod_Audio");
+class FakeSystemProbe final : public SystemProbe {
+public:
+  std::vector<GpuInfo> gpus;
+  bool has_online = false;
+  std::map<std::string, std::string> host_env;
+  std::string sys_lang = "en";
 
-  fs::path tmp_patches = fs::temp_directory_path() / "bbport_test_patches";
-  fs::create_directories(tmp_patches);
+  std::vector<GpuInfo> ListGpus() const override { return gpus; }
+  bool HasOnlineModule(const PortPaths&, std::string_view) const override { return has_online; }
+  std::map<std::string, std::string> HostEnvironment() const override { return host_env; }
+  std::string DetectSystemLanguage() const override { return sys_lang; }
+};
 
-  std::ofstream patch_file(tmp_patches / "patch1.xml");
-  patch_file << "<patch isEnabled=\"true\">\n"
-             << "  <title>No Motion Blur</title>\n"
-             << "  <author>FromSoftFan</author>\n"
-             << "</patch>\n";
-  patch_file.close();
+class ManualClock final : public Clock {
+public:
+  std::chrono::steady_clock::time_point now_ = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point Now() const override { return now_; }
+  void Advance(std::chrono::seconds s) { now_ += s; }
+};
 
-  ModsManager& mgr = ModsManager::Instance();
-  mgr.Refresh(tmp_mods.string(), tmp_patches.string());
+struct FakeSessionState {
+  SpawnSpec spec;
+  std::vector<std::string> pending_lines;
+  std::optional<int> exit_code;
+  bool terminated = false;
+};
 
-  assert(mgr.GetMods().size() == 3);
-  assert(mgr.GetPatches().size() == 1);
-  assert(mgr.GetPatches()[0].name == "No Motion Blur");
-  assert(mgr.GetPatches()[0].author == "FromSoftFan");
-  assert(mgr.GetPatches()[0].enabled == true);
+class FakeProcessSession final : public ProcessSession {
+public:
+  explicit FakeProcessSession(std::shared_ptr<FakeSessionState> st) : st_(std::move(st)) {}
 
-  // Reordering
-  std::string first_id = mgr.GetMods()[0].id;
-  std::string second_id = mgr.GetMods()[1].id;
-  assert(mgr.MoveModDown(first_id));
-  assert(mgr.GetMods()[0].id == second_id);
-  assert(mgr.GetMods()[1].id == first_id);
+  void DrainOutput(std::vector<std::string>& out_lines) override {
+    out_lines.insert(out_lines.end(), st_->pending_lines.begin(), st_->pending_lines.end());
+    st_->pending_lines.clear();
+  }
+  std::optional<int> TryWait() override { return st_->exit_code; }
+  void Terminate(std::chrono::milliseconds) override {
+    st_->terminated = true;
+    if (!st_->exit_code.has_value()) {
+      st_->exit_code = 143;
+    }
+  }
 
-  // Toggle
-  assert(mgr.ToggleMod(first_id));
-  assert(mgr.GetMods()[1].enabled == false);
+private:
+  std::shared_ptr<FakeSessionState> st_;
+};
 
-  // Save and reload
-  assert(mgr.SaveModsConfig(tmp_mods.string()));
-  mgr.Refresh(tmp_mods.string(), tmp_patches.string());
-  assert(mgr.GetMods()[1].id == first_id);
-  assert(mgr.GetMods()[1].enabled == false);
+class FakeProcessRunner final : public ProcessRunner {
+public:
+  std::vector<std::shared_ptr<FakeSessionState>> spawned;
+  std::string next_error;
 
-  fs::remove_all(tmp_mods);
-  fs::remove_all(tmp_patches);
-  std::cout << "PASS: test_mods_manager\n";
+  SpawnResult Spawn(const SpawnSpec& spec) override {
+    if (!next_error.empty()) {
+      std::string e = next_error;
+      next_error.clear();
+      return {nullptr, e};
+    }
+    auto st = std::make_shared<FakeSessionState>();
+    st->spec = spec;
+    spawned.push_back(st);
+    return {std::make_unique<FakeProcessSession>(st), {}};
+  }
+};
+
+mode_t FileMode(const fs::path& p) {
+  struct stat st{};
+  assert(::stat(p.c_str(), &st) == 0);
+  return st.st_mode & 0777;
 }
 
-void test_trophy_manager() {
-  fs::path tmp_user = fs::temp_directory_path() / "bbport_test_user";
-  fs::path trophy_dir = tmp_user / "trophy" / "NPWR05818_00";
-  fs::create_directories(trophy_dir);
+// ============================================================================
+// Test 1: Schema-driven SettingsStore (clamps, parity, unknown preservation, 0600, escaping)
+// ============================================================================
+void TestSettingsStoreContract() {
+  TempWorkspace ws("settings");
+  SettingsSchema schema;
+  std::string err;
+  assert(SettingsSchema::LoadFromFile(ws.paths.SchemaPath(), schema, &err));
+  assert(schema.Find("sharpness") != nullptr);
+  assert(schema.Find("online") != nullptr);
+  assert(schema.Find("online_bbsc") != nullptr);
+  assert(schema.Find("borderless") == nullptr);
 
-  std::ofstream trop_xml(trophy_dir / "TROP.XML");
-  trop_xml << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-           << "<trophyconf version=\"1.1\" npcommid=\"NPWR05818_00\">\n"
-           << "  <trophy id=\"0\" hidden=\"no\" ttype=\"P\">\n"
-           << "    <name>Bloodborne</name>\n"
-           << "    <detail>All trophies acquired. Hath awakened from the hunt.</detail>\n"
-           << "  </trophy>\n"
-           << "  <trophy id=\"1\" hidden=\"no\" ttype=\"G\">\n"
-           << "    <name>Childhood's Beginning</name>\n"
-           << "    <detail>Became an infant Great One.</detail>\n"
-           << "  </trophy>\n"
-           << "  <trophy id=\"2\" hidden=\"no\" ttype=\"B\">\n"
-           << "    <name>Cleric Beast</name>\n"
-           << "    <detail>Defeat Cleric Beast.</detail>\n"
-           << "  </trophy>\n"
-           << "</trophyconf>\n";
-  trop_xml.close();
+  // Pre-seed unknown keys & comments in both files + legacy borderless + string "language": "1"
+  {
+    std::ofstream js(ws.paths.SettingsJsonPath());
+    js << R"({"language": "8", "borderless": true, "gtk_future_key": "keep_me", "online_server": "srv.shadps4.net:31313"})";
+  }
+  {
+    std::ofstream ini(ws.paths.IniPath());
+    ini << "# in-game comment\n";
+    ini << "custom_in_game_key = 42\n";
+    ini << "sharpness = 9.99\n";
+  }
 
-  std::ofstream unlocked_txt(trophy_dir / "unlocked.txt");
-  unlocked_txt << "2\n"; // Only Cleric Beast unlocked
-  unlocked_txt.close();
+  SettingsStore store(schema, ws.paths);
+  LoadReport rep;
+  assert(store.Load(&rep));
 
-  std::ofstream jsonl(tmp_user / "trophies.jsonl");
-  jsonl << "{\"id\": 2, \"time\": \"2026-10-31 10:30:00\"}\n";
-  jsonl.close();
+  // Verify schema clamping, GTK string language parity, and legacy online migration
+  assert(store.GetString("language") == "8");
+  assert(store.GetDouble("sharpness") == 2.0); // schema max is 2.0 (not old C++ 1.0!)
+  assert(store.GetString("online_server") == "play.seamlesshunt.com:31313");
 
-  TrophyManager& tm = TrophyManager::Instance();
-  tm.Refresh(tmp_user.string(), "en");
+  // Verify camera_speed clamping matches schema [0.25, 2.0]
+  assert(store.Set("camera_speed_x", 10.0));
+  assert(store.GetDouble("camera_speed_x") == 2.0);
+  assert(store.Set("camera_speed_y", 0.01));
+  assert(store.GetDouble("camera_speed_y") == 0.25);
+  assert(store.Set("fps_limit", -50));
+  assert(store.GetInt("fps_limit") == 0);
 
-  assert(tm.GetTrophies().size() == 3);
-  assert(tm.GetStats().total == 3);
-  assert(tm.GetStats().unlocked == 1);
-  assert(tm.GetStats().progress_pct == 33);
-  assert(tm.GetStats().platinum_total == 1);
-  assert(tm.GetStats().platinum_unlocked == 0);
-  assert(tm.GetStats().bronze_total == 1);
-  assert(tm.GetStats().bronze_unlocked == 1);
+  // Quotes and backslashes in passwords / extra_env must survive JSON round-trip safely
+  assert(store.Set("online_password", std::string("p@ss\"with\\quote")));
+  assert(store.Set("extra_env", std::string("FOO=\"bar\" BAZ=1")));
+  assert(store.Set("online", true));
+  assert(store.Set("online_bbsc", false));
+  assert(store.Set("thd_online_id", std::string("Hunter42")));
+  assert(store.Set("thd_token", std::string("tok_secret")));
+  assert(store.Save(&err));
 
-  assert(tm.GetTrophies()[0].grade == TrophyGrade::Platinum);
-  assert(tm.GetTrophies()[0].unlocked == false);
-  assert(tm.GetTrophies()[2].grade == TrophyGrade::Bronze);
-  assert(tm.GetTrophies()[2].unlocked == true);
-  assert(tm.GetTrophies()[2].date_str == "2026-10-31 10:30:00");
+  // settings.json must have 0600 permissions
+  assert(FileMode(ws.paths.SettingsJsonPath()) == 0600);
 
-  fs::remove_all(tmp_user);
-  std::cout << "PASS: test_trophy_manager\n";
+  // Reload and verify unknown keys + comments survived and obsolete borderless was dropped
+  SettingsStore reloaded(schema, ws.paths);
+  assert(reloaded.Load());
+  assert(reloaded.GetString("online_password") == "p@ss\"with\\quote");
+  assert(reloaded.GetString("extra_env") == "FOO=\"bar\" BAZ=1");
+  assert(reloaded.GetBool("online") == true);
+  assert(reloaded.GetBool("online_bbsc") == false);
+  assert(reloaded.GetString("thd_online_id") == "Hunter42");
+  assert(reloaded.GetString("thd_token") == "tok_secret");
+
+  std::ifstream js_in(ws.paths.SettingsJsonPath());
+  std::string js_text((std::istreambuf_iterator<char>(js_in)), {});
+  assert(js_text.find("gtk_future_key") != std::string::npos);
+  assert(js_text.find("borderless") == std::string::npos);
+
+  std::ifstream ini_in(ws.paths.IniPath());
+  std::string ini_text((std::istreambuf_iterator<char>(ini_in)), {});
+  assert(ini_text.find("# in-game comment") != std::string::npos);
+  assert(ini_text.find("custom_in_game_key = 42") != std::string::npos);
+
+  std::cout << "PASS: TestSettingsStoreContract\n";
 }
 
-void test_i18n() {
-  I18n& i18n = I18n::Instance();
+// ============================================================================
+// Test 2: LaunchEnvCompiler (declarative 1:1 BB_* + all 6 multi-var/conditional rules)
+// ============================================================================
+void TestLaunchEnvCompiler() {
+  TempWorkspace ws("env");
+  SettingsSchema schema;
+  assert(SettingsSchema::LoadFromFile(ws.paths.SchemaPath(), schema));
 
-  i18n.SetLanguage(Language::English);
-  assert(i18n.Translate("tab_play") == "The Hunt");
-  assert(i18n.Translate("launch_game") == "LAUNCH GAME");
+  SettingsStore store(schema, ws.paths);
+  assert(store.Load());
+  assert(store.Set("game_dir", std::string("/games/bb")));
+  assert(store.Set("user_dir", std::string("/saves/bb")));
+  assert(store.Set("language", std::string("8")));
+  assert(store.Set("ui_language", std::string("pt_BR")));
+  assert(store.Set("fullscreen", true));
+  assert(store.Set("present_mode", std::string("Fifo")));
+  assert(store.Set("hdr", true));
+  assert(store.Set("fps_mode", std::string("60")));
+  assert(store.Set("fps_limit", 120));
+  assert(store.Set("draw_pipe", std::string("1")));
+  assert(store.Set("display", std::string("DP-1")));
+  assert(store.Set("gamepad", std::string("DualSense")));
+  assert(store.Set("gpu", std::string("AMD RX 7900 XTX")));
+  assert(store.Set("mangohud", true));
+  assert(store.Set("frame_stats", true));
+  assert(store.Set("crash_diag", true));
+  assert(store.Set("vk_validation", true));
+  assert(store.Set("online", true));
+  assert(store.Set("online_pool", std::string("huntersdream")));
+  assert(store.Set("thd_server", std::string("thehuntersdream.com")));
+  assert(store.Set("thd_online_id", std::string("GoodHunter")));
+  assert(store.Set("thd_token", std::string("secret_tok")));
+  assert(store.Set("trophy_key", std::string("0123456789abcdef0123456789ABCDEF")));
+  assert(store.Set("extra_env", std::string("BB_CUSTOM=yes BB_FPS=90")));
 
-  i18n.SetLanguage(Language::Portuguese);
-  assert(i18n.Translate("tab_play") == "A Caçada");
-  assert(i18n.Translate("launch_game") == "INICIAR JOGO");
+  FakeSystemProbe probe;
+  probe.gpus = {{0, "Intel iGPU", false}, {1, "AMD RX 7900 XTX", true}};
+  probe.has_online = true;
+  probe.host_env = {{"MANGOHUD_CONFIG", "user_custom"}};
 
-  i18n.SetLanguage(Language::Russian);
-  assert(i18n.Translate("tab_play") == "Игра");
-  assert(i18n.Translate("launch_game") == "ЗАПУСТИТЬ");
+  const LaunchPlan plan = LaunchEnvCompiler::Compile(ws.paths, store, probe);
+  assert(plan.env.at("BB_GAME_DIR") == "/games/bb");
+  assert(plan.env.at("BB_USER_DIR") == "/saves/bb");
+  assert(plan.env.at("BB_MODS_CONFIG") == ws.paths.ModsConfigPath().string());
+  assert(plan.env.at("BB_PATCHES_CONFIG") == ws.paths.PatchesConfigPath().string());
+  assert(plan.env.at("BB_LANGUAGE") == "8"); // PS4 numeric language, NOT game_text_language
+  assert(plan.env.at("BB_MENU_LANGUAGE") == "pt_BR");
+  assert(plan.env.at("BB_FULLSCREEN") == "1");
+  assert(plan.env.at("BB_PRESENT_MODE") == "Fifo");
+  assert(plan.env.at("BB_HDR") == "1");
+  assert(plan.env.at("BB_FPS_LIMIT") == "120");
+  assert(plan.env.at("BB_DRAW_PIPE") == "1");
+  assert(plan.env.at("BB_DISPLAY") == "DP-1");
+  assert(plan.env.at("BB_GAMEPAD") == "DualSense");
+  assert(plan.env.at("BB_GPU_ID") == "1");
+  assert(plan.env.at("MANGOHUD") == "1");
+  assert(plan.env.at("MANGOHUD_CONFIG") == "user_custom"); // shell env wins
+  assert(plan.env.at("BB_FRAME_STATS") == "1");
+  assert(plan.env.at("BB_FREE_CHECK") == "1");
+  assert(plan.env.at("BB_WRITE_LOG") == "1");
+  assert(plan.env.at("BB_PRODUCER_CHECK") == "1");
+  assert(plan.env.at("BB_VK_VALIDATION") == "1");
+  assert(plan.env.at("BB_ONLINE") == "1");
+  assert(plan.env.at("BB_NET_BACKEND") == "thd");
+  assert(plan.env.at("BB_COMMUNITY_SERVER") == "https://thehuntersdream.com");
+  assert(plan.env.at("BB_THD_ONLINE_ID") == "GoodHunter");
+  assert(plan.env.at("BB_THD_TOKEN") == "secret_tok");
+  assert(plan.env.at("BB_TROPHY_KEY") == "0123456789abcdef0123456789ABCDEF");
+  assert(plan.env.at("BB_CUSTOM") == "yes");
+  assert(plan.env.at("BB_FPS") == "90"); // extra_env override applied last
 
-  i18n.SetLanguage(Language::Chinese);
-  assert(i18n.Translate("tab_play") == "游戏");
-  assert(i18n.Translate("launch_game") == "启动游戏");
+  // When online module is absent, BB_ONLINE must NOT be emitted
+  probe.has_online = false;
+  const LaunchPlan offline_plan = LaunchEnvCompiler::Compile(ws.paths, store, probe);
+  assert(offline_plan.env.find("BB_ONLINE") == offline_plan.env.end());
 
-  i18n.SetLanguage(Language::French);
-  assert(i18n.Translate("tab_play") == "La Chasse");
-  assert(i18n.Translate("launch_game") == "LANCER LE JEU");
-
-  // Fallback test
-  assert(i18n.Translate("nonexistent_key_123") == "nonexistent_key_123");
-
-  std::cout << "PASS: test_i18n\n";
+  std::cout << "PASS: TestLaunchEnvCompiler\n";
 }
 
-void test_cjk_font_resolution() {
-  const std::string local_cjk = "launcher/assets/fonts/NotoSansCJK-Regular.ttc";
-  const std::string sys_cjk = "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc";
+// ============================================================================
+// Test 3: Single-pass Game Directory SFO inspection (1.09 vs 1.00 + nested CUSA subdir)
+// ============================================================================
+void TestGameDirectoryInspection() {
+  TempWorkspace ws("game_sfo");
+  const fs::path game_109 = ws.root / "games_root" / "CUSA03173";
+  SeedFakeGameDir(game_109, "CUSA03173", "01.09");
 
-  bool found_cjk = fs::exists(local_cjk) || fs::exists(sys_cjk);
-  assert(found_cjk && "CJK Font must exist either locally in assets/fonts or in system font paths");
-  std::cout << "PASS: test_cjk_font_resolution\n";
+  // Parent directory resolves nested CUSA03173 automatically
+  const GameInspection r109 = InspectGameDirectory(ws.root / "games_root");
+  assert(r109.valid);
+  assert(r109.is_109);
+  assert(r109.title_id == "CUSA03173");
+  assert(r109.version == "01.09");
+  assert(r109.status_key == "status_ready");
+
+  const fs::path game_100 = ws.root / "game_100";
+  SeedFakeGameDir(game_100, "CUSA00900", "01.00");
+  const GameInspection r100 = InspectGameDirectory(game_100);
+  assert(r100.valid);
+  assert(!r100.is_109);
+  assert(r100.title_id == "CUSA00900");
+  assert(r100.version == "01.00");
+  assert(r100.status_key == "status_update_needed");
+
+  std::cout << "PASS: TestGameDirectoryInspection\n";
 }
+
+// ============================================================================
+// Test 4: Real Mods & External Patches on-disk contracts (DATA_DIR/{mods,patches}.json + shadPS4 XML)
+// ============================================================================
+void TestModsAndExternalPatchesContracts() {
+  TempWorkspace ws("content");
+  const fs::path mods_dir = ws.paths.data_dir / "mods";
+  const fs::path patches_dir = ws.paths.data_dir / "patches";
+
+  // Valid mod layouts: dvdroot_ps4 + bare chr/ folder; invalid random folder must be ignored
+  fs::create_directories(mods_dir / "Mod_Alpha" / "dvdroot_ps4" / "chr");
+  fs::create_directories(mods_dir / "Mod_Beta" / "chr");
+  fs::create_directories(mods_dir / "NotAMod");
+  {
+    std::ofstream f(mods_dir / "NotAMod" / "random.bin");
+    f << "junk";
+  }
+
+  // Real shadPS4 XML patch format + built-in Bloodborne.xml excluded
+  fs::create_directories(patches_dir);
+  fs::create_directories(ws.paths.port_dir / "patches");
+  {
+    std::ofstream builtin(ws.paths.BuiltinPatchesXmlPath());
+    builtin << "<Patch><ID>CUSA03173</ID><Metadata Name=\"BuiltIn\" AppVer=\"01.09\" isEnabled=\"true\"/></Patch>\n";
+  }
+  {
+    std::ofstream xml(patches_dir / "community.xml");
+    xml << R"(<?xml version="1.0" encoding="utf-8"?>
+<Patch>
+  <ID>CUSA03173</ID>
+  <Metadata Title="Bloodborne" Name="60 FPS Delta" Author="ModderA" AppVer="01.09" AppElf="eboot.bin" isEnabled="false"/>
+  <Metadata Title="Bloodborne" Name="Skip Intro" Author="ModderB" AppVer="01.09" isEnabled="true"/>
+  <Metadata Title="Bloodborne" Name="Old 1.00 Patch" Author="Old" AppVer="01.00" isEnabled="true"/>
+</Patch>)";
+  }
+  // Seed pre-existing override from another folder to ensure SaveExternalPatchesConfig preserves it
+  {
+    std::ofstream pf(ws.paths.PatchesConfigPath());
+    pf << R"({"enabled": ["other.xml/KeepMe"], "disabled": []})";
+  }
+
+  auto mods = LoadMods(mods_dir, ws.paths.ModsConfigPath());
+  assert(mods.size() == 2);
+  assert(mods[0].id == "Mod_Alpha");
+  assert(mods[1].id == "Mod_Beta");
+  std::swap(mods[0], mods[1]);
+  mods[0].enabled = false;
+  assert(SaveModsConfig(ws.paths.ModsConfigPath(), mods));
+
+  auto mods_reloaded = LoadMods(mods_dir, ws.paths.ModsConfigPath());
+  assert(mods_reloaded.size() == 2);
+  assert(mods_reloaded[0].id == "Mod_Beta" && !mods_reloaded[0].enabled);
+  assert(mods_reloaded[1].id == "Mod_Alpha" && mods_reloaded[1].enabled);
+
+  auto patches = LoadExternalPatches(patches_dir, ws.paths.PatchesConfigPath(), ws.paths.BuiltinPatchesXmlPath());
+  assert(patches.size() == 2);
+  assert(patches[0].id == "community.xml/60 FPS Delta" && !patches[0].enabled);
+  assert(patches[1].id == "community.xml/Skip Intro" && patches[1].enabled);
+
+  // Flip both patches so both differ from XML isEnabled defaults
+  patches[0].enabled = true;
+  patches[1].enabled = false;
+  assert(SaveExternalPatchesConfig(ws.paths.PatchesConfigPath(), patches));
+
+  // Verify delta format + preserved external override
+  std::ifstream pf_in(ws.paths.PatchesConfigPath());
+  std::string pf_text((std::istreambuf_iterator<char>(pf_in)), {});
+  assert(pf_text.find("community.xml/60 FPS Delta") != std::string::npos);
+  assert(pf_text.find("community.xml/Skip Intro") != std::string::npos);
+  assert(pf_text.find("other.xml/KeepMe") != std::string::npos);
+
+  auto patches_reloaded = LoadExternalPatches(patches_dir, ws.paths.PatchesConfigPath(), ws.paths.BuiltinPatchesXmlPath());
+  assert(patches_reloaded[0].enabled == true);
+  assert(patches_reloaded[1].enabled == false);
+
+  std::cout << "PASS: TestModsAndExternalPatchesContracts\n";
+}
+
+// ============================================================================
+// Test 5: Real Trophies contract (BbTrophy XML entity decoding + TROP_08.XML + trophies.jsonl)
+// ============================================================================
+void TestTrophiesRealContract() {
+  TempWorkspace ws("trophies");
+  const fs::path saves_dir = ws.paths.data_dir / "user";
+  const fs::path trop_dir = saves_dir / "trophy" / "NPWR05818_00";
+  fs::create_directories(trop_dir);
+
+  // PS4 numeric Russian file TROP_08.XML with XML entities (&amp;, &apos;)
+  {
+    std::ofstream xml(trop_dir / "TROP_08.XML");
+    xml << R"(<?xml version="1.0" encoding="utf-8"?>
+<trophyconf version="1.1">
+  <trophy id="0" hidden="no" ttype="P"><name>Bloodborne</name><detail>All trophies</detail></trophy>
+  <trophy id="12" hidden="no" ttype="B"><name>Hunter&apos;s Craft &amp; Blood</name><detail>Acquire tools</detail></trophy>
+</trophyconf>)";
+  }
+  // Real src/runtime_trophy.c JSONL schema: trophy_id + unlocked_at
+  {
+    std::ofstream jl(saves_dir / "trophies.jsonl");
+    jl << R"({"v":1,"title_id":"CUSA03173","trophy_id":12,"unlocked_at":"2026-10-10T06:30:00Z"})" << "\n";
+  }
+
+  const TrophyCatalog cat = LoadTrophies(saves_dir, "8");
+  assert(cat.named);
+  assert(cat.trophies.size() == 2);
+  assert(cat.stats.total == 2 && cat.stats.unlocked == 1 && cat.stats.progress_pct == 50);
+  assert(cat.trophies[1].id == 12);
+  assert(cat.trophies[1].name == "Hunter's Craft & Blood"); // entity decoded by BbTrophy
+  assert(cat.trophies[1].unlocked == true);
+  assert(cat.trophies[1].date_str == "2026-10-10T06:30:00Z");
+
+  // Unnamed fallback when no TROP.XML exists yet
+  const fs::path bare_saves = ws.root / "bare_saves";
+  fs::create_directories(bare_saves);
+  {
+    std::ofstream jl(bare_saves / "trophies.jsonl");
+    jl << R"({"v":1,"title_id":"CUSA03173","trophy_id":7,"unlocked_at":"2026-11-01T12:00:00Z"})" << "\n";
+  }
+  const TrophyCatalog unnamed = LoadTrophies(bare_saves, "1");
+  assert(!unnamed.named);
+  assert(unnamed.trophies.size() == 1);
+  assert(unnamed.trophies[0].id == 7 && unnamed.trophies[0].unlocked);
+
+  std::cout << "PASS: TestTrophiesRealContract\n";
+}
+
+// ============================================================================
+// Test 6: LauncherCore lifecycle, cross-thread inbox, quick-crash focus, extraction safety
+// ============================================================================
+void TestLauncherCoreLifecycleAndSafety() {
+  TempWorkspace ws("core");
+  const fs::path game_dir = ws.root / "game_109";
+  SeedFakeGameDir(game_dir, "CUSA03173", "01.09");
+
+  auto fake_runner = std::make_unique<FakeProcessRunner>();
+  auto* runner_ptr = fake_runner.get();
+  auto fake_probe = std::make_unique<FakeSystemProbe>();
+  fake_probe->has_online = true;
+  auto manual_clock = std::make_unique<ManualClock>();
+  auto* clock_ptr = manual_clock.get();
+
+  std::unique_ptr<LauncherCore> core;
+  auto opened = LauncherCore::Open(
+      ws.paths,
+      {std::move(fake_runner), std::move(fake_probe), std::move(manual_clock)},
+      core);
+  assert(opened && core != nullptr);
+
+  // Thread-safe cross-thread inbox (simulating SDL dialog thread)
+  core->PostSetting("game_dir", game_dir.string());
+  const StateDelta d_inbox = core->Poll();
+  assert(d_inbox.Contains("game_dir"));
+  assert(d_inbox.Contains("is_valid"));
+  assert(core->GameStatus().valid && core->GameStatus().is_109);
+
+  // Extraction must fail cleanly when no extractor tool exists under Port Directory (never fake success!)
+  const ActionResult ex_missing = core->StartExtraction("/tmp/fake.pkg", ws.root / "out_extract");
+  assert(!ex_missing);
+  assert(!core->Extraction().active);
+  assert(ex_missing.delta.focus_log_tab);
+
+  // Quick-crash detection (<4s non-zero exit -> focus_log_tab=true)
+  assert(core->LaunchGame());
+  assert(core->GameProcess().running);
+  assert(runner_ptr->spawned.size() == 1);
+  runner_ptr->spawned.back()->pending_lines.push_back("vkCreateDevice failed");
+  clock_ptr->Advance(std::chrono::seconds(2));
+  runner_ptr->spawned.back()->exit_code = 1;
+  const StateDelta d_crash = core->Poll();
+  assert(!core->GameProcess().running);
+  assert(d_crash.focus_log_tab);
+  assert(core->ConsoleLog().find("vkCreateDevice failed") != std::string::npos);
+
+  // Normal exit (>4s) does NOT focus log tab
+  assert(core->LaunchGame());
+  clock_ptr->Advance(std::chrono::seconds(10));
+  runner_ptr->spawned.back()->exit_code = 0;
+  const StateDelta d_ok = core->Poll();
+  assert(!core->GameProcess().running);
+  assert(!d_ok.focus_log_tab);
+
+  // StopGame terminates running session cleanly
+  assert(core->LaunchGame());
+  auto active_session = runner_ptr->spawned.back();
+  assert(core->StopGame());
+  assert(active_session->terminated);
+  assert(!core->GameProcess().running);
+
+  // When extractor script exists, successful extraction updates game_dir automatically
+  fs::create_directories(ws.paths.port_dir / "tools" / "extractor");
+  {
+    std::ofstream ex(ws.paths.port_dir / "tools" / "extractor" / "extract_dump.sh");
+    ex << "#!/usr/bin/env bash\nexit 0\n";
+  }
+  const fs::path extracted_dir = ws.root / "extracted_game";
+  SeedFakeGameDir(extracted_dir, "CUSA03173", "01.09");
+  assert(core->StartExtraction("/tmp/game.pkg", extracted_dir));
+  assert(core->Extraction().active);
+  runner_ptr->spawned.back()->pending_lines.push_back("Extracting 100%");
+  runner_ptr->spawned.back()->exit_code = 0;
+  const StateDelta d_ex = core->Poll();
+  assert(!core->Extraction().active);
+  assert(core->Extraction().progress_pct == 100);
+  assert(core->Settings().GetString("game_dir") == extracted_dir.string());
+  assert(d_ex.Contains("game_dir"));
+
+  std::cout << "PASS: TestLauncherCoreLifecycleAndSafety\n";
+}
+
+// ============================================================================
+// Test 7: Real PosixProcessRunner smoke test (fork/setsid/execve/UniqueFd/killpg)
+// ============================================================================
+void TestPosixProcessRunnerSmoke() {
+  PosixProcessRunner runner;
+  SpawnSpec spec;
+  spec.executable = "/bin/sh";
+  spec.args = {"-c", "echo hello_posix; exit 0"};
+  spec.inherit_env = true;
+
+  auto spawned = runner.Spawn(spec);
+  assert(spawned);
+
+  std::vector<std::string> lines;
+  std::optional<int> code;
+  for (int i = 0; i < 100 && !code.has_value(); ++i) {
+    spawned.session->DrainOutput(lines);
+    code = spawned.session->TryWait();
+    if (!code.has_value()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+  spawned.session->DrainOutput(lines);
+  assert(code.has_value() && *code == 0);
+  bool saw_hello = false;
+  for (const auto& l : lines) {
+    if (l == "hello_posix") saw_hello = true;
+  }
+  assert(saw_hello);
+
+  // Verify Terminate cleanly kills a sleeping child process group without hanging
+  SpawnSpec sleeper;
+  sleeper.executable = "/bin/sh";
+  sleeper.args = {"-c", "sleep 30"};
+  auto s2 = runner.Spawn(sleeper);
+  assert(s2);
+  s2.session->Terminate(std::chrono::milliseconds(500));
+  assert(s2.session->TryWait().has_value());
+
+  std::cout << "PASS: TestPosixProcessRunnerSmoke\n";
+}
+
+} // namespace
 
 int main() {
-  std::cout << "=== Running Bloodborne Launcher Test Suite ===\n";
-  test_default_settings();
-  test_settings_validation_and_clamping();
-  test_config_save_load();
-  test_mods_manager();
-  test_trophy_manager();
-  test_i18n();
-  test_cjk_font_resolution();
-  std::cout << "=== All 7 Test Suites Passed Successfully (100% Success Rate) ===\n";
+  std::cout << "=== Running Deepened Bloodborne Launcher Test Suite ===\n";
+  TestSettingsStoreContract();
+  TestLaunchEnvCompiler();
+  TestGameDirectoryInspection();
+  TestModsAndExternalPatchesContracts();
+  TestTrophiesRealContract();
+  TestLauncherCoreLifecycleAndSafety();
+  TestPosixProcessRunnerSmoke();
+  std::cout << "=== All 7 Deep Interface Test Suites Passed ===\n";
   return 0;
 }

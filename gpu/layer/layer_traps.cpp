@@ -28,7 +28,7 @@
 #include "bbport_guest_memory.h"
 #include "bbport_write_log.h"
 #include "bbport_sections.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "buffers/buffer_cache.h"
 #include "memory/dirty_tracker.h"
 #include "common/signal_context.h"

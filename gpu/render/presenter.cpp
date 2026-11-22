@@ -15,7 +15,7 @@
 #include "bbport_game_menu.h"
 #include "bbport_overlay.h"
 #include "bbport_timeline.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "core/emulator_settings.h"
 #include "sdl_window.h"
 #include "textures/image.h"
@@ -678,8 +678,8 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool) {
         frame->interp_count = 0;
         // The FPS counter: the game's own rate and the frames generated for each of its frames.
         auto& settings = BbSettings::Get();
-        settings.game_fps.store(float(1000.0 / interval_ms), std::memory_order_relaxed);
-        settings.frame_gen_now.store(int(generated), std::memory_order_relaxed);
+        BbSettings::Telemetry().game_fps.store(float(1000.0 / interval_ms), std::memory_order_relaxed);
+        BbSettings::Telemetry().frame_gen_now.store(int(generated), std::memory_order_relaxed);
     }
     if (only_interp && generated && frame->interp_image[0] && !frame->interp_async[0].wait_semaphore) {
         PresentImage(frame, frame->interp_image[0], true);

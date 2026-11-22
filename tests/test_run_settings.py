@@ -34,12 +34,7 @@ class RestartResolutionTests(unittest.TestCase):
                 tool = data / 'bb-gpu-capabilities'
                 tool.write_text(f'#!/bin/sh\necho {caps}\n')
                 tool.chmod(0o755)
-            python = data / 'python'
-            python.write_text(f'#!{sys.executable}\n' +
-                'import subprocess, sys\n'
-                'if sys.argv[1] in ("scripts/patches.py", "scripts/mods.py"):\n'
-                '    sys.exit(subprocess.call([sys.executable, *sys.argv[1:]]))\n')
-            python.chmod(0o755)
+            python = sys.executable
             probe = data / 'probe'
             probe.write_text(f'#!{sys.executable}\n' +
                 'import json, os\n'
@@ -55,8 +50,9 @@ class RestartResolutionTests(unittest.TestCase):
                 '    os.environ["BB_TEST_STAGE"]=str(stage+1)\n'
                 '    os.execlp("bash", "bash", "run.sh")\n')
             probe.chmod(0o755)
-            env = dict(os.environ, BB_PREBUILT='1', BB_PROBE=str(probe), PYTHON=str(python),
-                       BB_DATA_DIR=str(data), BB_CONFIG=str(config), BB_GAME_DIR=str(data))
+            env = dict(os.environ, BB_PREBUILT='1', BB_SKIP_PREPARE='1', BB_PROBE=str(probe),
+                       PYTHON=str(python), BB_DATA_DIR=str(data), BB_CONFIG=str(config),
+                       BB_GAME_DIR=str(data))
             for key in ('BB_RENDER_RES', 'BB_OUTPUT_RES', 'BB_AUTO_RENDER_RES', 'BB_TEST_STAGE',
                         'BB_LIVE_HYBRID', 'BB_MONITOR_SIZE'):
                 env.pop(key, None)

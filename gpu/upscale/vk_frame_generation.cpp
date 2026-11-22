@@ -3,6 +3,7 @@
 #include "upscale/vk_frame_generation.h"
 #include "shim/bb_env.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 #include <algorithm>
 #include <chrono>
@@ -119,15 +120,15 @@ FrameGeneration::FrameGeneration(const Instance& instance_, Scheduler& scheduler
     caps.structSize = sizeof(caps);
     if (ffxVkPortableQueryDeviceCapabilities(instance.GetPhysicalDevice(), &caps) !=
         FFX_VK_PORTABLE_OK) {
-        settings.frame_generation_problem = "the GPU's capabilities could not be read";
+        BbSettings::Caps().frame_generation_problem = "the GPU's capabilities could not be read";
     } else if (!caps.fsr3FrameGenerationPrerequisites) {
-        settings.frame_generation_problem = "the GPU lacks what FSR 3 frame generation needs";
+        BbSettings::Caps().frame_generation_problem = "the GPU lacks what FSR 3 frame generation needs";
     } else {
         supported = true;
     }
-    settings.frame_generation_supported = supported;
+    BbSettings::Caps().frame_generation_supported = supported;
     std::printf("Frame generation: FSR 3.1 %s%s%s\n", supported ? "available" : "unavailable",
-                supported ? "" : ": ", supported ? "" : settings.frame_generation_problem.load());
+                supported ? "" : ": ", supported ? "" : BbSettings::Caps().frame_generation_problem.load());
     // DLSS Frame Generation: the bridge, NVIDIA's library, a GeForce RTX 40 or newer.
     const Dlss* dlss = Dlss::Get();
     dlss_max_count = dlss ? std::clamp(dlss->FrameGenMaxCount(), 0, int(MaxGenerated)) : 0;
@@ -137,8 +138,8 @@ FrameGeneration::FrameGeneration(const Instance& instance_, Scheduler& scheduler
     if (dlss_max_count < 1 && dlss_problem.empty()) {
         dlss_problem = "DLSS Frame Generation is unavailable on this system";
     }
-    settings.dlssg_max_multiplier = dlss_max_count + 1;
-    settings.dlssg_problem = dlss_max_count > 0 ? nullptr : dlss_problem.c_str();
+    BbSettings::Caps().dlssg_max_multiplier = dlss_max_count + 1;
+    BbSettings::Caps().dlssg_problem = dlss_max_count > 0 ? nullptr : dlss_problem.c_str();
     if (dlss_max_count > 0) {
         std::printf("Frame generation: DLSS Frame Generation available, up to %dx\n",
                     dlss_max_count + 1);
@@ -148,7 +149,7 @@ FrameGeneration::FrameGeneration(const Instance& instance_, Scheduler& scheduler
     }
     // AMD's frame generation DLL (Windows, beside the FSR loader).
     amd = std::make_unique<FgAmd>(instance, scheduler);
-    settings.fg_amd_supported = amd->Available();
+    BbSettings::Caps().fg_amd_supported = amd->Available();
     const int chosen = settings.frame_generation.load();
     if (chosen != BbSettings::FrameGenOff) {
         std::printf("Frame generation: %s chosen, %s\n", ProviderName(chosen),
@@ -302,7 +303,7 @@ void FrameGeneration::RecordAmd(vk::Image color, u64 id, bool reset, Target& tar
     using Image = Fsr4Upscaler::Image;
     f.color = Image{.image = color, .width = scene.width, .height = scene.height,
                     .format = scene.color_format};
-    if (hudless_ready && !BbToggle::Disabled(1u << 30)) {
+    if (hudless_ready && !BbToggle::Disabled(BbToggle::FrameGenHudless)) {
         f.hudless = Image{.image = vk::Image(In().hudless), .width = scene.width,
                           .height = scene.height, .format = scene.color_format};
     }
@@ -711,7 +712,7 @@ FrameGeneration::Job FrameGeneration::BuildFsr(vk::Image color, vk::Image motion
                                      FFX_VK_PORTABLE_RESOURCE_STATE_GENERIC_READ);
     // The UI-less frame (CaptureHudless): FSR interpolates it and lays the UI over unmoved. Without
     // one (no UI drawn this frame) the whole frame is interpolated.
-    if (hudless_ready && !BbToggle::Disabled(1u << 30)) {
+    if (hudless_ready && !BbToggle::Disabled(BbToggle::FrameGenHudless)) {
         dispatch.hudlessColor = Describe(vk::Image(In().hudless), scene.color_format, scene.width,
                                          scene.height, ColorUsage, vk::ImageAspectFlagBits::eColor,
                                          FFX_VK_PORTABLE_RESOURCE_STATE_GENERIC_READ);
@@ -1021,7 +1022,7 @@ void FrameGeneration::RecordDlss(vk::Image color, u64 id, bool reset, u32 count)
     // BB_DLSSG_HUDLESS=0: no hudless frame (diagnostics, as toggle bit 30).
     static const bool hudless_wanted = !bb_env_off("BB_DLSSG_HUDLESS");
     const bool with_hudless =
-        hudless_wanted && hudless_ready && In().hudless && !BbToggle::Disabled(1u << 30);
+        hudless_wanted && hudless_ready && In().hudless && !BbToggle::Disabled(BbToggle::FrameGenHudless);
     hudless_ready = false;
     const auto resource = [](vk::Image image, vk::ImageView view, vk::Format format,
                              vk::ImageAspectFlags aspect, u32 w, u32 h) {
@@ -1206,13 +1207,13 @@ void FrameGeneration::Fail(int provider, const char* reason) {
     std::printf("Frame generation: %s; %s off\n", reason, ProviderName(provider));
     if (provider == BbSettings::FrameGenDlss) {
         dlss_failed = true;
-        settings.dlssg_problem = reason;
+        BbSettings::Caps().dlssg_problem = reason;
     } else if (provider == BbSettings::FrameGenFsrAmd) {
         amd_failed = true;
-        settings.fg_amd_problem = reason;
+        BbSettings::Caps().fg_amd_problem = reason;
     } else {
         fsr_failed = true;
-        settings.frame_generation_problem = reason;
+        BbSettings::Caps().frame_generation_problem = reason;
     }
 }
 

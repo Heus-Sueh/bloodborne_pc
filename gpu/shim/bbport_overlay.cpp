@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "bbport_overlay.h"
 #include "bbport_overlay_internal.h"
+#include "bbport_quick_menu.h"
 #include "shim/bb_env.h"
 
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 #include <algorithm>
 #include <array>
@@ -57,7 +58,7 @@ asm(BB_FONT_SECTION
 extern "C" const unsigned char bb_font_ttf[];
 extern "C" const unsigned char bb_font_ttf_end[];
 
-extern "C" void runtime_restart(void); // bb-probe (probe.c)
+#include "runtime_gpu_abi.h"
 
 
 namespace BbOverlay {
@@ -92,8 +93,8 @@ std::mutex banner_mutex;
 std::string banner_text;
 std::atomic<bool> banner_active{false};
 std::string prompt_title, prompt_text;
-/// Trophies to announce, oldest first; the front one is on screen (as shadPS4's trophy_ui.cpp:
-/// slides in from the right, stays, fades out over the last second).
+/// Trophies to announce, oldest first; the front one is on screen in PlayStation 4's top-left
+/// notification style (slides horizontally from the left edge, holds, slides back out to the left).
 struct TrophyToast {
     char grade;
     std::string name;
@@ -106,7 +107,7 @@ std::unordered_map<std::string, ImTextureData*> trophy_icons;
 std::mutex trophy_mutex;
 std::deque<TrophyToast> trophy_queue;
 std::atomic<bool> trophy_active{false};
-constexpr float TrophySeconds = 6.0f, TrophySlide = 0.4f;
+constexpr float TrophySeconds = 5.5f, TrophySlideIn = 0.40f, TrophySlideOut = 0.35f;
 
 // Present rate for the FPS counter.
 std::chrono::steady_clock::time_point last_present{};
@@ -209,7 +210,7 @@ std::string FpsText() {
     const auto& s = BbSettings::Get();
     const float shown = frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f;
     const int generated = s.frame_generation.load(std::memory_order_relaxed) != BbSettings::FrameGenOff
-                              ? s.frame_gen_now.load(std::memory_order_relaxed)
+                              ? BbSettings::Telemetry().frame_gen_now.load(std::memory_order_relaxed)
                               : 0;
     char text[192];
     if (generated > 0) {
@@ -372,7 +373,10 @@ void FpsCounter() {
     ImGui::Text("%s  %s", FpsText().c_str(),
                 s.upscaler == BbSettings::UpscalerFsr3     ? "FSR 3.1"
                 : s.upscaler == BbSettings::UpscalerFsr4   ? "FSR 4"
-                : s.upscaler == BbSettings::UpscalerFsr411 ? "FSR 4.1.1"
+                : s.upscaler == BbSettings::UpscalerFsr411
+                    ? (BbSettings::Caps().fsr4_version_active.load(std::memory_order_relaxed)
+                           ? BbSettings::Caps().fsr4_version_active.load(std::memory_order_relaxed)
+                           : "FSR 4.1.x")
                 : s.upscaler == BbSettings::UpscalerTaa    ? "TAA"
                 : s.upscaler == BbSettings::UpscalerDlss   ? "DLSS"
                 : s.upscaler == BbSettings::UpscalerFsr1   ? "FSR 1"
@@ -494,9 +498,252 @@ ImTextureData* TrophyIcon(const std::filesystem::path& path) {
     return it->second;
 }
 
-// The front trophy of the queue: a dark panel at the top centre (the game's HUD has its health at
-// the top left, its echoes and insight at the top right), sliding down, with a badge in the
-// grade's colour, "Trophy earned" and the name.
+// Authentic PlayStation 4 metallic trophy cup glyph rendered with vector geometry inside
+// `box = [pos, pos + size]` (grade: P platinum, G gold, S silver, B bronze, else neutral).
+void DrawPs4TrophyCup(ImDrawList* draw, ImVec2 pos, float size, char grade, float alpha) {
+    const auto col = [alpha](int r, int g, int b, int base) {
+        return IM_COL32(r, g, b, int(base * alpha));
+    };
+    ImU32 main_c = col(175, 182, 192, 255);
+    ImU32 hi_c = col(235, 240, 248, 255);
+    ImU32 shade_c = col(105, 112, 122, 255);
+    if (grade == 'P') {
+        main_c = col(206, 224, 248, 255);
+        hi_c = col(255, 255, 255, 255);
+        shade_c = col(128, 152, 188, 255);
+    } else if (grade == 'G') {
+        main_c = col(234, 190, 74, 255);
+        hi_c = col(255, 238, 168, 255);
+        shade_c = col(162, 120, 32, 255);
+    } else if (grade == 'S') {
+        main_c = col(198, 206, 216, 255);
+        hi_c = col(244, 248, 252, 255);
+        shade_c = col(128, 136, 148, 255);
+    } else if (grade == 'B') {
+        main_c = col(202, 126, 72, 255);
+        hi_c = col(238, 174, 122, 255);
+        shade_c = col(130, 74, 38, 255);
+    }
+
+    const auto pt = [pos, size](float nx, float ny) {
+        return ImVec2{pos.x + nx * size, pos.y + ny * size};
+    };
+    const float stroke = std::max(1.2f, size * 0.085f);
+
+    // Left and right curved handles
+    draw->AddBezierCubic(pt(0.24f, 0.22f), pt(0.03f, 0.22f), pt(0.05f, 0.52f), pt(0.30f, 0.50f),
+                         main_c, stroke);
+    draw->AddBezierCubic(pt(0.76f, 0.22f), pt(0.97f, 0.22f), pt(0.95f, 0.52f), pt(0.70f, 0.50f),
+                         shade_c, stroke);
+
+    // Tapered goblet cup body
+    const ImVec2 cup[6] = {
+        pt(0.22f, 0.14f), pt(0.78f, 0.14f), pt(0.73f, 0.44f),
+        pt(0.58f, 0.62f), pt(0.42f, 0.62f), pt(0.27f, 0.44f),
+    };
+    draw->AddConvexPolyFilled(cup, 6, main_c);
+
+    // Right-side shading wedge for metallic depth
+    const ImVec2 shade[4] = {
+        pt(0.56f, 0.14f), pt(0.78f, 0.14f), pt(0.73f, 0.44f), pt(0.55f, 0.62f),
+    };
+    draw->AddConvexPolyFilled(shade, 4, shade_c);
+
+    // Crisp rim highlight & specular glint on the left face of the bowl
+    draw->AddLine(pt(0.22f, 0.15f), pt(0.78f, 0.15f), hi_c, std::max(1.0f, size * 0.07f));
+    draw->AddLine(pt(0.32f, 0.22f), pt(0.37f, 0.48f), hi_c, std::max(1.0f, size * 0.08f));
+
+    // Stem + collar + two-tier pedestal base
+    draw->AddRectFilled(pt(0.44f, 0.61f), pt(0.56f, 0.77f), shade_c);
+    draw->AddRectFilled(pt(0.44f, 0.61f), pt(0.50f, 0.77f), main_c);
+    draw->AddRectFilled(pt(0.34f, 0.76f), pt(0.66f, 0.84f), main_c, size * 0.03f);
+    draw->AddRectFilled(pt(0.24f, 0.83f), pt(0.76f, 0.92f), shade_c, size * 0.03f);
+    draw->AddLine(pt(0.26f, 0.84f), pt(0.74f, 0.84f), hi_c, std::max(1.0f, size * 0.05f));
+
+    // Platinum signature 4-point gleam at the upper-right rim
+    if (grade == 'P') {
+        const ImVec2 c = pt(0.84f, 0.16f);
+        const float r = size * 0.14f;
+        draw->AddLine({c.x - r, c.y}, {c.x + r, c.y}, hi_c, std::max(1.0f, size * 0.06f));
+        draw->AddLine({c.x, c.y - r}, {c.x, c.y + r}, hi_c, std::max(1.0f, size * 0.06f));
+    }
+}
+
+// Authentic PlayStation 5 3D fluted metallic chalice rendered inside `box = [pos, pos + size]`.
+void DrawPs5TrophyCup(ImDrawList* draw, ImVec2 pos, float size, char grade, float alpha) {
+    const auto col = [alpha](int r, int g, int b, int base) {
+        return IM_COL32(r, g, b, int(base * alpha));
+    };
+    ImU32 main_c = col(204, 126, 86, 255);
+    ImU32 hi_c = col(246, 190, 156, 255);
+    ImU32 mid_c = col(162, 92, 58, 255);
+    ImU32 shade_c = col(110, 56, 32, 255);
+    if (grade == 'P') {
+        main_c = col(212, 230, 255, 255);
+        hi_c = col(255, 255, 255, 255);
+        mid_c = col(164, 192, 232, 255);
+        shade_c = col(110, 140, 188, 255);
+    } else if (grade == 'G') {
+        main_c = col(234, 192, 78, 255);
+        hi_c = col(255, 240, 168, 255);
+        mid_c = col(194, 148, 44, 255);
+        shade_c = col(138, 98, 20, 255);
+    } else if (grade == 'S') {
+        main_c = col(198, 206, 216, 255);
+        hi_c = col(246, 250, 255, 255);
+        mid_c = col(154, 162, 174, 255);
+        shade_c = col(106, 114, 126, 255);
+    }
+
+    const auto pt = [pos, size](float nx, float ny) {
+        return ImVec2{pos.x + nx * size, pos.y + ny * size};
+    };
+
+    // Sleek PS5 fluted chalice bowl (taller and narrower than PS4, vertical facets)
+    const ImVec2 bowl[6] = {
+        pt(0.22f, 0.08f), pt(0.78f, 0.08f), pt(0.73f, 0.44f),
+        pt(0.57f, 0.62f), pt(0.43f, 0.62f), pt(0.27f, 0.44f),
+    };
+    draw->AddConvexPolyFilled(bowl, 6, main_c);
+
+    // Right metallic shadow facet
+    const ImVec2 right_shade[4] = {
+        pt(0.56f, 0.08f), pt(0.78f, 0.08f), pt(0.73f, 0.44f), pt(0.55f, 0.62f),
+    };
+    draw->AddConvexPolyFilled(right_shade, 4, shade_c);
+
+    // Center-left vertical flute rib (signature PS5 3D chalice ribbing)
+    const ImVec2 left_flute[4] = {
+        pt(0.31f, 0.10f), pt(0.44f, 0.10f), pt(0.46f, 0.58f), pt(0.36f, 0.52f),
+    };
+    draw->AddConvexPolyFilled(left_flute, 4, hi_c);
+    draw->AddLine(pt(0.50f, 0.10f), pt(0.50f, 0.60f), mid_c, std::max(1.0f, size * 0.06f));
+    draw->AddLine(pt(0.63f, 0.10f), pt(0.59f, 0.54f), main_c, std::max(1.0f, size * 0.055f));
+
+    // Top rim ellipse highlight
+    draw->AddLine(pt(0.22f, 0.09f), pt(0.78f, 0.09f), hi_c, std::max(1.1f, size * 0.07f));
+
+    // Slender tapered stem
+    draw->AddRectFilled(pt(0.45f, 0.61f), pt(0.55f, 0.82f), shade_c);
+    draw->AddRectFilled(pt(0.45f, 0.61f), pt(0.50f, 0.82f), hi_c);
+
+    // Sleek PS5 flared disc base
+    draw->AddRectFilled(pt(0.32f, 0.81f), pt(0.68f, 0.87f), main_c, size * 0.03f);
+    draw->AddRectFilled(pt(0.25f, 0.86f), pt(0.75f, 0.93f), shade_c, size * 0.04f);
+    draw->AddLine(pt(0.27f, 0.87f), pt(0.73f, 0.87f), hi_c, std::max(1.0f, size * 0.05f));
+}
+
+// PlayStation 5 right-side circular badge: outer dark gray ring, dark ring gap, inner crisp white
+// disc, and dark charcoal PlayStation "PS" vector monogram inside.
+void DrawPs5PlayStationBadge(ImDrawList* draw, ImVec2 center, float radius, float alpha) {
+    const auto a = [alpha](int r, int g, int b, int base) {
+        return IM_COL32(r, g, b, int(base * alpha));
+    };
+
+    // Outer dark metallic ring + inner dark gap + white inner circle
+    draw->AddCircleFilled(center, radius, a(20, 22, 27, 235), 48);
+    draw->AddCircle(center, radius, a(88, 92, 102, 225), 48, std::max(1.4f, radius * 0.075f));
+    const float r_in = radius * 0.76f;
+    draw->AddCircleFilled(center, r_in, a(246, 248, 252, 255), 48);
+
+    const ImU32 fg = a(24, 26, 31, 255);
+    const ImU32 bg = a(246, 248, 252, 255);
+    const auto pt = [center, r_in](float nx, float ny) {
+        return ImVec2{center.x + nx * r_in, center.y + ny * r_in};
+    };
+
+    // Floor 'S' ribbon (drawn behind the vertical 'P' stem):
+    // Left-front loop sweeping from lower-left under the stem
+    const float ribbon_w = std::max(1.6f, r_in * 0.145f);
+    draw->AddBezierCubic(pt(-0.08f, 0.18f), pt(-0.66f, 0.25f), pt(-0.64f, 0.50f), pt(-0.04f, 0.37f),
+                         fg, ribbon_w);
+    // Right-back loop sweeping from center to right and back
+    draw->AddBezierCubic(pt(0.02f, 0.35f), pt(0.64f, 0.20f), pt(0.66f, 0.44f), pt(0.08f, 0.50f),
+                         fg, ribbon_w);
+
+    // Standing 'P' flag loop on upper-right of the stem
+    const ImVec2 p_loop[5] = {
+        pt(-0.05f, -0.56f),
+        pt(0.46f, -0.39f),
+        pt(0.46f, -0.06f),
+        pt(-0.05f, 0.07f),
+        pt(-0.05f, -0.56f),
+    };
+    draw->AddConvexPolyFilled(p_loop, 4, fg);
+    // Inner cutout of the 'P' loop
+    const ImVec2 p_hole[4] = {
+        pt(0.03f, -0.40f),
+        pt(0.28f, -0.31f),
+        pt(0.28f, -0.14f),
+        pt(0.03f, -0.07f),
+    };
+    draw->AddConvexPolyFilled(p_hole, 4, bg);
+
+    // Vertical 'P' flagpole stem (slightly cleared on left/right so it crosses the 'S' cleanly)
+    draw->AddRectFilled(pt(-0.22f, -0.57f), pt(0.04f, 0.55f), bg);
+    draw->AddRectFilled(pt(-0.18f, -0.58f), pt(0.01f, 0.54f), fg, r_in * 0.03f);
+}
+
+// Official PlayStation 4 "Trophy earned!" subtitle localized by BB_LANGUAGE (PS4 system language ID).
+// Languages whose scripts are not in the embedded DejaVu Sans font fall back to English.
+const char* Ps4TrophyEarnedLabel() {
+    static const char* label = []() -> const char* {
+        const char* env = bb_env("BB_LANGUAGE");
+        const int lang = env ? std::atoi(env) : 1;
+        switch (lang) {
+        case 2:  // French
+        case 22: // French (Canada)
+            return "Troph\xC3\xA9""e obtenu !";
+        case 3:  // Spanish
+        case 20: // Spanish (Latin America)
+            return "\xC2\xA1Trofeo ganado!";
+        case 4:  // German
+            return "Troph\xC3\xA4""e erhalten!";
+        case 5:  // Italian
+            return "Trofeo ottenuto!";
+        case 6:  // Dutch
+            return "Trofee verdiend!";
+        case 7:  // Portuguese (Portugal)
+            return "Trof\xC3\xA9u ganho!";
+        case 8:  // Russian
+            return "\xD0\x9F\xD0\xBE\xD0\xBB\xD1\x83\xD1\x87\xD0\xB5\xD0\xBD \xD0\xBF\xD1\x80\xD0\xB8\xD0\xB7!";
+        case 16: // Polish
+            return "Zdobyto trofeum!";
+        case 17: // Portuguese (Brazil)
+            return "Trof\xC3\xA9u conquistado!";
+        case 21: // Turkish
+            return "Kupa kazan\xC4\xB1ld\xC4\xB1!";
+        default:
+            return "Trophy earned!";
+        }
+    }();
+    return label;
+}
+
+std::atomic<int> trophy_style{[] {
+    const char* env = bb_env("BB_TROPHY_COLOR");
+    if (env) {
+        if (std::strcmp(env, "white") == 0 || std::strcmp(env, "light") == 0 ||
+            std::strcmp(env, "ps4_white") == 0) {
+            return int(TrophyStyle::Ps4White);
+        }
+        if (std::strcmp(env, "black") == 0 || std::strcmp(env, "dark") == 0 ||
+            std::strcmp(env, "ps4") == 0 || std::strcmp(env, "ps4_black") == 0) {
+            return int(TrophyStyle::Ps4Black);
+        }
+        if (std::strcmp(env, "ps5") == 0) {
+            return int(TrophyStyle::Ps5);
+        }
+    }
+    return int(TrophyStyle::Ps5);
+}()};
+
+// PlayStation 4 / PlayStation 5 trophy notification.
+// - TrophyStyle::Ps5 (default): anchored at top-right, rounded dark slate pill-card sliding in from
+//   the right edge, square trophy artwork on the left, [PS5 metallic chalice + Trophy Name] on line 1,
+//   "Troféu conquistado!" on line 2, and the circular PlayStation "PS" badge on the right.
+// - TrophyStyle::Ps4Black / Ps4White: anchored at top-left, flush to the left screen edge, sliding
+//   in from the left, "Troféu conquistado!" on line 1, and [PS4 metallic cup + Trophy Name] on line 2.
 void TrophyWindow(float dt) {
     TrophyToast toast;
     {
@@ -520,49 +767,187 @@ void TrophyWindow(float dt) {
     if (toast.elapsed < 0.0f) {
         return; // a delayed one (BB_TROPHY_TEST)
     }
+
+    const TrophyStyle style_mode =
+        static_cast<TrophyStyle>(trophy_style.load(std::memory_order_relaxed));
+
+    float slide = 1.0f;
+    float alpha = 1.0f;
+    if (toast.elapsed < TrophySlideIn) {
+        const float t = std::clamp(toast.elapsed / TrophySlideIn, 0.0f, 1.0f);
+        const float inv = 1.0f - t;
+        slide = 1.0f - inv * inv * inv;
+        alpha = std::clamp(t * 1.4f, 0.0f, 1.0f);
+    } else if (toast.elapsed > TrophySeconds - TrophySlideOut) {
+        const float t = std::clamp((TrophySeconds - toast.elapsed) / TrophySlideOut, 0.0f, 1.0f);
+        slide = t * t * t;
+        alpha = std::clamp(t * 1.3f, 0.0f, 1.0f);
+    }
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const float s = base_scale;
-    const ImVec2 size{380.0f * s, 76.0f * s};
-    const float slide = std::min(toast.elapsed / TrophySlide, 1.0f);
-    const float eased = 1.0f - (1.0f - slide) * (1.0f - slide);
-    const float x = viewport->WorkPos.x + (viewport->WorkSize.x - size.x) * 0.5f;
-    const float y = viewport->WorkPos.y - size.y + (size.y + 24.0f * s) * eased;
-    const float alpha = std::clamp(std::min(slide, TrophySeconds - toast.elapsed), 0.0f, 1.0f);
+    ImFont* font = ImGui::GetFont();
+    const char* subtitle = Ps4TrophyEarnedLabel();
     auto* draw = ImGui::GetForegroundDrawList();
-    const auto a = [alpha](int r, int g, int b, int base) { return IM_COL32(r, g, b, int(base * alpha)); };
-    draw->AddRectFilled({x, y}, {x + size.x, y + size.y}, a(12, 10, 8, 220), 8.0f * s);
-    draw->AddRect({x, y}, {x + size.x, y + size.y}, a(150, 130, 100, 200), 8.0f * s, 0, 1.5f * s);
-    // The badge: the grade's colour (platinum, gold, silver, bronze; grey unknown) and its letter.
-    const ImU32 badge = toast.grade == 'P'   ? a(200, 215, 235, 255)
-                        : toast.grade == 'G' ? a(222, 180, 60, 255)
-                        : toast.grade == 'S' ? a(185, 190, 196, 255)
-                        : toast.grade == 'B' ? a(176, 112, 64, 255)
-                                             : a(120, 120, 120, 255);
-    const ImVec2 centre{x + 38.0f * s, y + size.y * 0.5f};
-    const char letter[2] = {toast.grade == '?' ? 'T' : toast.grade, 0};
-    const ImVec2 letter_size = ImGui::CalcTextSize(letter);
-    if (ImTextureData* icon = TrophyIcon(toast.icon)) {
-        // The game's icon, the grade as a small badge on its corner.
-        const float half = 26.0f * s;
-        draw->AddImageRounded(icon->GetTexRef(), {centre.x - half, centre.y - half}, {centre.x + half, centre.y + half},
-                              {0, 0}, {1, 1}, a(255, 255, 255, 255), 4.0f * s);
-        const ImVec2 dot{centre.x + half - 2.0f * s, centre.y + half - 2.0f * s};
-        draw->AddCircleFilled(dot, 9.0f * s, badge);
-        draw->AddCircle(dot, 9.0f * s, a(30, 25, 20, 255), 0, 1.5f * s);
-    } else {
-        draw->AddCircleFilled(centre, 24.0f * s, badge);
-        draw->AddCircle(centre, 24.0f * s, a(30, 25, 20, 255), 0, 2.0f * s);
-        draw->AddText({centre.x - letter_size.x * 0.5f, centre.y - letter_size.y * 0.5f}, a(30, 25, 20, 255), letter);
+    const auto a = [alpha](int r, int g, int b, int base) {
+        return IM_COL32(r, g, b, int(base * alpha));
+    };
+
+    if (style_mode == TrophyStyle::Ps5) {
+        const float height = 86.0f * s;
+        const float rounding = 20.0f * s;
+        const float icon_pad_left = 18.0f * s;
+        const float icon_size = 58.0f * s;
+        const float icon_gap = 16.0f * s;
+        const float text_x_rel = icon_pad_left + icon_size + icon_gap;
+        const float cup_size = 19.5f * s;
+        const float cup_gap = 9.0f * s;
+        const float badge_radius = 22.5f * s;
+        const float badge_pad_right = 20.0f * s;
+        const float badge_gap = 20.0f * s;
+        const float right_reserved = badge_gap + badge_radius * 2.0f + badge_pad_right;
+
+        const float title_font_size = 19.5f * s;
+        const float sub_font_size = 15.5f * s;
+        const ImVec2 title_sz = font->CalcTextSizeA(title_font_size, FLT_MAX, 0.0f, toast.name.c_str());
+        const ImVec2 sub_sz = font->CalcTextSizeA(sub_font_size, FLT_MAX, 0.0f, subtitle);
+        const float needed_w =
+            text_x_rel + std::max(cup_size + cup_gap + title_sz.x, sub_sz.x) + right_reserved;
+        const float width = std::clamp(needed_w, 430.0f * s, 590.0f * s);
+
+        const float margin_right = 28.0f * s;
+        const float x_shown = viewport->WorkPos.x + viewport->WorkSize.x - width - margin_right;
+        const float x_hidden = viewport->WorkPos.x + viewport->WorkSize.x + 16.0f * s;
+        const float x = x_hidden + (x_shown - x_hidden) * slide;
+        const float y = viewport->WorkPos.y + 28.0f * s;
+        const ImVec2 p0{x, y};
+        const ImVec2 p1{x + width, y + height};
+
+        // Soft ambient drop shadow beneath the rounded PS5 banner
+        draw->AddRectFilled({p0.x + 2.0f * s, p0.y + 4.0f * s}, {p1.x + 4.0f * s, p1.y + 8.0f * s},
+                            a(0, 0, 0, 90), rounding + 2.0f * s);
+        draw->AddRectFilled({p0.x, p0.y + 2.0f * s}, {p1.x + 2.0f * s, p1.y + 4.0f * s},
+                            a(0, 0, 0, 120), rounding);
+
+        // Main PS5 dark slate pill card + subtle upper glass highlight + thin border
+        draw->AddRectFilled(p0, p1, a(26, 28, 33, 242), rounding);
+        draw->AddRect(p0, p1, a(255, 255, 255, 32), rounding, 0, 1.2f * s);
+
+        // Left square trophy artwork tile (58x58)
+        const ImVec2 art0{x + icon_pad_left, y + (height - icon_size) * 0.5f};
+        const ImVec2 art1{art0.x + icon_size, art0.y + icon_size};
+        if (ImTextureData* icon = TrophyIcon(toast.icon)) {
+            draw->AddImage(icon->GetTexRef(), art0, art1, {0, 0}, {1, 1}, a(255, 255, 255, 255));
+            draw->AddRect(art0, art1, a(0, 0, 0, 140), 0.0f, 0, 1.0f);
+            draw->AddRect(art0, art1, a(255, 255, 255, 28), 0.0f, 0, 1.0f);
+        } else {
+            draw->AddRectFilled(art0, art1, a(36, 38, 45, 255), 2.0f * s);
+            draw->AddRect(art0, art1, a(255, 255, 255, 32), 2.0f * s, 0, 1.0f);
+            const float big_cup = icon_size * 0.66f;
+            DrawPs5TrophyCup(draw,
+                             {art0.x + (icon_size - big_cup) * 0.5f, art0.y + (icon_size - big_cup) * 0.5f},
+                             big_cup, toast.grade, alpha);
+        }
+
+        // PS5 two-line layout:
+        //   Line 1 (Top):    [3D Fluted PS5 Trophy Cup] + Trophy Name (large bright white)
+        //   Line 2 (Bottom): "Troféu conquistado!" (medium cool gray, aligned under the cup)
+        const float text_x = x + text_x_rel;
+        const float line_gap = 6.0f * s;
+        const float block_h = title_font_size + line_gap + sub_font_size;
+        const float line1_y = y + (height - block_h) * 0.5f - 1.0f * s;
+        const float line2_y = line1_y + title_font_size + line_gap;
+
+        DrawPs5TrophyCup(draw, {text_x, line1_y + (title_font_size - cup_size) * 0.5f},
+                         cup_size, toast.grade, alpha);
+
+        const float name_x = text_x + cup_size + cup_gap;
+        const float text_right_limit = p1.x - right_reserved + 6.0f * s;
+        const float name_wrap = std::max(60.0f * s, text_right_limit - name_x);
+        draw->PushClipRect({name_x, y}, {text_right_limit, p1.y}, true);
+        draw->AddText(font, title_font_size, {name_x, line1_y}, a(250, 250, 252, 255),
+                      toast.name.c_str(), nullptr, name_wrap);
+        draw->PopClipRect();
+
+        draw->AddText(font, sub_font_size, {text_x, line2_y}, a(184, 188, 198, 255), subtitle);
+
+        // Right circular PlayStation "PS" emblem badge
+        const ImVec2 badge_center{p1.x - badge_pad_right - badge_radius, y + height * 0.5f};
+        DrawPs5PlayStationBadge(draw, badge_center, badge_radius, alpha);
+        return;
     }
-    const float text_x = x + 76.0f * s, wrap = size.x - 88.0f * s;
-    // In the game's language, as the name (BB_LANGUAGE, the PS4 number: 8 Russian).
-    static const bool russian = [] {
-        const char* env = bb_env("BB_LANGUAGE");
-        return env && std::atoi(env) == 8;
-    }();
-    draw->AddText({text_x, y + 12.0f * s}, a(200, 185, 150, 255), russian ? "Получен трофей" : "Trophy earned");
-    draw->AddText(nullptr, 0.0f, {text_x, y + 12.0f * s + ImGui::GetTextLineHeightWithSpacing()},
-                  a(240, 232, 215, 255), toast.name.c_str(), nullptr, wrap);
+
+    const bool light_theme = (style_mode == TrophyStyle::Ps4White);
+    const float height = 80.0f * s;
+    const float icon_pad_left = 20.0f * s;
+    const float icon_size = 56.0f * s;
+    const float icon_gap = 16.0f * s;
+    const float text_x_rel = icon_pad_left + icon_size + icon_gap;
+    const float cup_size = 18.0f * s;
+    const float cup_gap = 8.0f * s;
+    const float right_pad = 24.0f * s;
+
+    const float sub_font_size = 14.5f * s;
+    const float title_font_size = 17.5f * s;
+    const ImVec2 sub_sz = font->CalcTextSizeA(sub_font_size, FLT_MAX, 0.0f, subtitle);
+    const ImVec2 title_sz = font->CalcTextSizeA(title_font_size, FLT_MAX, 0.0f, toast.name.c_str());
+    const float needed_w = text_x_rel + std::max(sub_sz.x, cup_size + cup_gap + title_sz.x) + right_pad;
+    const float width = std::clamp(needed_w, 400.0f * s, 560.0f * s);
+
+    const float x = viewport->WorkPos.x - width * (1.0f - slide);
+    const float y = viewport->WorkPos.y + 44.0f * s;
+    const ImVec2 p0{x, y};
+    const ImVec2 p1{x + width, y + height};
+
+    // Soft Orbis OS compositor drop shadow (bottom & right)
+    draw->AddRectFilled({p0.x, p0.y + 3.0f * s}, {p1.x + 6.0f * s, p1.y + 7.0f * s}, a(0, 0, 0, 52), 2.0f * s);
+    draw->AddRectFilled({p0.x, p0.y + 1.0f * s}, {p1.x + 3.0f * s, p1.y + 3.0f * s}, a(0, 0, 0, 95), 1.0f * s);
+
+    // Main PS4 card body (subtle vertical matte gradient, flush left edge)
+    const ImU32 bg_top = light_theme ? a(248, 248, 250, 246) : a(24, 24, 28, 242);
+    const ImU32 bg_bot = light_theme ? a(236, 237, 241, 246) : a(15, 15, 18, 242);
+    draw->AddRectFilledMultiColor(p0, p1, bg_top, bg_top, bg_bot, bg_bot);
+
+    // Subtle PS4 hairline border on top, right, and bottom edges
+    const ImU32 edge = light_theme ? a(0, 0, 0, 34) : a(255, 255, 255, 28);
+    draw->AddLine({p0.x, p0.y}, {p1.x, p0.y}, edge, 1.0f);
+    draw->AddLine({p1.x, p0.y}, {p1.x, p1.y}, edge, 1.0f);
+    draw->AddLine({p0.x, p1.y}, {p1.x, p1.y}, edge, 1.0f);
+
+    // Left square trophy artwork tile (sharp PS4 corners)
+    const ImVec2 art0{x + icon_pad_left, y + (height - icon_size) * 0.5f};
+    const ImVec2 art1{art0.x + icon_size, art0.y + icon_size};
+    if (ImTextureData* icon = TrophyIcon(toast.icon)) {
+        draw->AddImage(icon->GetTexRef(), art0, art1, {0, 0}, {1, 1}, a(255, 255, 255, 255));
+        draw->AddRect(art0, art1, light_theme ? a(0, 0, 0, 42) : a(255, 255, 255, 36), 0.0f, 0, 1.0f);
+    } else {
+        draw->AddRectFilled(art0, art1, light_theme ? a(220, 222, 228, 255) : a(36, 38, 44, 255), 2.0f * s);
+        draw->AddRect(art0, art1, light_theme ? a(0, 0, 0, 36) : a(255, 255, 255, 32), 2.0f * s, 0, 1.0f);
+        const float big_cup = icon_size * 0.64f;
+        DrawPs4TrophyCup(draw, {art0.x + (icon_size - big_cup) * 0.5f, art0.y + (icon_size - big_cup) * 0.5f},
+                         big_cup, toast.grade, alpha);
+    }
+
+    // Two-line PS4 typography:
+    //   Line 1: "Trophy earned!" (muted secondary)
+    //   Line 2: [metallic cup icon] + Trophy Name (crisp primary)
+    const float text_x = x + text_x_rel;
+    const float line_gap = 6.0f * s;
+    const float block_h = sub_font_size + line_gap + title_font_size;
+    const float line1_y = y + (height - block_h) * 0.5f - 1.0f * s;
+    const float line2_y = line1_y + sub_font_size + line_gap;
+
+    const ImU32 sub_col = light_theme ? a(92, 95, 102, 255) : a(182, 184, 192, 255);
+    const ImU32 title_col = light_theme ? a(20, 20, 24, 255) : a(248, 248, 250, 255);
+
+    draw->AddText(font, sub_font_size, {text_x, line1_y}, sub_col, subtitle);
+    DrawPs4TrophyCup(draw, {text_x, line2_y + (title_font_size - cup_size) * 0.5f}, cup_size, toast.grade, alpha);
+
+    const float name_x = text_x + cup_size + cup_gap;
+    const float name_wrap = std::max(60.0f * s, (p1.x - right_pad) - name_x);
+    draw->PushClipRect({name_x, y}, {p1.x - right_pad + 6.0f * s, p1.y}, true);
+    draw->AddText(font, title_font_size, {name_x, line2_y}, title_col, toast.name.c_str(), nullptr, name_wrap);
+    draw->PopClipRect();
 }
 
 void TextPrompt() {
@@ -709,7 +1094,7 @@ void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count) 
     info.Device = instance.GetDevice();
     info.QueueFamily = instance.GetGraphicsQueueFamilyIndex();
     info.Queue = instance.GetGraphicsQueue();
-    info.DescriptorPoolSize = 16;
+    info.DescriptorPoolSize = 256;
     info.MinImageCount = std::max(image_count, 2u);
     info.ImageCount = std::max(image_count, 2u);
     info.UseDynamicRendering = true;
@@ -746,6 +1131,22 @@ bool HandleEvent(const SDL_Event& event) {
     std::scoped_lock lock{imgui_mutex};
     if (!initialized) {
         return false;
+    }
+    SDL_Event scaled_ev = event;
+    if (event.type == SDL_EVENT_MOUSE_MOTION) {
+        const ImVec2 at = ToDisplay(event.motion.windowID, event.motion.x, event.motion.y);
+        scaled_ev.motion.x = at.x;
+        scaled_ev.motion.y = at.y;
+    } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        const ImVec2 at = ToDisplay(event.button.windowID, event.button.x, event.button.y);
+        scaled_ev.button.x = at.x;
+        scaled_ev.button.y = at.y;
+    }
+    if (BbQuickMenu::HandleEvent(scaled_ev)) {
+        if (BbQuickMenu::IsOpen() && menu_open) {
+            SetOpen(false);
+        }
+        return true;
     }
     ImGuiIO& io = ImGui::GetIO();
     const bool is_open = menu_open;
@@ -852,6 +1253,26 @@ void SetBanner(const char* text) {
     banner_active = text != nullptr && text[0] != 0;
 }
 
+TrophyStyle GetTrophyStyle() {
+    return static_cast<TrophyStyle>(trophy_style.load(std::memory_order_relaxed));
+}
+
+void SetTrophyStyle(TrophyStyle style) {
+    trophy_style.store(int(style), std::memory_order_relaxed);
+}
+
+bool GetTrophyLightTheme() {
+    return GetTrophyStyle() == TrophyStyle::Ps4White;
+}
+
+void SetTrophyLightTheme(bool light) {
+    SetTrophyStyle(light ? TrophyStyle::Ps4White : TrophyStyle::Ps4Black);
+}
+
+ImTextureData* GetOrLoadTexture(const std::filesystem::path& path) {
+    return TrophyIcon(path);
+}
+
 void ShowTrophy(char grade, const std::string& name, const std::filesystem::path& icon, float delay) {
     std::scoped_lock lock{trophy_mutex};
     trophy_queue.push_back({grade, name, -delay, icon});
@@ -871,17 +1292,17 @@ bool Visible() {
         open_requested = true;
     }
     const bool shader_progress = ShaderProgressShown();
-    return initialized && (menu_open || open_requested || prompt_active || banner_active ||
-                           trophy_active || BbSettings::Get().show_fps || shader_progress);
+    return initialized && (menu_open || open_requested || BbQuickMenu::IsOpen() || prompt_active ||
+                           banner_active || trophy_active || BbSettings::Get().show_fps || shader_progress);
 }
 
 bool MenuOpen() {
-    return menu_open;
+    return menu_open || BbQuickMenu::IsOpen();
 }
 
 bool CapturesInput() {
     // The text dialog too: keys typed into it (Backspace is the touchpad) stay out of the game.
-    return menu_open || prompt_active;
+    return menu_open || BbQuickMenu::IsOpen() || prompt_active;
 }
 
 void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
@@ -943,13 +1364,16 @@ void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
     if (menu_open) {
         Menu();
     }
-    if (BbSettings::Get().show_fps && !menu_open) {
+    if (BbQuickMenu::IsOpen()) {
+        BbQuickMenu::Render(extent.width, extent.height, io.DeltaTime);
+    }
+    if (BbSettings::Get().show_fps && !menu_open && !BbQuickMenu::IsOpen()) {
         FpsCounter();
     }
-    if (prompt_active && !menu_open) {
+    if (prompt_active && !menu_open && !BbQuickMenu::IsOpen()) {
         TextPrompt();
     }
-    if (!menu_open) {
+    if (!menu_open && !BbQuickMenu::IsOpen()) {
         ShaderProgressLine();
     }
     if (trophy_active) {

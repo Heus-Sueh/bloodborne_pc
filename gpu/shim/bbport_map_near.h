@@ -20,7 +20,7 @@
 #include <initializer_list>
 #include <sys/mman.h>
 
-extern "C" void* runtime_low_map(size_t size, int prot);
+#include "runtime_gpu_abi.h"
 
 namespace BbMapNear {
 

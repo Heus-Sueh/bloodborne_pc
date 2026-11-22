@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright 2026 bbport contributors
+// SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
 #include <string>
@@ -22,6 +24,8 @@ struct LanguageOption {
 
 class I18n {
 public:
+  I18n();
+
   static I18n& Instance();
 
   void SetLanguage(Language lang);
@@ -34,16 +38,10 @@ public:
   static const std::vector<LanguageOption>& GetAvailableLanguages();
 
 private:
-  I18n();
   void LoadTranslations();
 
   Language current_lang_ = Language::English;
-  // Key -> (Language -> Translated string)
   std::unordered_map<std::string, std::unordered_map<Language, std::string>> strings_;
 };
-
-inline const std::string& tr(const std::string& key) {
-  return I18n::Instance().Translate(key);
-}
 
 } // namespace bbport

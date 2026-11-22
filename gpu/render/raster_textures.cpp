@@ -13,6 +13,7 @@
 #include <mutex>
 #include "render/raster_internal.h"
 #include "upscale/vk_frame_generation.h"
+#include "bbport_toggles.h"
 
 namespace Vulkan {
 

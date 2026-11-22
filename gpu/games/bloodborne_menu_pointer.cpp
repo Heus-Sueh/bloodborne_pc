@@ -42,7 +42,7 @@
 #include "bbgpu.h"
 #include "bbport_guest_code_hooks.h"
 #include "bbport_overlay.h"
-#include "bbport_toggles.h"
+#include "runtime_gpu_abi.h"
 #include "common/types.h"
 
 namespace BbMenuPointer {

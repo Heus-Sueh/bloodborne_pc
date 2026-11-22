@@ -32,8 +32,7 @@ struct magic_enum::customize::enum_range<BbCp::Op> {
     static constexpr int max = 255;
 };
 
-extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
-extern "C" void runtime_memory_read_backing(uintptr_t address, void* data, u64 size);
+#include "runtime_gpu_abi.h"
 
 namespace BbCp::Diagnostics {
 

@@ -20,7 +20,7 @@ extern "C" {
 #include "core/memory.h"
 #include "platform/avplayer/source.h"
 
-extern "C" int runtime_file_translate(const char* guest, char* out, size_t size);
+#include "runtime_gpu_abi.h"
 
 namespace BbAvPlayer {
 

@@ -31,6 +31,7 @@
 #include "game_profile.h"
 #include "bbport_settings.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "ffx_vk_portable.h"
 #include "bbgpu/shaders/upscale_merge_comp.h"
 #include "bbgpu/shaders/upscale_reactive_comp.h"
@@ -336,7 +337,7 @@ void TemporalUpscaler::CaptureFrameGenScene(vk::Image depth_image, vk::Format de
     if (!frame_generation || !frame_generation->Wanted()) {
         return;
     }
-    const float sign = BbToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+    const float sign = BbToggle::Disabled(BbToggle::UpscalerInvertJitterSign) ? -1.0f : 1.0f;
     FrameGeneration::Scene scene{
         .color = vk::Image(ui_image),
         .color_format = ui_format,

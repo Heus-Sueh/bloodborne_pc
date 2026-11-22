@@ -17,15 +17,32 @@ namespace Shader::Optimization {
 
 namespace {
 
+/// V_MOVRELD writes a VGPR picked by M0 at runtime, so the translator gives every VGPR it may hit
+/// a Select(M0 == index, new value, old value). A VGPR holding SGPR spills for V_READLANE is never
+/// the target, or the spills would be lost on hardware too, so lane reads follow the old value.
+static bool IsMovRelDSelect(const IR::Inst* inst) {
+    if (inst->GetOpcode() != IR::Opcode::SelectU32 || inst->Arg(0).IsImmediate() ||
+        inst->Arg(2).IsImmediate()) {
+        return false;
+    }
+    const IR::Inst* cond = inst->Arg(0).Inst();
+    return cond->GetOpcode() == IR::Opcode::IEqual32 && cond->Arg(1).IsImmediate();
+}
+
 /// Walks back a WriteLane chain: the write to `lane`, or the value under the chain.
 IR::Inst* SearchChain(IR::Inst* inst, u32 lane) {
-    while (inst->GetOpcode() == IR::Opcode::WriteLane) {
-        if (inst->Arg(2).U32() == lane) {
-            break;
+    while (true) {
+        if (inst->GetOpcode() == IR::Opcode::WriteLane) {
+            if (inst->Arg(2).U32() == lane) {
+                return inst;
+            }
+            inst = inst->Arg(0).Inst();
+        } else if (IsMovRelDSelect(inst)) {
+            inst = inst->Arg(2).Inst();
+        } else {
+            return inst;
         }
-        inst = inst->Arg(0).Inst();
     }
-    return inst;
 }
 
 /// Whether every path back from `inst` ends at a write to `lane` (or undef) through phis and

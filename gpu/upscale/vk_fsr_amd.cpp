@@ -239,7 +239,7 @@ struct FsrAmd::Impl {
         for (const Check& c : checks) {
             if (c.provider != 0 || instance.IsFloat8MatrixSupported()) models |= 2u << c.provider;
         }
-        BbSettings::Get().fsr_amd_models.store(models);
+        BbSettings::Caps().fsr_amd_models.store(models);
     }
 
     /// The providers' device checks in the loaded upscaler DLL and the driver's (each scanned once).
@@ -371,7 +371,7 @@ struct FsrAmd::Impl {
     void Install(Context&& c) {
         static std::string provider; // read by the menu
         provider = c.provider.empty() ? "AMD FSR" : "AMD " + c.provider;
-        BbSettings::Get().fsr_amd_provider.store(provider.c_str());
+        BbSettings::Caps().fsr_amd_provider.store(provider.c_str());
         current = std::move(c);
     }
 
@@ -379,7 +379,7 @@ struct FsrAmd::Impl {
     static int WantedModel() {
         const auto& s = BbSettings::Get();
         const int model = s.fsr4_model.load(std::memory_order_relaxed);
-        return s.fsr_amd_models.load(std::memory_order_relaxed) >> model & 1u ? model
+        return BbSettings::Caps().fsr_amd_models.load(std::memory_order_relaxed) >> model & 1u ? model
                                                                               : BbSettings::Fsr4Auto;
     }
 
@@ -687,7 +687,7 @@ struct FgAmd::Impl {
         if (query(&context, &version.header) == FFX_API_RETURN_OK && version.versionName) {
             provider += std::string{" "} + version.versionName;
         }
-        BbSettings::Get().fg_amd_provider.store(provider.c_str());
+        BbSettings::Caps().fg_amd_provider.store(provider.c_str());
         std::printf("Frame generation: %s %ux%u from %ux%u scenes (%s), context in %.0f ms\n",
                     provider.c_str(), w, h, rw, rh, vk::to_string(f).c_str(),
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)

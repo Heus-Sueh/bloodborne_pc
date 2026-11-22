@@ -11,7 +11,7 @@
 #include <string>
 
 #include "bblayer_write_traps.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 #include "buffers/buffer.h"
 #include "buffers/buffer_cache.h"

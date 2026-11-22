@@ -18,6 +18,7 @@
 #include "bbport_ce_stats.h"
 #include "bbport_free_check.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "bbport_write_log.h"
 #include "common/assert.h"
 #include "common/logging/log.h"

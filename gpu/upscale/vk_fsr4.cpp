@@ -278,7 +278,7 @@ struct Fsr4Upscaler::Impl {
                                   .fp16_matrices = instance.IsFsr411MatrixSupported(),
                                   .integrated = instance.IsIntegrated()};
         features.model = BbSettings::Fsr4ModelName(model);
-        BbSettings::Get().fsr4_models_available.store(Fsr411::AvailableModels(dir, features),
+        BbSettings::Caps().fsr4_models_available.store(Fsr411::AvailableModels(dir, features),
                                                       std::memory_order_relaxed);
         return std::make_unique<Fsr411::Upscaler>(instance.GetPhysicalDevice(), instance.GetDevice(),
                                                   dir, features);
@@ -301,7 +301,7 @@ struct Fsr4Upscaler::Impl {
         }
         last = now;
         auto& settings = BbSettings::Get();
-        const unsigned available = settings.fsr4_models_available.load(std::memory_order_relaxed);
+        const unsigned available = BbSettings::Caps().fsr4_models_available.load(std::memory_order_relaxed);
         const int current = settings.fsr4_model.load(std::memory_order_relaxed);
         for (int step = 1; step < BbSettings::Fsr4ModelCount; ++step) {
             const int next = 1 + (current - 1 + step + BbSettings::Fsr4ModelCount - 1) %
@@ -391,8 +391,9 @@ struct Fsr4Upscaler::Impl {
         fsr411_ticks.push_back(scheduler.CurrentTick());
         if (const std::string d = fsr411->Describe(); d != fsr411_described) {
             fsr411_described = d;
-            std::printf("Upscaler: FSR 4.1.1 replay, %s\n", d.c_str());
-            BbSettings::Get().fsr4_model_active.store(fsr411->ModelName(), std::memory_order_relaxed);
+            std::printf("Upscaler: %s replay, %s\n", fsr411->VersionName(), d.c_str());
+            BbSettings::Caps().fsr4_model_active.store(fsr411->ModelName(), std::memory_order_relaxed);
+            BbSettings::Caps().fsr4_version_active.store(fsr411->VersionName(), std::memory_order_relaxed);
         }
         problem.clear();
         return true;

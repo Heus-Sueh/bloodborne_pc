@@ -26,6 +26,7 @@
 #include "game_profile.h"
 #include "bbport_settings.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "ffx_vk_portable.h"
 #include "bbgpu/shaders/upscale_merge_comp.h"
 #include "bbgpu/shaders/upscale_reactive_comp.h"
@@ -108,7 +109,7 @@ TemporalUpscaler::TemporalUpscaler(const Instance& instance_, Scheduler& schedul
     // A GPU that cannot give the game's depth a proxy (GTX 10: no D32S8 blit, no stencil
     // export) never reduced the scene: a live preset or output only added work (a GTX 1060 went
     // from its 1080p rate to below it at 720p, 2026-10-21). There they apply at the next start.
-    BbSettings::Get().scene_proxies = scene_targets.DepthProxies();
+    BbSettings::Caps().scene_proxies = scene_targets.DepthProxies();
     if (!scene_targets.DepthProxies()) {
         std::printf("Upscaler: this GPU cannot reduce the game's depth live (no D32S8 blit or "
                     "stencil export): presets and the output apply at the next start\n");
@@ -147,14 +148,14 @@ bool TemporalUpscaler::Active() const {
             BbSettings::Get().upscaler == BbSettings::UpscalerTaa ||
             BbSettings::Get().upscaler == BbSettings::UpscalerFsr1 ||
             BbSettings::Get().upscaler == BbSettings::UpscalerDlss) &&
-           !BbToggle::Disabled(1u << 24);
+           !BbToggle::Disabled(BbToggle::UpscalerObjectMotion);
 }
 
 bool TemporalUpscaler::ReactiveOn() const {
     // FSR 4 takes no reactive mask itself: the mask blends its output afterwards
     // (RecordFsr4Reactive).
     // DLSS takes no reactive mask.
-    return BbSettings::Get().reactive && !BbToggle::Disabled(1u << 27) && !UseDlss() &&
+    return BbSettings::Get().reactive && !BbToggle::Disabled(BbToggle::UpscalerReactive) && !UseDlss() &&
            BbSettings::Get().upscaler != BbSettings::UpscalerTaa &&
            !BbSettings::IsSpatial(BbSettings::Get().upscaler);
 }
@@ -210,7 +211,7 @@ bool TemporalUpscaler::OnFrameStart() {
             if (fields >= 2 && output >= 0 && output < outputs.count) {
                 BbSettings::Get().output_res.store(BbSettings::PackSize(outputs.sizes[output]));
             }
-            if (fields == 3 && provider >= 0 && provider < BbSettings::UpscalerCount) {
+            if (fields >= 3 && provider >= 0 && provider < BbSettings::UpscalerCount) {
                 BbSettings::Get().upscaler.store(provider);
             }
             std::fclose(f);
@@ -226,13 +227,13 @@ bool TemporalUpscaler::OnFrameStart() {
     }
     const bool active = Active();
     // FSR 1 is spatial: a jittered scene would only shimmer.
-    const bool jitter_on = active && settings.jitter && !BbToggle::Disabled(1u << 25) &&
+    const bool jitter_on = active && settings.jitter && !BbToggle::Disabled(BbToggle::UpscalerJitter) &&
                            !BbSettings::IsSpatial(settings.upscaler);
     const int upscaler = settings.upscaler.load();
     auto output_size = BbSettings::CurrentOutput();
     // Without depth proxies the output stays the launch's too: a smaller one only rescaled the
     // same full-size frame at a cost (it applies at the next start, ResolutionNeedsRestart).
-    if (!settings.scene_proxies.load(std::memory_order_relaxed) && startup_output != 0) {
+    if (!BbSettings::Caps().scene_proxies.load(std::memory_order_relaxed) && startup_output != 0) {
         output_size = BbSettings::UnpackSize(startup_output);
     }
     if (!Game::CameraAspect() && output_size.width * 9 != output_size.height * 16) {
@@ -250,8 +251,8 @@ bool TemporalUpscaler::OnFrameStart() {
     const bool output_changed = (!scaled_session || hybrid) && applied_output != output;
     if (startup_output == 0) {
         startup_output = output; // the launch's (run.sh patched the game's targets for it)
-        if (BbSettings::Get().startup_output.width == 0) {
-            BbSettings::Get().startup_output = output_size; // a session without the patch
+        if (BbSettings::Startup().output.width == 0) {
+            BbSettings::Startup().output = output_size; // a session without the patch
         }
     }
     if (output_changed) {
@@ -275,7 +276,7 @@ bool TemporalUpscaler::OnFrameStart() {
         // Reset, not a new object: that would wait for a model being built (#213).
         scheduler.Finish();
         fsr4->Reset();
-        if (BbSettings::IsFsr4(upscaler)) BbSettings::Get().fsr4_problem = nullptr;
+        if (BbSettings::IsFsr4(upscaler)) BbSettings::Caps().fsr4_problem = nullptr;
     }
     if (applied_upscaler != upscaler) fsr4_failed = false; // retry after a menu change
     // Dynamic scene resolution scaling (live preset switching) works on all GPUs.
@@ -318,14 +319,14 @@ bool TemporalUpscaler::OnFrameStart() {
         render_height = scene_targets.Size().height;
     }
     // Without depth proxies the scene keeps the game's size (see the constructor).
-    if (!BbSettings::Get().scene_proxies.load(std::memory_order_relaxed) && scene_targets.Reduced()) {
+    if (!BbSettings::Caps().scene_proxies.load(std::memory_order_relaxed) && scene_targets.Reduced()) {
         scene_targets.SetSize(scene_targets.Native());
         render_width = scene_targets.Size().width;
         render_height = scene_targets.Size().height;
     }
-    BbSettings::Get().active_render_width = Scaled() ? render_width : scene_targets.Size().width;
-    BbSettings::Get().active_render_height = Scaled() ? render_height : scene_targets.Size().height;
-    BbSettings::Get().frame_generation_restart = frame_generation && frame_generation->Wanted() && !Scaled();
+    BbSettings::Telemetry().active_render_width = Scaled() ? render_width : scene_targets.Size().width;
+    BbSettings::Telemetry().active_render_height = Scaled() ? render_height : scene_targets.Size().height;
+    BbSettings::Caps().frame_generation_restart = frame_generation && frame_generation->Wanted() && !Scaled();
     if (changed) {
         NoteReset(0);
     } else if (!dispatched_last_frame) {
@@ -544,7 +545,7 @@ void TemporalUpscaler::Run() {
         }
         info.transparencyAndCompositionMask.structSize = sizeof(info.transparencyAndCompositionMask);
         // Toggle 1 << 26 (tests): the opposite sign convention for FSR.
-        const float sign = BbToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+        const float sign = BbToggle::Disabled(BbToggle::UpscalerInvertJitterSign) ? -1.0f : 1.0f;
         info.jitterOffset = {sign * jitter[0], sign * jitter[1]};
         info.motionVectorScale = {1.0f, 1.0f};
         info.renderSize = {w, h};
@@ -656,7 +657,7 @@ void TemporalUpscaler::Run() {
         // or the motion vectors (menu).
         const int debug_view = BbSettings::Get().debug_view;
         const u32 mode = has_reactive && (debug_view == BbSettings::DebugReactive ||
-                                          BbToggle::Disabled(1u << 28))
+                                          BbToggle::Disabled(BbToggle::UpscalerDebugBit28))
                              ? 1
                          : debug_view == BbSettings::DebugMotion ? 2
                                                                  : 0;
@@ -686,7 +687,7 @@ std::array<u32, 2> TemporalUpscaler::SceneSize(u32 w, u32 h) const {
 float TemporalUpscaler::SceneMipBias() const {
     if (!Active() || BbSettings::Get().upscaler == BbSettings::UpscalerTaa ||
         BbSettings::IsSpatial(BbSettings::Get().upscaler)) return 0.0f;
-    const float render = float(BbSettings::Get().active_render_width.load());
+    const float render = float(BbSettings::Telemetry().active_render_width.load());
     const float output = float(Scaled() ? target_width : 1920u);
     return render > 0.0f && render < output ? std::log2(render / output) : 0.0f;
 }
@@ -1010,7 +1011,7 @@ void TemporalUpscaler::RunScaled() {
     }
 
     info.transparencyAndCompositionMask.structSize = sizeof(info.transparencyAndCompositionMask);
-    const float sign = BbToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+    const float sign = BbToggle::Disabled(BbToggle::UpscalerInvertJitterSign) ? -1.0f : 1.0f;
     info.jitterOffset = {sign * jitter[0], sign * jitter[1]};
     info.motionVectorScale = {1.0f, 1.0f};
     info.renderSize = {w, h};

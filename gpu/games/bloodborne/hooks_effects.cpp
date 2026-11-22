@@ -10,7 +10,7 @@
 #include "bbport_settings.h"
 #include "bbport_guest_code.h"
 #include "bbport_heap_sites.h"
-#include "bbport_toggles.h"
+
 #include "bbport_fx_init_clear.h"
 #include "bbport_effect_flags.h"
 #include "platform/gnm/gnm.h"
@@ -78,9 +78,9 @@ struct HotCode {
 /// SSR requires the complete startup patch, including its resource dimensions.
 /// Partial live writes leave a half-size target behind full-size shader accesses.
 std::array<HotCode, 4> hot_code = {{
-    {0, 0x229faa8, {0xc7, 0x83, 0xac, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x90}, 12},
-    {1, 0x21d7bbc, {0xe9, 0xdf, 0x00, 0x00, 0x00, 0x90}, 6},
-    {7, 0x21d72f0, {0x31, 0xf6, 0x0f, 0x1f, 0x40, 0x00}, 6}, // "Disable Bloom"
+    {BbSettings::EffectChromaticAberration, 0x229faa8, {0xc7, 0x83, 0xac, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x90}, 12},
+    {BbSettings::EffectDof, 0x21d7bbc, {0xe9, 0xdf, 0x00, 0x00, 0x00, 0x90}, 6},
+    {BbSettings::EffectBloom, 0x21d72f0, {0x31, 0xf6, 0x0f, 0x1f, 0x40, 0x00}, 6}, // "Disable Bloom"
     // FXAA2_GS (after Kyo's "FXAA2_GS + DLAA_GS", one pass): the frame's AA step (behind the AA
     // switch, [r12+0x296a]) runs its pass with the technique the options give, or none. The
     // `testb` deciding it becomes a jump to a stub (InstallFxaaStub) running the pass with
@@ -95,7 +95,12 @@ struct HotFlag {
 /// a save loaded): the frame's passes follow what the contexts were built with (checked
 /// 2026-10-19 by the SSAO passes, ps 01ae5388 / cbbca5dc: unchanged by live writes, gone after a
 /// load). Written live anyway, so that the next load builds them as set.
-constexpr std::array<HotFlag, 4> hot_flags = {{{2, 0x2969}, {3, 0x2968}, {4, 0x296a}, {5, 0x296e}}};
+constexpr std::array<HotFlag, 4> hot_flags = {{
+    {BbSettings::EffectMotionBlur, 0x2969},
+    {BbSettings::EffectSsao, 0x2968},
+    {BbSettings::EffectGameAa, 0x296a},
+    {BbSettings::EffectDynamicShadows, 0x296e},
+}};
 
 /// Writes `size` bytes of code from the last to the first (the first byte, an opcode, is the
 /// one that makes the new code reachable).
@@ -200,7 +205,7 @@ void ApplyHotEffects(bool force, u64 fresh = 0) {
         }
         for (const auto& flag : hot_flags) {
             int want = settings.effects[flag.effect].load(std::memory_order_relaxed) ? 1 : 0;
-            if (flag.effect == 3) {
+            if (flag.effect == BbSettings::EffectSsao) {
                 // Menus and auxiliary contexts can deliberately have no SSAO target.
                 // Preserve that restriction instead of overriding the game's safety flag.
                 want = BbEffectFlags::SsaoEnabled(

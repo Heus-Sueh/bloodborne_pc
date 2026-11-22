@@ -16,6 +16,7 @@
 #include "vulkan/instance.h"
 #include "render/runtime.h"
 #include "render/scheduler.h"
+#include "bbport_toggles.h"
 
 namespace VideoCore {
 
@@ -594,7 +595,8 @@ ImageView& TextureCache::FindDepthTarget(ImageId image_id, const ImageDesc& desc
         image.info.meta_info.htile_addr = htile;
     }
     // The stencil surface: an image of its own (a placeholder of no format) linked to the depth.
-    if (desc.info.stencil_addr != 0) {
+    // shadPS4 #5737: skip when the depth buffer has no stencil.
+    if (desc.info.stencil_addr != 0 && desc.info.props.has_stencil && desc.info.stencil_size != 0) {
         ImageId stencil_id{};
         ForEachImageInRegion(desc.info.stencil_addr, desc.info.stencil_size,
                              [&](ImageId id, Image& candidate) {

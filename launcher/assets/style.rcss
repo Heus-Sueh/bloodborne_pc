@@ -36,16 +36,31 @@ body {
     top: 0px;
     left: 0px;
     bottom: 0px;
-    width: 230px;
+    width: 248px;
     background-color: #09070f;
     border-right: 1px #1d1628;
-    padding: 24px 16px;
+    padding: 22px 16px 16px 16px;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+body.compact #sidebar {
+    width: 204px;
+    padding: 18px 12px 14px 12px;
+}
+
+body.narrow #sidebar {
+    width: 176px;
+    padding: 14px 10px 12px 10px;
 }
 
 .brand {
     display: block;
-    margin-bottom: 24px;
+    flex-shrink: 0;
+    margin-bottom: 16px;
     padding-left: 6px;
 }
 
@@ -57,6 +72,16 @@ body {
     color: #f2ece1;
     letter-spacing: 4px;
     margin-bottom: 3px;
+}
+
+body.compact .brand-title {
+    font-size: 17px;
+    letter-spacing: 2.5px;
+}
+
+body.narrow .brand-title {
+    font-size: 15px;
+    letter-spacing: 1.5px;
 }
 
 .brand-subtitle {
@@ -78,11 +103,17 @@ body {
 
 .nav-menu {
     display: block;
-    margin-top: 14px;
+    flex: 1;
+    min-height: 0px;
+    overflow-y: auto;
+    margin-top: 6px;
 }
 
 .nav-item {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
     background-color: transparent;
@@ -92,7 +123,7 @@ body {
     font-family: Cinzel;
     font-size: 12px;
     font-weight: bold;
-    letter-spacing: 1px;
+    letter-spacing: 0.7px;
     text-align: left;
     padding: 10px 12px;
     margin-bottom: 4px;
@@ -102,16 +133,31 @@ body {
 }
 
 .nav-icon {
+    display: block;
+    flex-shrink: 0;
+    width: 18px;
+    font-family: lucide;
+    font-size: 15px;
+    font-weight: normal;
+    letter-spacing: 0px;
+    text-align: center;
+}
+
+.lucide-icon {
     display: inline-block;
-    width: 20px;
-    margin-right: 8px;
-    font-size: 13px;
+    font-family: lucide;
+    font-weight: normal;
+    letter-spacing: 0px;
     vertical-align: middle;
 }
 
 .nav-text {
-    display: inline-block;
-    vertical-align: middle;
+    display: block;
+    flex: 1;
+    min-width: 0px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .nav-item:hover {
@@ -132,14 +178,25 @@ body {
     transform: translateX(0px);
 }
 
+body.compact .nav-item {
+    padding: 9px 10px;
+    font-size: 11px;
+    gap: 8px;
+}
+
+body.narrow .nav-item {
+    padding: 8px 8px;
+    font-size: 10px;
+    gap: 6px;
+}
+
 .sidebar-footer {
-    position: absolute;
-    bottom: 16px;
-    left: 16px;
-    right: 16px;
+    position: static;
+    flex-shrink: 0;
     padding-left: 6px;
     border-top: 1px #1d1628;
     padding-top: 12px;
+    margin-top: 10px;
 }
 
 .lang-selector {
@@ -213,13 +270,23 @@ body {
 #content {
     position: absolute;
     top: 0px;
-    left: 230px;
+    left: 248px;
     right: 0px;
     bottom: 0px;
     background-color: #0d0a14;
     padding: 24px 28px;
     box-sizing: border-box;
     overflow-y: auto;
+}
+
+body.compact #content {
+    left: 204px;
+    padding: 18px 20px;
+}
+
+body.narrow #content {
+    left: 176px;
+    padding: 14px 16px;
 }
 
 @keyframes tabEnter {
@@ -292,35 +359,44 @@ body {
 }
 
 /* ==========================================================================
-   DASHBOARD HERO & CHRONICLES SECTION (TABLE-CELL NO-WRAP ENGINE)
+   DASHBOARD HERO & CHRONICLES SECTION (ADAPTIVE FLEXBOX ENGINE)
    ========================================================================== */
 
 .dashboard-top {
-    display: table;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 16px;
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .hero-col {
-    display: table-cell;
-    width: 67%;
-    vertical-align: top;
-    padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 2 1 360px;
+    min-width: 0px;
     box-sizing: border-box;
 }
 
 .notes-col {
-    display: table-cell;
-    width: 33%;
-    vertical-align: top;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 240px;
+    min-width: 0px;
     box-sizing: border-box;
 }
 
 .hero-card {
-    display: block;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     width: 100%;
-    height: 288px;
+    height: auto;
+    min-height: 244px;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 8px;
@@ -334,17 +410,21 @@ body {
 }
 
 .hero-art-bg {
-    display: block;
-    height: 190px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: auto;
     background-color: #1a1223;
     decorator: vertical-gradient(#271735 #110b19);
-    padding: 24px 28px;
+    padding: 22px 24px;
     box-sizing: border-box;
     border-bottom: 1px #23192e;
 }
 
 .hero-badge {
     display: inline-block;
+    align-self: flex-start;
     font-family: Cinzel;
     font-size: 10px;
     font-weight: bold;
@@ -360,11 +440,16 @@ body {
 .hero-title {
     display: block;
     font-family: Cinzel;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: bold;
     color: #f5efe6;
     letter-spacing: 3px;
     margin-bottom: 6px;
+}
+
+body.compact .hero-title {
+    font-size: 22px;
+    letter-spacing: 2px;
 }
 
 .hero-quote {
@@ -376,27 +461,31 @@ body {
 }
 
 .hero-action-bar {
-    display: block;
-    height: 98px;
-    padding: 18px 24px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 18px;
+    height: auto;
+    padding: 16px 22px;
     background-color: #0d0913;
     box-sizing: border-box;
 }
 
 .hero-play-btn {
     display: inline-block;
-    vertical-align: middle;
-    width: 240px;
+    flex: 0 1 auto;
+    min-width: 196px;
     background-color: #8f1818;
     decorator: vertical-gradient(#aa1d1d #781313);
     border: 1px #b52020;
     border-radius: 4px;
     color: #ffffff;
     font-family: Cinzel;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
     letter-spacing: 2px;
-    padding: 15px 18px;
+    padding: 13px 22px;
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
@@ -416,17 +505,17 @@ body {
 
 .hero-stop-btn {
     display: inline-block;
-    vertical-align: middle;
-    width: 240px;
+    flex: 0 1 auto;
+    min-width: 196px;
     background-color: #4a0f12;
     border: 1px #70161a;
     border-radius: 4px;
     color: #ffffff;
     font-family: Cinzel;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
     letter-spacing: 2px;
-    padding: 15px 18px;
+    padding: 13px 22px;
     cursor: pointer;
     text-align: center;
     box-sizing: border-box;
@@ -445,9 +534,10 @@ body {
 }
 
 .hero-status-block {
-    display: inline-block;
-    vertical-align: middle;
-    margin-left: 20px;
+    display: block;
+    flex: 1 1 180px;
+    min-width: 0px;
+    margin-left: 0px;
 }
 
 .hero-status-tag {
@@ -484,15 +574,16 @@ body {
 
 /* Notes / Chronicles Card */
 .notes-card {
-    display: block;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    height: 288px;
+    height: auto;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 8px;
-    padding: 20px 22px;
+    padding: 18px 20px;
     box-sizing: border-box;
-    overflow: hidden;
     transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out;
 }
 
@@ -506,7 +597,7 @@ body {
     font-size: 10px;
     font-weight: bold;
     color: #c5a059;
-    letter-spacing: 2.5px;
+    letter-spacing: 2px;
     margin-bottom: 6px;
     text-transform: uppercase;
 }
@@ -514,7 +605,7 @@ body {
 .notes-title {
     display: block;
     font-family: Cinzel;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
     color: #f2ece1;
     letter-spacing: 1px;
@@ -522,8 +613,12 @@ body {
 }
 
 .notes-ver-tag {
-    display: block;
-    margin-bottom: 12px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .badge-ver {
@@ -535,7 +630,6 @@ body {
     border: 1px #4d3a24;
     border-radius: 3px;
     padding: 2px 7px;
-    margin-right: 6px;
 }
 
 .badge-tag {
@@ -547,7 +641,6 @@ body {
     background-color: #8f1818;
     border-radius: 3px;
     padding: 2px 6px;
-    margin-right: 6px;
 }
 
 .badge-date {
@@ -568,42 +661,46 @@ body {
     font-family: Source Sans 3;
     font-size: 12px;
     color: #aba0b3;
-    line-height: 1.5;
-    margin-bottom: 6px;
+    line-height: 1.45;
+    margin-bottom: 5px;
 }
 
 /* ==========================================================================
-   4 MODULAR UTILITY CARDS GRID (EQUAL TABLE-CELL DISTRIBUTION)
+   4 MODULAR UTILITY CARDS GRID (ADAPTIVE 4-COL / 2x2 / 1-COL FLEXBOX)
    ========================================================================== */
 
 .utility-grid {
-    display: table;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 14px;
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 22px;
+    margin-bottom: 20px;
 }
 
 .util-col {
-    display: table-cell;
-    width: 25%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 205px;
+    min-width: 0px;
     box-sizing: border-box;
-    padding-right: 14px;
-    vertical-align: top;
-}
-
-.util-col:last-child {
-    padding-right: 0px;
 }
 
 .util-card {
-    display: block;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     width: 100%;
-    height: 175px;
-    position: relative;
+    height: auto;
+    min-height: 156px;
     background-color: #130e1a;
     border: 1px #22192d;
     border-radius: 6px;
-    padding: 16px 18px;
+    padding: 15px 16px;
+    margin-bottom: 0px;
     box-sizing: border-box;
     transition: border-color 0.15s cubic-out, background-color 0.15s cubic-out, transform 0.12s cubic-out;
 }
@@ -615,36 +712,40 @@ body {
 }
 
 .util-status {
-    display: block;
-    margin-top: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
     margin-bottom: 6px;
 }
 
 .status-check {
     display: inline-block;
+    flex-shrink: 0;
     color: #38a169;
-    font-size: 13px;
-    font-weight: bold;
-    margin-right: 6px;
-    vertical-align: middle;
+    font-family: lucide;
+    font-size: 14px;
+    font-weight: normal;
+    letter-spacing: 0px;
 }
 
 .status-warn {
     display: inline-block;
+    flex-shrink: 0;
     color: #e59b2b;
-    font-size: 13px;
-    font-weight: bold;
-    margin-right: 6px;
-    vertical-align: middle;
+    font-family: lucide;
+    font-size: 14px;
+    font-weight: normal;
+    letter-spacing: 0px;
 }
 
 .status-info {
     display: inline-block;
+    flex-shrink: 0;
     color: #c5a059;
     font-size: 13px;
     font-weight: bold;
-    margin-right: 6px;
-    vertical-align: middle;
 }
 
 .status-text {
@@ -653,8 +754,7 @@ body {
     font-size: 11px;
     font-weight: bold;
     color: #f2ece1;
-    letter-spacing: 1.5px;
-    vertical-align: middle;
+    letter-spacing: 1.2px;
 }
 
 .status-text.warn {
@@ -670,7 +770,6 @@ body {
     white-space: nowrap;
     text-overflow: ellipsis;
     margin-bottom: 4px;
-    min-height: 16px;
 }
 
 .util-sub {
@@ -678,20 +777,23 @@ body {
     font-family: Source Sans 3;
     font-size: 11px;
     color: #6a6173;
-    margin-bottom: 8px;
-    min-height: 16px;
+    margin-bottom: 10px;
 }
 
 .util-actions {
-    position: absolute;
-    bottom: 14px;
-    left: 18px;
-    right: 18px;
-    display: block;
+    position: static;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 6px;
 }
 
 .btn-micro {
     display: inline-block;
+    flex: 0 1 auto;
     background-color: #1a1324;
     border: 1px #2d213c;
     border-radius: 3px;
@@ -700,10 +802,10 @@ body {
     font-size: 10px;
     font-weight: bold;
     letter-spacing: 1px;
-    padding: 6px 12px;
+    padding: 6px 11px;
     cursor: pointer;
-    margin-right: 8px;
-    vertical-align: middle;
+    margin-right: 0px;
+    text-align: center;
     box-sizing: border-box;
     transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, color 0.15s cubic-out, transform 0.1s cubic-out;
 }
@@ -742,7 +844,10 @@ body {
    ========================================================================== */
 
 .button-selector {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-top: 6px;
     margin-bottom: 10px;
 }
@@ -757,8 +862,8 @@ body {
     font-size: 12px;
     font-weight: bold;
     padding: 7px 14px;
-    margin-right: 8px;
-    margin-bottom: 8px;
+    margin-right: 0px;
+    margin-bottom: 0px;
     cursor: pointer;
     transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, color 0.15s cubic-out, transform 0.1s cubic-out;
 }
@@ -839,7 +944,8 @@ body {
 
 /* Text Inputs */
 .text-input, input.text {
-    display: inline-block;
+    display: block;
+    width: 100%;
     background-color: #09070d;
     border: 1px #241b30;
     border-radius: 4px;
@@ -874,26 +980,36 @@ body {
 }
 
 .input-row {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
     width: 100%;
 }
 
 .input-row .text-input {
-    display: inline-block;
-    width: 78%;
-    vertical-align: middle;
+    flex: 1;
+    width: auto;
+    min-width: 0px;
 }
 
 .input-row .btn-action {
-    display: inline-block;
-    width: 18%;
-    margin-left: 2%;
-    vertical-align: middle;
+    flex-shrink: 0;
+    width: auto;
+    min-width: 96px;
+    margin-left: 0px;
 }
 
 .button-row {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-top: 14px;
+}
+
+.button-row .btn-secondary {
+    margin-right: 0px;
 }
 
 /* Checkboxes */
@@ -927,12 +1043,18 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .toggle-row {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px 20px;
     margin-top: 10px;
 }
 
 .toggle-grid {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px 18px;
     margin-top: 10px;
 }
 
@@ -943,13 +1065,14 @@ input.checkbox:active, .input-checkbox:active {
     vertical-align: middle;
     cursor: pointer;
     line-height: 24px;
-    margin-right: 20px;
-    margin-bottom: 12px;
+    margin-right: 0px;
+    margin-bottom: 0px;
 }
 
 .toggle-grid .toggle-label {
-    width: 48%;
-    margin-right: 2%;
+    flex: 1 1 240px;
+    width: auto;
+    margin-right: 0px;
     box-sizing: border-box;
 }
 
@@ -1019,7 +1142,11 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .mod-item, .patch-item {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     background-color: #100b16;
     border: 1px #1e1628;
     border-radius: 4px;
@@ -1035,21 +1162,24 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .mod-left {
-    display: inline-block;
-    width: 80%;
-    vertical-align: middle;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0px;
+    width: auto;
 }
 
 .mod-left input {
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 12px;
+    flex-shrink: 0;
+    margin-right: 0px;
 }
 
 .mod-info, .patch-info {
-    display: inline-block;
-    vertical-align: middle;
-    width: 85%;
+    flex: 1;
+    min-width: 0px;
+    width: auto;
 }
 
 .mod-title, .patch-title {
@@ -1065,13 +1195,18 @@ input.checkbox:active, .input-checkbox:active {
     font-size: 11px;
     color: #8a7f92;
     margin-top: 2px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .mod-actions {
-    display: inline-block;
-    width: 18%;
-    text-align: right;
-    vertical-align: middle;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    width: auto;
 }
 
 .btn-tiny {
@@ -1081,8 +1216,10 @@ input.checkbox:active, .input-checkbox:active {
     border: 1px #2d213c;
     border-radius: 3px;
     padding: 4px 8px;
-    font-size: 10px;
-    font-weight: bold;
+    font-family: lucide;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0px;
     cursor: pointer;
     margin-left: 4px;
     transition: background-color 0.15s cubic-out, border-color 0.15s cubic-out, transform 0.1s cubic-out;
@@ -1143,7 +1280,10 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .trophy-card {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
     background-color: #100b16;
     border: 1px #1e1628;
     border-radius: 6px;
@@ -1172,9 +1312,9 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .trophy-grade-badge {
-    display: inline-block;
-    vertical-align: middle;
-    width: 80px;
+    display: block;
+    flex-shrink: 0;
+    width: 82px;
     font-family: Cinzel;
     font-size: 11px;
     font-weight: bold;
@@ -1200,9 +1340,10 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .trophy-content {
-    display: inline-block;
-    vertical-align: middle;
-    width: 80%;
+    display: block;
+    flex: 1;
+    min-width: 0px;
+    width: auto;
 }
 
 .trophy-title {
@@ -1236,14 +1377,16 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 .log-controls {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-bottom: 14px;
 }
 
 .log-controls .btn-action {
     display: inline-block;
-    margin-right: 12px;
-    vertical-align: middle;
+    margin-right: 0px;
 }
 
 .log-viewport {

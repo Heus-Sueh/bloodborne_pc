@@ -10,7 +10,7 @@
 #include "bbport_settings.h"
 #include "bbport_guest_code.h"
 #include "bbport_heap_sites.h"
-#include "bbport_toggles.h"
+
 #include "bbport_fx_init_clear.h"
 #include "bbport_effect_flags.h"
 #include "platform/gnm/gnm.h"
@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <utility>
 #include "games/bloodborne/hooks_internal.h"
+#include "runtime_gpu_abi.h"
 
 namespace BbGuestHooks {
 namespace {
@@ -122,7 +123,6 @@ void PS4_SYSV_ABI JobAllocationFailure(u64 tag, const Core::GuestRegisterSnapsho
 // gets the port's direct memory past the game's size instead (runtime_extra_direct_map,
 // BB_DMEM_EXTRA_MB): right after the allocation, its result and the size the range heap is
 // set up with are replaced. BB_RENDER_RESOURCE_CACHE_MB=160: the game's cache as it is.
-extern "C" int runtime_extra_direct_map(uint64_t size, uint64_t alignment, void** out);
 void PS4_SYSV_ABI ResourceCacheBacking(u64, const Core::GuestRegisterSnapshot* r) {
     constexpr u64 native_bytes = 160ull << 20;
     if ((JobProbeWord(r->r14 + 0x54) & 0xffffffffu) != native_bytes || !r->rax) return;

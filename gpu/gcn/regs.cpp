@@ -27,13 +27,13 @@ void Regs::SetDefaults() {
     r[0xA00D] = ScissorBottomRight; // PA_SC_SCREEN_SCISSOR_BR
     r[0xA081] = ScissorTopLeft;     // PA_SC_WINDOW_SCISSOR_TL
     r[0xA082] = ScissorBottomRight;
-    r[0xA083] = 0xdeadbeef;           // PA_SC_CLIPRECT_RULE
+    r[0xA083] = 0x0000ffffu;        // PA_SC_CLIPRECT_RULE
     for (u32 rect = 0; rect < 4; ++rect) { // PA_SC_CLIPRECT_n_TL/BR
         r[0xA085 + rect * 2] = ScissorBottomRight;
     }
     r[0xA08C] = 0xaa99aaaa; // PA_SC_EDGERULE
-    r[0xA08E] = 0xdeadbeef; // CB_TARGET_MASK
-    r[0xA08F] = 0xdeadbeef; // CB_SHADER_MASK
+    r[0xA08E] = 0xffffffffu; // CB_TARGET_MASK
+    r[0xA08F] = 0xffffffffu; // CB_SHADER_MASK
     r[0xA090] = ScissorTopLeft; // PA_SC_GENERIC_SCISSOR_TL
     r[0xA091] = ScissorBottomRight;
     for (u32 vp = 0; vp < NUM_VIEWPORTS; ++vp) {
@@ -48,12 +48,14 @@ void Regs::SetDefaults() {
     r[0xA295] = 0x00000100; // VGT_GS_PER_ES
     r[0xA296] = 0x00000080; // VGT_ES_PER_GS
     r[0xA297] = 0x00000002; // VGT_GS_PER_VS
-    r[0xA2AA] = 0x00001000; // IA_MULTI_VGT_PARAM
+    r[0xA2AA] = 0x000000ffu; // IA_MULTI_VGT_PARAM
     r[0xA2F7] = 0x00001000; // PA_SC_LINE_CNTL
     r[0xA2F9] = 0x00000005; // PA_SU_VTX_CNTL
     for (u32 adj = 0; adj < 4; ++adj) { // PA_CL_GB_VERT/HORZ_CLIP/DISC_ADJ
         r[0xA2FA + adj] = One;
     }
+    r[0xA30E] = 0xffffffffu;
+    r[0xA30F] = 0xffffffffu;
     r[0xA316] = 0x0000000e; // VGT_VERTEX_REUSE_BLOCK_CNTL
     r[0xA317] = 0x00000010; // VGT_OUT_DEALLOC_CNTL
 }

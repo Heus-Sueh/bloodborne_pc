@@ -13,7 +13,7 @@
 #include "render/vk_breadcrumbs.h"
 #include "vulkan/instance.h"
 
-extern "C" uint64_t runtime_tsc_frequency(void);
+#include "runtime_gpu_abi.h"
 
 namespace Vulkan {
 

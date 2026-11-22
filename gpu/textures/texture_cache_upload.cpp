@@ -16,7 +16,7 @@
 #include <xxhash.h>
 
 #include "bbport_button_prompts.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "buffers/buffer_cache.h"
 #include "render/runtime.h"
 #include "render/scheduler.h"

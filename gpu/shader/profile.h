@@ -67,6 +67,9 @@ struct Profile {
     bool needs_unorm_fixup{};
     bool needs_clip_distance_emulation{};
     bool supports_shader_stencil_export{};
+    /// GCN NaN/Inf rules (shadPS4 #5257/#5346, BB_GCN_NAN): min/max/med3, saturate/clamp,
+    /// legacy multiply-adds, clamped rcp/rsq and negated compares.
+    bool gcn_nan_semantics{};
     /// BB_LAYER_MEMORY: guest buffers of IsPagedBuffer size go through the page table.
     bool paged_buffers{};
     /// The game's buffer copy compute shader (its GCN program hash, from the game's profile;

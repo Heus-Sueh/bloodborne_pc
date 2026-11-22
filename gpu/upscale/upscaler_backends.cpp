@@ -104,7 +104,7 @@ bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image 
     const auto& settings = BbSettings::Get();
     // Same jitter convention as FSR 3; the menu (or toggle 1 << 26) flips it for tests.
     const float sign =
-        BbToggle::Disabled(1u << 26) != settings.fsr4_invert_jitter.load() ? -1.0f : 1.0f;
+        BbToggle::Disabled(BbToggle::UpscalerInvertJitterSign) != settings.fsr4_invert_jitter.load() ? -1.0f : 1.0f;
     const bool ok = fsr4->Record({
         .cmdbuf = cmdbuf,
         .color = color,
@@ -128,13 +128,13 @@ bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image 
     static std::string shown;
     const char* problem = fsr4->Problem();
     if (!problem) {
-        BbSettings::Get().fsr4_problem = nullptr;
+        BbSettings::Caps().fsr4_problem = nullptr;
     } else if (shown != problem) {
         shown = problem;
         static std::array<std::string, 8> kept;
         static u32 next = 0;
         kept[next] = shown;
-        BbSettings::Get().fsr4_problem = kept[next].c_str();
+        BbSettings::Caps().fsr4_problem = kept[next].c_str();
         next = (next + 1) % kept.size();
     }
     if (!ok && fsr4->Fatal()) {
@@ -167,7 +167,7 @@ bool TemporalUpscaler::RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource
     }
     if (ok) {
         // The jitter and motion vectors FSR 3 gets: render pixels, current to previous.
-        const float sign = BbToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+        const float sign = BbToggle::Disabled(BbToggle::UpscalerInvertJitterSign) ? -1.0f : 1.0f;
         const auto& settings = BbSettings::Get();
         ok = dlss->Evaluate(cmdbuf, {
             .color = color,

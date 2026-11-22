@@ -75,6 +75,25 @@ static size_t mounts_done, memory_writes;
  * save carries a flag at 0x204E of userdata0010; with it clear, parts of the game's audio
  * (e.g. the player's weapon sounds) never play. It is set before the game reads the save.
  * BB_SOUND_HACK=0 leaves saves untouched. */
+static void patch_sound_flag_file(const char *path) {
+    if (bb_env_off("BB_SOUND_HACK")) return;
+    FILE *f=fopen(path,"r+b");
+    if (!f) return;
+    int old=fseek(f,0x204E,SEEK_SET) ? EOF : fgetc(f);
+    if (old!=EOF && old!=1 && !fseek(f,0x204E,SEEK_SET)) {
+        fputc(1,f);
+        printf("Runtime: Bloodborne sound flag set in %s (was %d)\n",path,old);
+    }
+    fclose(f);
+}
+static void patch_sound_flag_dir(const char *dir_path) {
+    if (!dir_path || !strstr(dir_path,"SPRJ0005")) return;
+    char p1[1100], p2[1100];
+    snprintf(p1,sizeof(p1),"%s/userdata0010",dir_path);
+    snprintf(p2,sizeof(p2),"%s/backup0010",dir_path);
+    patch_sound_flag_file(p1);
+    patch_sound_flag_file(p2);
+}
 static void bloodborne_sound_hack(void) {
     static const char *const ids[]={"CUSA00207","CUSA00208","CUSA00299","CUSA00900","CUSA01363","CUSA03014","CUSA03023","CUSA03173","CUSA03179"};
     if (bb_env_off("BB_SOUND_HACK")) return;
@@ -87,16 +106,11 @@ static void bloodborne_sound_hack(void) {
     if (!dir) return;
     for (struct dirent *e; (e=readdir(dir));) {
         if (e->d_name[0]=='.') continue;
-        char path[1100];
-        snprintf(path,sizeof(path),"%s/%s/%s/SPRJ0005/userdata0010",users,e->d_name,title_id);
-        FILE *f=fopen(path,"r+b");
-        if (!f) continue;
-        int old=fseek(f,0x204E,SEEK_SET) ? EOF : fgetc(f);
-        if (old!=EOF && old!=1 && !fseek(f,0x204E,SEEK_SET)) {
-            fputc(1,f);
-            printf("Runtime: Bloodborne sound flag set in %s (was %d)\n",path,old);
+        for (size_t i=0;i<sizeof(ids)/sizeof(*ids);++i) {
+            char sprj[1000];
+            snprintf(sprj,sizeof(sprj),"%s/%s/%s/SPRJ0005",users,e->d_name,ids[i]);
+            patch_sound_flag_dir(sprj);
         }
-        fclose(f);
     }
     closedir(dir);
 }
@@ -186,6 +200,7 @@ static int32_t mount(int32_t user, const char *title, const DirName *dir, uint32
     if (runtime_file_mount(result->point.data,host)) {
         fprintf(stderr,"Runtime: save data '%s' could not be mounted: mount table full\n",dir->data);
     }
+    patch_sound_flag_dir(host);
     ++mounts_done;
     pthread_mutex_unlock(&lock);
     printf("Runtime: save data '%s' mounted at %s (%s%s)\n",dir->data,result->point.data,
@@ -209,7 +224,7 @@ static ABI int32_t save_umount(const MountPoint *point) {
     if (!initialized) return ERR_NOT_INITIALIZED;
     pthread_mutex_lock(&lock);
     int slot=slot_of(point);
-    if (slot>=0) { runtime_file_unmount(point->data); slots[slot].used=0; }
+    if (slot>=0) { patch_sound_flag_dir(slots[slot].host); runtime_file_unmount(point->data); slots[slot].used=0; }
     pthread_mutex_unlock(&lock);
     return slot>=0 ? 0 : ERR_NOT_FOUND;
 }

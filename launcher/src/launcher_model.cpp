@@ -1,794 +1,316 @@
+// SPDX-FileCopyrightText: Copyright 2026 bbport contributors
+// SPDX-License-Identifier: GPL-2.0-or-later
 #include "launcher_model.hpp"
-#include <RmlUi/Core/Element.h>
+
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_dialog.h>
-#include <csignal>
-#include <cstdio>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <sstream>
-#include <sys/wait.h>
-#include <thread>
-#include <unistd.h>
-
-namespace fs = std::filesystem;
+#include <memory>
 
 namespace bbport {
 
-LauncherModel::LauncherModel(Rml::Context* context, SDL_Window* window)
-  : context_(context), window_(window) {
-  settings = ConfigManager::Load();
-  I18n::Instance().SetLanguageByCode(settings.ui_language);
-  UpdateTranslations();
+namespace {
+
+Rml::Variant SettingValueToVariant(const SettingValue& val) {
+  if (std::holds_alternative<bool>(val)) return Rml::Variant(std::get<bool>(val));
+  if (std::holds_alternative<int>(val)) return Rml::Variant(std::get<int>(val));
+  if (std::holds_alternative<double>(val)) return Rml::Variant(static_cast<float>(std::get<double>(val)));
+  return Rml::Variant(std::get<std::string>(val));
+}
+
+SettingValue VariantToSettingValue(const Rml::Variant& v, SettingType type) {
+  switch (type) {
+    case SettingType::Bool:
+      return v.Get<bool>();
+    case SettingType::Int:
+      return v.Get<int>();
+    case SettingType::Float:
+      return static_cast<double>(v.Get<float>());
+    default:
+      return std::string(v.Get<Rml::String>());
+  }
+}
+
+struct FolderDialogCtx {
+  LauncherCore* core;
+  std::string setting_key;
+};
+
+struct ExtractDialogCtx {
+  LauncherCore* core;
+  SDL_Window* window;
+  std::string dump_path;
+};
+
+} // namespace
+
+LauncherModel::LauncherModel(Rml::Context* context, SDL_Window* window, LauncherCore& core)
+    : context_(context), window_(window), core_(core) {
+  SyncModsAndPatches();
+  SyncTrophies();
+  SyncTranslations();
   BindModel();
-  UpdateValidationStatus();
-  RefreshMods();
-  RefreshTrophies();
 }
 
-LauncherModel::~LauncherModel() {
-  StopGame();
-  if (log_reader_thread_.joinable()) {
-    log_reader_thread_.join();
-  }
-  if (extract_thread_.joinable()) {
-    extract_thread_.join();
-  }
-}
-
-void LauncherModel::UpdateTranslations() {
-  tr_tab_play = tr("tab_play");
-  tr_tab_graphics = tr("tab_graphics");
-  tr_tab_effects = tr("tab_effects");
-  tr_tab_controls = tr("tab_controls");
-  tr_tab_mods = tr("tab_mods");
-  tr_tab_trophies = tr("tab_trophies");
-  tr_tab_online = tr("tab_online");
-  tr_tab_log = tr("tab_log");
-  tr_launch_game = tr("launch_game");
-  tr_stop_game = tr("stop_game");
-}
-
-void LauncherModel::SetLanguage(const std::string& code) {
-  settings.ui_language = code;
-  I18n::Instance().SetLanguageByCode(code);
-  UpdateTranslations();
-  ConfigManager::Save(settings);
-  RefreshTrophies();
-
-  if (model_handle_) {
-    model_handle_.DirtyVariable("ui_language");
-    model_handle_.DirtyVariable("tr_tab_play");
-    model_handle_.DirtyVariable("tr_tab_graphics");
-    model_handle_.DirtyVariable("tr_tab_effects");
-    model_handle_.DirtyVariable("tr_tab_controls");
-    model_handle_.DirtyVariable("tr_tab_mods");
-    model_handle_.DirtyVariable("tr_tab_trophies");
-    model_handle_.DirtyVariable("tr_tab_online");
-    model_handle_.DirtyVariable("tr_tab_log");
-    model_handle_.DirtyVariable("tr_launch_game");
-    model_handle_.DirtyVariable("tr_stop_game");
-  }
-  UpdateValidationStatus();
-}
-
-void LauncherModel::RefreshMods() {
-  ModsManager::Instance().Refresh(settings.mods_dir, settings.patches_dir);
-  mods_list = ModsManager::Instance().GetMods();
-  patches_list = ModsManager::Instance().GetPatches();
-  if (model_handle_) {
-    model_handle_.DirtyVariable("mods_list");
-    model_handle_.DirtyVariable("patches_list");
-  }
-}
-
-void LauncherModel::RefreshTrophies() {
-  TrophyManager::Instance().Refresh(settings.user_dir, settings.ui_language);
-  trophies_list = TrophyManager::Instance().GetTrophies();
-  trophy_stats = TrophyManager::Instance().GetStats();
-
-  std::ostringstream ss;
-  ss << trophy_stats.unlocked << " / " << trophy_stats.total << " (" << trophy_stats.progress_pct << "%)";
-  trophy_progress_text = ss.str();
-
-  if (model_handle_) {
-    model_handle_.DirtyVariable("trophies_list");
-    model_handle_.DirtyVariable("trophy_progress_pct");
-    model_handle_.DirtyVariable("trophy_progress_text");
-  }
+void LauncherModel::Update() {
+  ApplyDelta(core_.Poll());
 }
 
 void LauncherModel::BindModel() {
-  Rml::DataModelConstructor constructor = context_->CreateDataModel("launcher");
-  if (!constructor) {
+  Rml::DataModelConstructor c = context_->CreateDataModel("launcher");
+  if (!c) {
     std::cerr << "LauncherModel: Failed to create RmlUi data model 'launcher'\n";
     return;
   }
 
-  // Register Structs
-  if (auto mod_handle = constructor.RegisterStruct<ModItem>()) {
-    mod_handle.RegisterMember("id", &ModItem::id);
-    mod_handle.RegisterMember("name", &ModItem::name);
-    mod_handle.RegisterMember("author", &ModItem::author);
-    mod_handle.RegisterMember("enabled", &ModItem::enabled);
-    mod_handle.RegisterMember("order", &ModItem::order);
+  // Register list element structs (including ModItem::path used by launcher.rml).
+  if (auto h = c.RegisterStruct<ModItem>()) {
+    h.RegisterMember("id", &ModItem::id);
+    h.RegisterMember("name", &ModItem::name);
+    h.RegisterMember("author", &ModItem::author);
+    h.RegisterMember("path", &ModItem::path);
+    h.RegisterMember("enabled", &ModItem::enabled);
+    h.RegisterMember("order", &ModItem::order);
   }
-  constructor.RegisterArray<std::vector<ModItem>>();
+  c.RegisterArray<std::vector<ModItem>>();
 
-  if (auto patch_handle = constructor.RegisterStruct<PatchItem>()) {
-    patch_handle.RegisterMember("id", &PatchItem::id);
-    patch_handle.RegisterMember("name", &PatchItem::name);
-    patch_handle.RegisterMember("author", &PatchItem::author);
-    patch_handle.RegisterMember("enabled", &PatchItem::enabled);
+  if (auto h = c.RegisterStruct<PatchItem>()) {
+    h.RegisterMember("id", &PatchItem::id);
+    h.RegisterMember("name", &PatchItem::name);
+    h.RegisterMember("author", &PatchItem::author);
+    h.RegisterMember("path", &PatchItem::path);
+    h.RegisterMember("enabled", &PatchItem::enabled);
   }
-  constructor.RegisterArray<std::vector<PatchItem>>();
+  c.RegisterArray<std::vector<PatchItem>>();
 
-  if (auto trophy_handle = constructor.RegisterStruct<TrophyItem>()) {
-    trophy_handle.RegisterMember("id", &TrophyItem::id);
-    trophy_handle.RegisterMember("name", &TrophyItem::name);
-    trophy_handle.RegisterMember("detail", &TrophyItem::detail);
-    trophy_handle.RegisterMember("grade_str", &TrophyItem::grade_str);
-    trophy_handle.RegisterMember("icon_path", &TrophyItem::icon_path);
-    trophy_handle.RegisterMember("date_str", &TrophyItem::date_str);
-    trophy_handle.RegisterMember("unlocked", &TrophyItem::unlocked);
-    trophy_handle.RegisterMember("hidden", &TrophyItem::hidden);
+  if (auto h = c.RegisterStruct<TrophyItem>()) {
+    h.RegisterMember("id", &TrophyItem::id);
+    h.RegisterMember("name", &TrophyItem::name);
+    h.RegisterMember("detail", &TrophyItem::detail);
+    h.RegisterMember("grade_str", &TrophyItem::grade_str);
+    h.RegisterMember("icon_path", &TrophyItem::icon_path);
+    h.RegisterMember("date_str", &TrophyItem::date_str);
+    h.RegisterMember("unlocked", &TrophyItem::unlocked);
+    h.RegisterMember("hidden", &TrophyItem::hidden);
   }
-  constructor.RegisterArray<std::vector<TrophyItem>>();
+  c.RegisterArray<std::vector<TrophyItem>>();
 
-  // Section: Game
-  constructor.Bind("ui_language", &settings.ui_language);
-  constructor.Bind("game_dir", &settings.game_dir);
-  constructor.Bind("user_dir", &settings.user_dir);
-  constructor.Bind("mods_dir", &settings.mods_dir);
-  constructor.Bind("patches_dir", &settings.patches_dir);
-  constructor.Bind("language", &settings.language);
-  constructor.Bind("game_text_language", &settings.game_text_language);
-  constructor.Bind("game_voice_language", &settings.game_voice_language);
-  constructor.Bind("skip_network_choice", &settings.skip_network_choice);
-
-  // Section: Display
-  constructor.Bind("display", &settings.display);
-  constructor.Bind("fullscreen", &settings.fullscreen);
-  constructor.Bind("borderless", &settings.borderless);
-  constructor.Bind("present_mode", &settings.present_mode);
-  constructor.Bind("hdr", &settings.hdr);
-  constructor.Bind("aspect_ratio", &settings.aspect_ratio);
-  constructor.Bind("output_res", &settings.output_res);
-
-  // Section: Graphics
-  constructor.Bind("upscaler", &settings.upscaler);
-  constructor.Bind("preset", &settings.preset);
-  constructor.Bind("frame_generation", &settings.frame_generation);
-  constructor.Bind("sharpen", &settings.sharpen);
-  constructor.Bind("sharpness", &settings.sharpness);
-  constructor.Bind("anti_aliasing", &settings.anti_aliasing);
-  constructor.Bind("texture_quality", &settings.texture_quality);
-  constructor.Bind("model_lod", &settings.model_lod);
-  constructor.Bind("object_motion", &settings.object_motion);
-  constructor.Bind("vbao", &settings.vbao);
-  constructor.Bind("show_fps", &settings.show_fps);
-
-  // Section: Effects
-  constructor.Bind("chromatic_aberration", &settings.chromatic_aberration);
-  constructor.Bind("dof", &settings.dof);
-  constructor.Bind("motion_blur", &settings.motion_blur);
-  constructor.Bind("bloom", &settings.bloom);
-  constructor.Bind("ssao", &settings.ssao);
-  constructor.Bind("dynamic_shadows", &settings.dynamic_shadows);
-  constructor.Bind("effect_ssr", &settings.effect_ssr);
-  constructor.Bind("skip_intro", &settings.skip_intro);
-  constructor.Bind("debug_camera", &settings.debug_camera);
-  constructor.Bind("debug_menu", &settings.debug_menu);
-
-  // Section: Performance
-  constructor.Bind("fps_mode", &settings.fps_mode);
-  constructor.Bind("fps_limit", &settings.fps_limit);
-  constructor.Bind("low_latency", &settings.low_latency);
-  constructor.Bind("draw_pipe", &settings.draw_pipe);
-  constructor.Bind("gpu", &settings.gpu);
-
-  // Section: Controls
-  constructor.Bind("gamepad", &settings.gamepad);
-  constructor.Bind("button_prompts", &settings.button_prompts);
-  constructor.Bind("mouse_look", &settings.mouse_look);
-  constructor.Bind("mouse_sensitivity", &settings.mouse_sensitivity);
-  constructor.Bind("mouse_invert_y", &settings.mouse_invert_y);
-  constructor.Bind("mouse_invert_x", &settings.mouse_invert_x);
-  constructor.Bind("camera_speed_x", &settings.camera_speed_x);
-  constructor.Bind("camera_speed_y", &settings.camera_speed_y);
-
-  // Section: Mods
-  constructor.Bind("mods_enabled", &settings.mods_enabled);
-
-  // Section: Online
-  constructor.Bind("online_enabled", &settings.online_enabled);
-  constructor.Bind("online_pool", &settings.online_pool);
-  constructor.Bind("online_community", &settings.online_community);
-  constructor.Bind("online_server", &settings.online_server);
-  constructor.Bind("online_webapi", &settings.online_webapi);
-  constructor.Bind("local_bbsc", &settings.local_bbsc);
-  constructor.Bind("online_npid", &settings.online_npid);
-  constructor.Bind("online_password", &settings.online_password);
-  constructor.Bind("thd_server", &settings.thd_server);
-  constructor.Bind("discord_token", &settings.discord_token);
-  constructor.Bind("online_upnp", &settings.online_upnp);
-
-  // Section: Developer
-  constructor.Bind("save_log", &settings.save_log);
-  constructor.Bind("frame_stats", &settings.frame_stats);
-  constructor.Bind("gpu_profile", &settings.gpu_profile);
-  constructor.Bind("crash_diag", &settings.crash_diag);
-  constructor.Bind("vk_validation", &settings.vk_validation);
-  constructor.Bind("mangohud", &settings.mangohud);
-  constructor.Bind("extra_env", &settings.extra_env);
-
-  // UI State
-  constructor.Bind("active_tab", &active_tab);
-  constructor.Bind("status_text", &status_text);
-  constructor.Bind("is_valid", &is_valid);
-  constructor.Bind("game_version", &game_version);
-  constructor.Bind("game_title_id", &game_title_id);
-  constructor.Bind("is_update_needed", &is_update_needed);
-  constructor.Bind("console_log", &console_log);
-  constructor.Bind("is_console_open", &is_console_open);
-  constructor.Bind("is_game_running", &is_game_running);
-  constructor.Bind("is_extracting", &is_extracting);
-  constructor.Bind("extract_progress_pct", &extract_progress_pct);
-  constructor.Bind("extract_progress_text", &extract_progress_text);
-  constructor.Bind("copy_btn_text", &copy_btn_text);
-
-  // Lists
-  constructor.Bind("mods_list", &mods_list);
-  constructor.Bind("patches_list", &patches_list);
-  constructor.Bind("trophies_list", &trophies_list);
-  constructor.Bind("trophy_progress_pct", &trophy_stats.progress_pct);
-  constructor.Bind("trophy_progress_text", &trophy_progress_text);
-
-  // Translations
-  constructor.Bind("tr_tab_play", &tr_tab_play);
-  constructor.Bind("tr_tab_graphics", &tr_tab_graphics);
-  constructor.Bind("tr_tab_effects", &tr_tab_effects);
-  constructor.Bind("tr_tab_controls", &tr_tab_controls);
-  constructor.Bind("tr_tab_mods", &tr_tab_mods);
-  constructor.Bind("tr_tab_trophies", &tr_tab_trophies);
-  constructor.Bind("tr_tab_online", &tr_tab_online);
-  constructor.Bind("tr_tab_log", &tr_tab_log);
-  constructor.Bind("tr_launch_game", &tr_launch_game);
-  constructor.Bind("tr_stop_game", &tr_stop_game);
-
-  // Event Callbacks
-  constructor.BindEventCallback(
-      "play", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { Launch(); });
-
-  constructor.BindEventCallback(
-      "stop_game", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) { StopGame(); });
-
-  constructor.BindEventCallback(
-      "set_tab", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          active_tab = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("active_tab");
-          if (context_) {
-            if (auto* root = context_->GetRootElement()) {
-              if (auto* content = root->GetElementById("content")) {
-                content->SetScrollTop(0.0f);
-              }
-            }
+  // Bind every storable Game Setting & Launcher Setting dynamically from SettingsSchema.
+  for (const auto& def : core_.Schema().Items()) {
+    if (def.store == SettingStoreKind::None) {
+      continue;
+    }
+    const std::string key = def.key;
+    const SettingType type = def.type;
+    c.BindFunc(
+        key,
+        [this, key](Rml::Variant& out) {
+          if (key == "ui_language") {
+            out = core_.UiLanguage();
+            return;
           }
-        }
-      });
+          if (auto v = core_.Settings().Get(key)) {
+            out = SettingValueToVariant(*v);
+          }
+        },
+        [this, key, type](const Rml::Variant& in) {
+          ApplyDelta(core_.SetSetting(key, VariantToSettingValue(in, type)).delta);
+        });
+  }
 
-  constructor.BindEventCallback(
-      "set_language", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          SetLanguage(args[0].Get<Rml::String>());
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_resolution", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.output_res = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("output_res");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_aspect_ratio", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.aspect_ratio = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("aspect_ratio");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_present_mode", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.present_mode = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("present_mode");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_upscaler", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.upscaler = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("upscaler");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_preset", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.preset = std::stoi(args[0].Get<Rml::String>());
-          model_handle_.DirtyVariable("preset");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_frame_generation", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.frame_generation = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("frame_generation");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_anti_aliasing", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.anti_aliasing = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("anti_aliasing");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_texture_quality", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.texture_quality = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("texture_quality");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_model_lod", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.model_lod = std::stoi(args[0].Get<Rml::String>());
-          model_handle_.DirtyVariable("model_lod");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_fps_mode", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.fps_mode = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("fps_mode");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_low_latency", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.low_latency = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("low_latency");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_button_prompts", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.button_prompts = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("button_prompts");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "set_pool", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          settings.online_pool = args[0].Get<Rml::String>();
-          model_handle_.DirtyVariable("online_pool");
-          ConfigManager::Save(settings);
-        }
-      });
-
-  constructor.BindEventCallback(
-      "toggle_mod", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          std::string id = args[0].Get<Rml::String>();
-          ModsManager::Instance().ToggleMod(id);
-          ModsManager::Instance().SaveModsConfig(settings.mods_dir);
-          RefreshMods();
-        }
-      });
-
-  constructor.BindEventCallback(
-      "move_mod_up", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          std::string id = args[0].Get<Rml::String>();
-          ModsManager::Instance().MoveModUp(id);
-          ModsManager::Instance().SaveModsConfig(settings.mods_dir);
-          RefreshMods();
-        }
-      });
-
-  constructor.BindEventCallback(
-      "move_mod_down", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          std::string id = args[0].Get<Rml::String>();
-          ModsManager::Instance().MoveModDown(id);
-          ModsManager::Instance().SaveModsConfig(settings.mods_dir);
-          RefreshMods();
-        }
-      });
-
-  constructor.BindEventCallback(
-      "toggle_patch", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
-        if (!args.empty()) {
-          std::string id = args[0].Get<Rml::String>();
-          ModsManager::Instance().TogglePatch(id);
-          ModsManager::Instance().SavePatchesConfig(settings.patches_dir);
-          RefreshMods();
-        }
-      });
-
-  constructor.BindEventCallback("save", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ConfigManager::Save(settings);
-    UpdateValidationStatus();
+  // Single generic setting mutation callback for buttons/selectors: set_setting('key', 'val')
+  c.BindEventCallback("set_setting", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (args.size() < 2) return;
+    const std::string key = args[0].Get<Rml::String>();
+    const SettingDef* def = core_.Schema().Find(key);
+    if (!def) return;
+    ApplyDelta(core_.SetSetting(key, VariantToSettingValue(args[1], def->type)).delta);
   });
 
-  constructor.BindEventCallback("choose_game_dir", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ChooseGameDirectory();
+  // Read-only state projections (zero duplicated state fields).
+  c.Bind("active_tab", &active_tab_);
+  c.Bind("copy_btn_text", &copy_btn_text_);
+  c.BindFunc("status_text", [this](Rml::Variant& v) { v = core_.Translate(core_.GameStatus().status_key); });
+  c.BindFunc("is_valid", [this](Rml::Variant& v) { v = core_.GameStatus().valid; });
+  c.BindFunc("is_update_needed", [this](Rml::Variant& v) {
+    const auto& g = core_.GameStatus();
+    v = g.valid && !g.is_109;
+  });
+  c.BindFunc("game_version", [this](Rml::Variant& v) { v = core_.GameStatus().version; });
+  c.BindFunc("game_title_id", [this](Rml::Variant& v) { v = core_.GameStatus().title_id; });
+  c.BindFunc("console_log", [this](Rml::Variant& v) { v = core_.ConsoleLog(); });
+  c.BindFunc("is_game_running", [this](Rml::Variant& v) { v = core_.GameProcess().running; });
+  c.BindFunc("is_extracting", [this](Rml::Variant& v) { v = core_.Extraction().active; });
+  c.BindFunc("extract_progress_pct", [this](Rml::Variant& v) {
+    v = std::to_string(core_.Extraction().progress_pct);
+  });
+  c.BindFunc("extract_progress_text", [this](Rml::Variant& v) { v = core_.Extraction().status_text; });
+  c.BindFunc("trophy_progress_pct", [this](Rml::Variant& v) { v = core_.TrophySummary().progress_pct; });
+  c.BindFunc("trophy_progress_text", [this](Rml::Variant& v) { v = core_.TrophyProgressText(); });
+
+  // Vector views synced on dirty delta.
+  c.Bind("mods_list", &mods_view_);
+  c.Bind("patches_list", &patches_view_);
+  c.Bind("trophies_list", &trophies_view_);
+
+  // Translations.
+  c.Bind("tr_tab_play", &tr_tab_play_);
+  c.Bind("tr_tab_graphics", &tr_tab_graphics_);
+  c.Bind("tr_tab_effects", &tr_tab_effects_);
+  c.Bind("tr_tab_controls", &tr_tab_controls_);
+  c.Bind("tr_tab_mods", &tr_tab_mods_);
+  c.Bind("tr_tab_trophies", &tr_tab_trophies_);
+  c.Bind("tr_tab_online", &tr_tab_online_);
+  c.Bind("tr_tab_log", &tr_tab_log_);
+  c.Bind("tr_launch_game", &tr_launch_game_);
+  c.Bind("tr_stop_game", &tr_stop_game_);
+
+  // UI & LauncherCore command bindings.
+  c.BindEventCallback("set_tab", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (args.empty()) return;
+    active_tab_ = args[0].Get<Rml::String>();
+    if (active_tab_ == "mods") ApplyDelta(core_.RefreshContent().delta);
+    else if (active_tab_ == "trophies") ApplyDelta(core_.RefreshTrophies().delta);
+    model_handle_.DirtyVariable("active_tab");
   });
 
-  constructor.BindEventCallback("choose_user_dir", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ChooseUserDirectory();
+  c.BindEventCallback("set_language", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (args.empty()) return;
+    ApplyDelta(core_.SetSetting("ui_language", std::string(args[0].Get<Rml::String>())).delta);
   });
 
-  constructor.BindEventCallback("choose_mods_dir", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ChooseModsDirectory();
+  c.BindEventCallback("save", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+    ApplyDelta(core_.SaveSettings().delta);
   });
 
-  constructor.BindEventCallback("extract_dump", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ChooseDumpToExtract();
+  c.BindEventCallback("play", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+    ApplyDelta(core_.LaunchGame().delta);
+  });
+  c.BindEventCallback("stop_game", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+    ApplyDelta(core_.StopGame().delta);
   });
 
-  constructor.BindEventCallback("install_update", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ChooseUpdateToInstall();
+  c.BindEventCallback("choose_game_dir", [this](auto, auto&, auto&) { ChooseFolderForSetting("game_dir"); });
+  c.BindEventCallback("choose_user_dir", [this](auto, auto&, auto&) { ChooseFolderForSetting("user_dir"); });
+  c.BindEventCallback("choose_mods_dir", [this](auto, auto&, auto&) { ChooseFolderForSetting("mods_dir"); });
+  c.BindEventCallback("extract_dump", [this](auto, auto&, auto&) { ChooseDumpToExtract(); });
+  c.BindEventCallback("install_update", [this](auto, auto&, auto&) { ChooseUpdateToInstall(); });
+
+  c.BindEventCallback("toggle_mod", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.ToggleMod(args[0].Get<Rml::String>()).delta);
+  });
+  c.BindEventCallback("move_mod_up", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.MoveMod(args[0].Get<Rml::String>(), -1).delta);
+  });
+  c.BindEventCallback("move_mod_down", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.MoveMod(args[0].Get<Rml::String>(), +1).delta);
+  });
+  c.BindEventCallback("toggle_patch", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.TogglePatch(args[0].Get<Rml::String>()).delta);
   });
 
-  constructor.BindEventCallback("clear_log", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    ClearLog();
+  c.BindEventCallback("clear_log", [this](auto, auto&, auto&) {
+    copy_btn_text_ = "COPY";
+    model_handle_.DirtyVariable("copy_btn_text");
+    ApplyDelta(core_.ClearLog().delta);
   });
-
-  constructor.BindEventCallback("copy_log", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    CopyLogToClipboard();
+  c.BindEventCallback("copy_log", [this](auto, auto&, auto&) {
+    SDL_SetClipboardText(core_.ConsoleLog().c_str());
+    copy_btn_text_ = "COPIED!";
+    model_handle_.DirtyVariable("copy_btn_text");
   });
+  c.BindEventCallback("save_log", [this](auto, auto&, auto&) { ChooseSaveLogPath(); });
 
-  constructor.BindEventCallback("save_log", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
-    SaveLogDialog();
-  });
-
-  model_handle_ = constructor.GetModelHandle();
+  model_handle_ = c.GetModelHandle();
 }
 
-void LauncherModel::UpdateValidationStatus() {
-  is_valid = ConfigManager::ValidateGameDirectory(settings.game_dir);
-  game_version = ConfigManager::GetGameVersion(settings.game_dir);
-  game_title_id = ConfigManager::GetTitleId(settings.game_dir);
-
-  if (!is_valid) {
-    status_text = tr("status_invalid");
-    is_update_needed = false;
-  } else {
-    is_update_needed = !ConfigManager::IsUpdate109(settings.game_dir);
-    if (is_update_needed) {
-      status_text = tr("status_update_needed");
-    } else {
-      status_text = tr("status_ready");
-    }
-  }
-
-  if (model_handle_) {
-    model_handle_.DirtyVariable("is_valid");
-    model_handle_.DirtyVariable("game_version");
-    model_handle_.DirtyVariable("game_title_id");
-    model_handle_.DirtyVariable("is_update_needed");
-    model_handle_.DirtyVariable("status_text");
-  }
-}
-
-void LauncherModel::Update() {
-  if (has_pending_game_dir_) {
-    has_pending_game_dir_ = false;
-    settings.game_dir = pending_game_dir_;
-    if (model_handle_) model_handle_.DirtyVariable("game_dir");
-    ConfigManager::Save(settings);
-    UpdateValidationStatus();
-  }
-
-  if (has_pending_user_dir_) {
-    has_pending_user_dir_ = false;
-    settings.user_dir = pending_user_dir_;
-    if (model_handle_) model_handle_.DirtyVariable("user_dir");
-    ConfigManager::Save(settings);
-    RefreshTrophies();
-  }
-
-  if (has_pending_mods_dir_) {
-    has_pending_mods_dir_ = false;
-    settings.mods_dir = pending_mods_dir_;
-    if (model_handle_) model_handle_.DirtyVariable("mods_dir");
-    ConfigManager::Save(settings);
-    RefreshMods();
-  }
-
-  if (has_pending_log_save_) {
-    has_pending_log_save_ = false;
-    SaveLogToFile(pending_log_save_path_);
-  }
-
-  std::vector<std::string> lines_to_process;
-  {
-    std::lock_guard<std::mutex> lock(log_mutex_);
-    if (!pending_log_lines_.empty()) {
-      lines_to_process.swap(pending_log_lines_);
-    }
-  }
-
-  if (!lines_to_process.empty()) {
-    for (const auto& line : lines_to_process) {
-      console_log += line;
-      console_log += "\n";
-    }
-    if (console_log.size() > 65536) {
-      console_log = console_log.substr(console_log.size() - 65536);
-    }
-    if (model_handle_) {
-      model_handle_.DirtyVariable("console_log");
-    }
-  }
-
-  if (is_game_running && running_process_.IsValid()) {
-    int status = 0;
-    pid_t result = waitpid(running_process_.pid, &status, WNOHANG);
-    if (result > 0) {
-      OnGameExited(WEXITSTATUS(status));
-    }
-  }
-}
-
-void LauncherModel::Launch() {
-  if (is_game_running) return;
-  ConfigManager::Save(settings);
-
-  console_log.clear();
-  AppendLogLine("=== Launching Bloodborne PC ===");
-
-  if (!ConfigManager::ValidateGameDirectory(settings.game_dir)) {
-    AppendLogLine("WARNING: No eboot.bin found directly in '" + settings.game_dir + "'.");
-    AppendLogLine("Checking for CUSA03173 subdirectories or launching runner...");
-  }
-
-  running_process_ = ConfigManager::LaunchGameAsync(settings);
-  if (!running_process_.IsValid()) {
-    AppendLogLine("ERROR: Failed to launch execution process (fork or pipe failed).");
-    active_tab = "log";
-    if (model_handle_) {
-      model_handle_.DirtyVariable("active_tab");
-      model_handle_.DirtyVariable("console_log");
-    }
+void LauncherModel::ApplyDelta(const StateDelta& delta) {
+  if (!model_handle_ || delta.Empty()) {
     return;
   }
 
-  is_game_running = true;
-  launch_timestamp_ = std::chrono::steady_clock::now();
-  if (model_handle_) {
-    model_handle_.DirtyVariable("is_game_running");
+  if (delta.Contains("mods_list") || delta.Contains("patches_list")) {
+    SyncModsAndPatches();
   }
-
-  int read_fd = running_process_.read_fd;
-  if (log_reader_thread_.joinable()) {
-    log_reader_thread_.join();
+  if (delta.Contains("trophies_list")) {
+    SyncTrophies();
   }
-
-  log_reader_thread_ = std::thread([this, read_fd]() {
-    char buffer[1024];
-    std::string current_line;
-    ssize_t bytes_read;
-    while ((bytes_read = read(read_fd, buffer, sizeof(buffer) - 1)) > 0) {
-      buffer[bytes_read] = '\0';
-      for (ssize_t i = 0; i < bytes_read; ++i) {
-        if (buffer[i] == '\n') {
-          AppendLogLine(current_line);
-          current_line.clear();
-        } else if (buffer[i] != '\r') {
-          current_line += buffer[i];
-        }
-      }
-    }
-    if (!current_line.empty()) {
-      AppendLogLine(current_line);
-    }
-    close(read_fd);
-  });
-}
-
-void LauncherModel::StopGame() {
-  if (!is_game_running || !running_process_.IsValid()) return;
-  kill(running_process_.pid, SIGTERM);
-  int status = 0;
-  waitpid(running_process_.pid, &status, 0);
-  OnGameExited(WEXITSTATUS(status));
-}
-
-void LauncherModel::OnGameExited(int exit_code) {
-  is_game_running = false;
-  running_process_.pid = -1;
-  running_process_.read_fd = -1;
-  std::ostringstream ss;
-  ss << "=== Process exited with code " << exit_code << " ===";
-  AppendLogLine(ss.str());
-
-  auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::steady_clock::now() - launch_timestamp_).count();
-  if (exit_code != 0 && elapsed_sec < 4) {
-    active_tab = "log";
-    if (model_handle_) {
-      model_handle_.DirtyVariable("active_tab");
+  if (delta.Contains("translations")) {
+    SyncTranslations();
+    for (const char* k : {"tr_tab_play", "tr_tab_graphics", "tr_tab_effects", "tr_tab_controls",
+                          "tr_tab_mods", "tr_tab_trophies", "tr_tab_online", "tr_tab_log",
+                          "tr_launch_game", "tr_stop_game"}) {
+      model_handle_.DirtyVariable(k);
     }
   }
 
-  if (model_handle_) {
-    model_handle_.DirtyVariable("is_game_running");
+  for (const auto& key : delta.dirty_keys) {
+    if (key != "translations") {
+      model_handle_.DirtyVariable(key);
+    }
+  }
+
+  if (delta.focus_log_tab) {
+    active_tab_ = "log";
+    model_handle_.DirtyVariable("active_tab");
   }
 }
 
-void LauncherModel::AppendLogLine(const std::string& line) {
-  std::lock_guard<std::mutex> lock(log_mutex_);
-  pending_log_lines_.push_back(line);
+void LauncherModel::SyncModsAndPatches() {
+  mods_view_ = core_.Mods();
+  patches_view_ = core_.Patches();
 }
 
-void LauncherModel::ClearLog() {
-  console_log.clear();
-  if (model_handle_) {
-    model_handle_.DirtyVariable("console_log");
-  }
+void LauncherModel::SyncTrophies() {
+  trophies_view_ = core_.Trophies();
 }
 
-void LauncherModel::CopyLogToClipboard() {
-  SDL_SetClipboardText(console_log.c_str());
-  copy_btn_text = "COPIED!";
-  if (model_handle_) {
-    model_handle_.DirtyVariable("copy_btn_text");
-  }
+void LauncherModel::SyncTranslations() {
+  tr_tab_play_ = core_.Translate("tab_play");
+  tr_tab_graphics_ = core_.Translate("tab_graphics");
+  tr_tab_effects_ = core_.Translate("tab_effects");
+  tr_tab_controls_ = core_.Translate("tab_controls");
+  tr_tab_mods_ = core_.Translate("tab_mods");
+  tr_tab_trophies_ = core_.Translate("tab_trophies");
+  tr_tab_online_ = core_.Translate("tab_online");
+  tr_tab_log_ = core_.Translate("tab_log");
+  tr_launch_game_ = core_.Translate("launch_game");
+  tr_stop_game_ = core_.Translate("stop_game");
 }
 
-void LauncherModel::SaveLogDialog() {
-  SDL_ShowSaveFileDialog(
-      [](void* userdata, const char* const* filelist, int filter) {
-        if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->pending_log_save_path_ = *filelist;
-          self->has_pending_log_save_ = true;
-        }
-      },
-      this, window_, nullptr, 0, "bbport_log.txt");
-}
-
-void LauncherModel::SaveLogToFile(const std::string& filepath) {
-  std::ofstream out(filepath);
-  if (out.is_open()) {
-    out << console_log;
-    AppendLogLine("Log saved to: " + filepath);
-  }
-}
-
-void LauncherModel::ToggleConsole() {
-  is_console_open = !is_console_open;
-  if (model_handle_) {
-    model_handle_.DirtyVariable("is_console_open");
-  }
-}
-
-void LauncherModel::ChooseGameDirectory() {
+void LauncherModel::ChooseFolderForSetting(const char* setting_key) {
+  auto* ctx = new FolderDialogCtx{&core_, setting_key};
   SDL_ShowOpenFolderDialog(
       [](void* userdata, const char* const* filelist, int) {
+        std::unique_ptr<FolderDialogCtx> c(static_cast<FolderDialogCtx*>(userdata));
         if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->SetPendingGameDir(*filelist);
+          c->core->PostSetting(c->setting_key, std::string(*filelist));
         }
       },
-      this, window_, nullptr, false);
-}
-
-void LauncherModel::ChooseUserDirectory() {
-  SDL_ShowOpenFolderDialog(
-      [](void* userdata, const char* const* filelist, int) {
-        if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->SetPendingUserDir(*filelist);
-        }
-      },
-      this, window_, nullptr, false);
-}
-
-void LauncherModel::ChooseModsDirectory() {
-  SDL_ShowOpenFolderDialog(
-      [](void* userdata, const char* const* filelist, int) {
-        if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->SetPendingModsDir(*filelist);
-        }
-      },
-      this, window_, nullptr, false);
+      ctx, window_, nullptr, false);
 }
 
 void LauncherModel::ChooseDumpToExtract() {
   const SDL_DialogFileFilter filters[] = {{"PlayStation Dump (*.pkg, *.iso)", "pkg;iso"}};
+  auto* ctx = new ExtractDialogCtx{&core_, window_, {}};
   SDL_ShowOpenFileDialog(
       [](void* userdata, const char* const* filelist, int) {
-        if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->pending_dump_to_extract_ = *filelist;
-          SDL_ShowOpenFolderDialog(
-              [](void* udata, const char* const* flist, int) {
-                if (flist && *flist && **flist) {
-                  auto* m = static_cast<LauncherModel*>(udata);
-                  m->StartExtraction(m->pending_dump_to_extract_, *flist);
-                }
-              },
-              self, self->window_, nullptr, false);
+        std::unique_ptr<ExtractDialogCtx> c(static_cast<ExtractDialogCtx*>(userdata));
+        if (!filelist || !*filelist || !**filelist) {
+          return;
         }
+        c->dump_path = *filelist;
+        auto* next_ctx = c.release();
+        SDL_ShowOpenFolderDialog(
+            [](void* udata, const char* const* flist, int) {
+              std::unique_ptr<ExtractDialogCtx> d(static_cast<ExtractDialogCtx*>(udata));
+              if (flist && *flist && **flist) {
+                d->core->PostExtraction(d->dump_path, *flist);
+              }
+            },
+            next_ctx, next_ctx->window, nullptr, false);
       },
-      this, window_, filters, 1, nullptr, false);
-}
-
-void LauncherModel::StartExtraction(const std::string& dump_path, const std::string& out_dir) {
-  is_extracting = true;
-  extract_progress_pct = "0";
-  extract_progress_text = "Starting dump extraction...";
-  if (model_handle_) {
-    model_handle_.DirtyVariable("is_extracting");
-    model_handle_.DirtyVariable("extract_progress_pct");
-    model_handle_.DirtyVariable("extract_progress_text");
-  }
-
-  if (extract_thread_.joinable()) {
-    extract_thread_.join();
-  }
-
-  extract_thread_ = std::thread([this, dump_path, out_dir]() {
-    std::string cmd = "./tools/extractor/extract_dump.sh \"" + dump_path + "\" \"" + out_dir + "\" 2>&1";
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (pipe) {
-      char buf[256];
-      while (fgets(buf, sizeof(buf), pipe)) {
-        AppendLogLine(buf);
-      }
-      pclose(pipe);
-    }
-    is_extracting = false;
-    extract_progress_pct = "100";
-    extract_progress_text = "Extraction complete!";
-    SetPendingGameDir(out_dir);
-    if (model_handle_) {
-      model_handle_.DirtyVariable("is_extracting");
-      model_handle_.DirtyVariable("extract_progress_pct");
-      model_handle_.DirtyVariable("extract_progress_text");
-    }
-  });
+      ctx, window_, filters, 1, nullptr, false);
 }
 
 void LauncherModel::ChooseUpdateToInstall() {
@@ -796,31 +318,20 @@ void LauncherModel::ChooseUpdateToInstall() {
   SDL_ShowOpenFileDialog(
       [](void* userdata, const char* const* filelist, int) {
         if (filelist && *filelist && **filelist) {
-          auto* self = static_cast<LauncherModel*>(userdata);
-          self->StartUpdateInstallation(*filelist);
+          static_cast<LauncherCore*>(userdata)->PostUpdateInstall(*filelist);
         }
       },
-      this, window_, filters, 1, nullptr, false);
+      &core_, window_, filters, 1, nullptr, false);
 }
 
-void LauncherModel::StartUpdateInstallation(const std::string& update_pkg_path) {
-  if (settings.game_dir.empty()) return;
-  StartExtraction(update_pkg_path, settings.game_dir);
-}
-
-void LauncherModel::SetPendingGameDir(const std::string& path) {
-  pending_game_dir_ = path;
-  has_pending_game_dir_ = true;
-}
-
-void LauncherModel::SetPendingUserDir(const std::string& path) {
-  pending_user_dir_ = path;
-  has_pending_user_dir_ = true;
-}
-
-void LauncherModel::SetPendingModsDir(const std::string& path) {
-  pending_mods_dir_ = path;
-  has_pending_mods_dir_ = true;
+void LauncherModel::ChooseSaveLogPath() {
+  SDL_ShowSaveFileDialog(
+      [](void* userdata, const char* const* filelist, int) {
+        if (filelist && *filelist && **filelist) {
+          static_cast<LauncherCore*>(userdata)->PostSaveLog(*filelist);
+        }
+      },
+      &core_, window_, nullptr, 0, "bbport_log.txt");
 }
 
 } // namespace bbport

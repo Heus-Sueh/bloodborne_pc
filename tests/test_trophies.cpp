@@ -102,11 +102,22 @@ static void Keys() {
     assert(!ParseKey("zz112233445566778899aabbccddeeff"));
 }
 
+static void BloodborneCatalog() {
+    const auto en = BloodborneTrophies(1);
+    const auto pt = BloodborneTrophies(17);
+    const auto ru = BloodborneTrophies(8);
+    assert(en.size() == 40 && pt.size() == 40 && ru.size() == 40);
+    assert(en[0].id == 0 && en[0].grade == 'P' && en[0].name == "Bloodborne");
+    assert(pt[14].id == 14 && pt[14].grade == 'B' && pt[14].name == "Padre Gascoigne");
+    assert(ru[14].id == 14 && ru[14].grade == 'B');
+}
+
 int main() {
     Package();
     Ids();
     Padding();
     Xml();
     Keys();
+    BloodborneCatalog();
     std::printf("trophy-test: ok\n");
 }

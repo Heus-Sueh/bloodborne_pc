@@ -9,6 +9,7 @@
 // the CPU does it in decode order.
 
 #include "render/raster_internal.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 

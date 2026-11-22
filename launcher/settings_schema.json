@@ -125,6 +125,10 @@
       "pt_BR": "Idioma",
       "zh_CN": "语言",
       "fr_FR": "Langue"
+     },
+     "env": {
+      "var": "BB_LANGUAGE",
+      "mode": "non_empty"
      }
     },
     {
@@ -208,6 +212,10 @@
       "pt_BR": "Início",
       "zh_CN": "启动",
       "fr_FR": "Démarrage"
+     },
+     "env": {
+      "var": "BB_SKIP_NETWORK_CHOICE",
+      "mode": "zero_one"
      }
     },
     {
@@ -282,6 +290,10 @@
       "pt_BR": "Janela",
       "zh_CN": "窗口",
       "fr_FR": "Fenêtre"
+     },
+     "env": {
+      "var": "BB_DISPLAY",
+      "mode": "non_empty"
      }
     },
     {
@@ -309,6 +321,10 @@
       "pt_BR": "Janela",
       "zh_CN": "窗口",
       "fr_FR": "Fenêtre"
+     },
+     "env": {
+      "var": "BB_FULLSCREEN",
+      "mode": "zero_one"
      }
     },
     {
@@ -337,6 +353,10 @@
       "pt_BR": "Janela",
       "zh_CN": "窗口",
       "fr_FR": "Fenêtre"
+     },
+     "env": {
+      "var": "BB_PRESENT_MODE",
+      "mode": "non_empty"
      }
     },
     {
@@ -367,6 +387,10 @@
       "pt_BR": "Janela",
       "zh_CN": "窗口",
       "fr_FR": "Fenêtre"
+     },
+     "env": {
+      "var": "BB_HDR",
+      "mode": "true_only"
      }
     },
     {
@@ -1471,6 +1495,10 @@
       "pt_BR": "Taxa de quadros",
       "zh_CN": "帧率",
       "fr_FR": "Fréquence d'images"
+     },
+     "env": {
+      "var": "BB_FPS",
+      "mode": "non_empty"
      }
     },
     {
@@ -1501,6 +1529,10 @@
       "pt_BR": "Taxa de quadros",
       "zh_CN": "帧率",
       "fr_FR": "Fréquence d'images"
+     },
+     "env": {
+      "var": "BB_FPS_LIMIT",
+      "mode": "positive_int"
      }
     },
     {
@@ -1624,6 +1656,10 @@
       "pt_BR": "Latência e pipeline",
       "zh_CN": "延迟与流水线",
       "fr_FR": "Latence et pipeline"
+     },
+     "env": {
+      "var": "BB_DRAW_PIPE",
+      "mode": "non_empty"
      }
     },
     {
@@ -1696,6 +1732,10 @@
       "pt_BR": "Dispositivos",
       "zh_CN": "设备",
       "fr_FR": "Périphériques"
+     },
+     "env": {
+      "var": "BB_GAMEPAD",
+      "mode": "non_empty"
      }
     },
     {
@@ -2006,6 +2046,10 @@
       "pt_BR": "Mods",
       "zh_CN": "模组",
       "fr_FR": "Mods"
+     },
+     "env": {
+      "var": "BB_MODS_ENABLED",
+      "mode": "zero_one"
      }
     },
     {
@@ -2434,6 +2478,10 @@
       "pt_BR": "Logs",
       "zh_CN": "日志",
       "fr_FR": "Journaux"
+     },
+     "env": {
+      "var": "BB_SAVE_LOG",
+      "mode": "true_only"
      }
     },
     {
@@ -2461,6 +2509,10 @@
       "pt_BR": "Logs",
       "zh_CN": "日志",
       "fr_FR": "Journaux"
+     },
+     "env": {
+      "var": "BB_FRAME_STATS",
+      "mode": "true_only"
      }
     },
     {
@@ -2488,6 +2540,10 @@
       "pt_BR": "Logs",
       "zh_CN": "日志",
       "fr_FR": "Journaux"
+     },
+     "env": {
+      "var": "BB_GPU_PROFILE",
+      "mode": "true_only"
      }
     },
     {
@@ -2542,6 +2598,10 @@
       "pt_BR": "Diagnóstico",
       "zh_CN": "诊断",
       "fr_FR": "Diagnostics"
+     },
+     "env": {
+      "var": "BB_VK_VALIDATION",
+      "mode": "true_only"
      }
     },
     {

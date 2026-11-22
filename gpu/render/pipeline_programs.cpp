@@ -35,7 +35,7 @@ extern char** environ;
 #endif
 
 #include "bbport_sections.h"
-#include "bbport_toggles.h"
+#include "runtime_gpu_abi.h"
 #include "buffers/buffer_cache.h"
 #include "common/hash.h"
 #include "common/scope_exit.h"

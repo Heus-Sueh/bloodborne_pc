@@ -3,6 +3,7 @@
 // Vector ALU instructions with their own semantics: carries through VCC or an SGPR pair, legacy
 // float rules, 24-bit multiplies, F16 conversions with and without host F16, cube map
 // coordinates, relative VGPR addressing (M0), packing and mixed precision.
+#include <limits>
 #include "shader/frontend/translate/translate.h"
 #include "shader/profile.h"
 
@@ -51,15 +52,48 @@ void Translator::V_MUL_F32(const GcnInst& inst) {
     SetDst(inst.dst[0], ir.FPMul(GetSrc<IR::F32>(inst.src[0]), GetSrc<IR::F32>(inst.src[1])));
 }
 
+IR::F32 Translator::LegacyMul(const IR::F32& a, const IR::F32& b) {
+    // DX9 rules: 0 * x = 0, also for x = Inf or NaN.
+    const IR::F32 zero{ir.Imm32(0.0f)};
+    const IR::U1 either_zero{ir.LogicalOr(ir.FPEqual(a, zero), ir.FPEqual(b, zero))};
+    return IR::F32{ir.Select(either_zero, zero, ir.FPMul(a, b))};
+}
+
+IR::F32 Translator::ClampInfToMax(const IR::F32& value) {
+    // V_RCP_CLAMP / V_RSQ_CLAMP: +-Inf becomes +-FLT_MAX, NaN stays.
+    if (!profile.gcn_nan_semantics) {
+        return value;
+    }
+    constexpr float max = std::numeric_limits<float>::max();
+    const IR::F32 signed_max{
+        ir.Select(ir.FPLessThan(value, ir.Imm32(0.0f)), ir.Imm32(-max), ir.Imm32(max))};
+    return IR::F32{ir.Select(ir.FPIsInf(value), signed_max, value)};
+}
+
 /// Legacy multiply: 0 times anything (even Inf or NaN) is +0.
 void Translator::V_MUL_LEGACY_F32(const GcnInst& inst) {
     const IR::F32 src0{GetSrc<IR::F32>(inst.src[0])};
     const IR::F32 src1{GetSrc<IR::F32>(inst.src[1])};
-    const IR::F32 zero{ir.Imm32(0.0f)};
-    const IR::U1 src0_zero{ir.FPEqual(src0, zero)};
-    const IR::U1 src1_zero{ir.FPEqual(src1, zero)};
-    const IR::U1 either_zero{ir.LogicalOr(src0_zero, src1_zero)};
-    SetDst(inst.dst[0], IR::F32{ir.Select(either_zero, zero, ir.FPMul(src0, src1))});
+    SetDst(inst.dst[0], LegacyMul(src0, src1));
+}
+
+void Translator::V_MAC_LEGACY_F32(const GcnInst& inst) {
+    if (!profile.gcn_nan_semantics) {
+        return V_MAC_F32(inst);
+    }
+    const IR::F32 src0{GetSrc<IR::F32>(inst.src[0])};
+    const IR::F32 src1{GetSrc<IR::F32>(inst.src[1])};
+    const IR::F32 dst0{GetSrc<IR::F32>(inst.dst[0])};
+    SetDst(inst.dst[0], ir.FPAdd(LegacyMul(src0, src1), dst0));
+}
+
+void Translator::V_MAD_LEGACY_F32(const GcnInst& inst) {
+    const IR::F32 src0{GetSrc<IR::F32>(inst.src[0])};
+    const IR::F32 src1{GetSrc<IR::F32>(inst.src[1])};
+    const IR::F32 src2{GetSrc<IR::F32>(inst.src[2])};
+    const IR::F32 prod =
+        profile.gcn_nan_semantics ? LegacyMul(src0, src1) : IR::F32{ir.FPMul(src0, src1)};
+    SetDst(inst.dst[0], ir.FPAdd(prod, src2));
 }
 
 void Translator::V_MUL_I32_I24(const GcnInst& inst, bool is_signed) {
@@ -258,6 +292,16 @@ void Translator::V_RCP_LEGACY_F32(const GcnInst& inst) {
     const auto negative = ir.INotEqual(sign, ir.Imm32(0u));
     const IR::F32 zero{ir.Select(negative, ir.Imm32(-0.0f), ir.Imm32(0.0f))};
     SetDst(inst.dst[0], IR::F32{ir.Select(is_inf, zero, result)});
+}
+
+void Translator::V_RCP_CLAMP_F32(const GcnInst& inst) {
+    const IR::F32 src0{GetSrc<IR::F32>(inst.src[0])};
+    SetDst(inst.dst[0], ClampInfToMax(ir.FPRecip(src0)));
+}
+
+void Translator::V_RSQ_CLAMP_F32(const GcnInst& inst) {
+    const IR::F32 src0{GetSrc<IR::F32>(inst.src[0])};
+    SetDst(inst.dst[0], ClampInfToMax(ir.FPRecipSqrt(src0)));
 }
 
 /// The first set bit from the MSB (FindUMsb counts from the LSB); -1 for 0.

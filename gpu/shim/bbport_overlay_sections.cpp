@@ -17,7 +17,7 @@
 #include "imgui.h"
 #include "render/compile_log.h"
 
-extern "C" void runtime_restart(void); // bb-probe (probe.c)
+#include "runtime_gpu_abi.h"
 
 namespace BbOverlay::detail {
 
@@ -112,10 +112,10 @@ bool UpscalerSection(BbSettings::Values& s) {
     int upscaler = s.upscaler;
     if (ImGui::BeginCombo(BbSettings::MenuText("Upscaler", "Апскейлер"), upscalers[upscaler])) {
         for (int i = 0; i < BbSettings::UpscalerCount; ++i) {
-            const bool supported = i == BbSettings::UpscalerFsr4     ? s.fsr4_supported.load()
-                                   : i == BbSettings::UpscalerFsr411 ? s.fsr411_supported.load()
-                                   : i == BbSettings::UpscalerDlss   ? s.dlss_supported.load()
-                                   : i == BbSettings::UpscalerFsrAmd ? s.fsr_amd_supported.load()
+            const bool supported = i == BbSettings::UpscalerFsr4     ? BbSettings::Caps().fsr4_supported.load()
+                                   : i == BbSettings::UpscalerFsr411 ? BbSettings::Caps().fsr411_supported.load()
+                                   : i == BbSettings::UpscalerDlss   ? BbSettings::Caps().dlss_supported.load()
+                                   : i == BbSettings::UpscalerFsrAmd ? BbSettings::Caps().fsr_amd_supported.load()
                                                                      : true;
             ImGui::BeginDisabled(!supported);
             if (ImGui::Selectable(upscalers[i], i == upscaler)) {
@@ -150,7 +150,7 @@ bool UpscalerSection(BbSettings::Values& s) {
             amd ? BbSettings::MenuText("Auto (the DLL's choice)", "Авто (выбор DLL)")
                 : BbSettings::MenuText("Auto (by the GPU)", "Авто (по видеокарте)"),
             "FP8", "INT8", "INT8 RDNA2", "INT8 Lite"};
-        const unsigned available = amd ? s.fsr_amd_models.load() : s.fsr4_models_available.load();
+        const unsigned available = amd ? BbSettings::Caps().fsr_amd_models.load() : BbSettings::Caps().fsr4_models_available.load();
         const int model = std::clamp(s.fsr4_model.load(), 0, BbSettings::Fsr4ModelCount - 1);
         if (ImGui::BeginCombo(BbSettings::MenuText("FSR 4 model", "Модель FSR 4"), models[model])) {
             for (int i = 0; i < BbSettings::Fsr4ModelCount; ++i) {
@@ -170,9 +170,10 @@ bool UpscalerSection(BbSettings::Values& s) {
             }
             ImGui::EndCombo();
         }
-        if (const char* active = s.fsr4_model_active.load(); active && !amd) {
+        if (const char* active = BbSettings::Caps().fsr4_model_active.load(); active && !amd) {
             ImGui::SameLine();
-            ImGui::TextDisabled("%s", active);
+            const char* version = BbSettings::Caps().fsr4_version_active.load();
+            ImGui::TextDisabled("%s%s%s", active, version ? ", " : "", version ? version : "");
         }
         if (amd) {
             Hint(BbSettings::MenuText(
@@ -185,11 +186,12 @@ bool UpscalerSection(BbSettings::Values& s) {
         } else Hint(BbSettings::MenuText(
             "FP8: RDNA4's model (emulated, slower, on RDNA3). INT8: FSR 4.1 on any GPU. INT8 RDNA2: "
             "FSR 4.1.2's model made for RX 6000. INT8 Lite: FSR 4.1.2's light model (Steam Deck, "
-            "APUs): faster, softer. The 4.1.2 models are built from AMD's driver DLL in the "
-            "launcher.",
+            "APUs): faster, softer. The 4.1.2 models are built in the launcher from AMD's FSR SDK "
+            "2.4 DLL, or a 4.1.x DLL with the driver's amdxcffx64.dll.",
             "FP8: модель RDNA4 (на RDNA3 эмулируется, медленнее). INT8: FSR 4.1 на любой видеокарте. "
             "INT8 RDNA2: модель FSR 4.1.2 для RX 6000. INT8 Lite: лёгкая модель FSR 4.1.2 (Steam "
-            "Deck, APU): быстрее, мягче. Модели 4.1.2 собираются в лаунчере из DLL драйвера AMD."));
+            "Deck, APU): быстрее, мягче. Модели 4.1.2 собираются в лаунчере из DLL AMD FSR SDK 2.4 "
+            "или из DLL 4.1.x с драйверным amdxcffx64.dll."));
     }
     if (s.upscaler == BbSettings::UpscalerDlss) {
         Hint(BbSettings::MenuText(
@@ -198,12 +200,12 @@ bool UpscalerSection(BbSettings::Values& s) {
             "NVIDIA DLSS Super Resolution (видеокарты RTX; Native AA — это DLAA). Нужны мост DLSS "
             "и библиотека NVIDIA рядом с игрой; без них используется FSR 3.1."));
     }
-    if (const char* problem = s.dlss_problem.load(); problem && s.upscaler == BbSettings::UpscalerDlss) {
+    if (const char* problem = BbSettings::Caps().dlss_problem.load(); problem && s.upscaler == BbSettings::UpscalerDlss) {
         char line[192];
         std::snprintf(line, sizeof(line), "DLSS: %s", problem);
         ProblemText(line);
     }
-    if (const char* problem = s.fsr4_problem.load()) {
+    if (const char* problem = BbSettings::Caps().fsr4_problem.load()) {
         char line[192];
         std::snprintf(line, sizeof(line),
                       BbSettings::MenuText("FSR 4 unavailable: %s", "FSR 4 недоступен: %s"), problem);
@@ -218,7 +220,7 @@ bool UpscalerSection(BbSettings::Values& s) {
     }
     if (BbSettings::IsFsr4(s.upscaler)) {
         if (s.upscaler == BbSettings::UpscalerFsrAmd) {
-            if (const char* provider = s.fsr_amd_provider.load()) {
+            if (const char* provider = BbSettings::Caps().fsr_amd_provider.load()) {
                 ImGui::TextDisabled("%s", provider);
             }
             Hint(BbSettings::MenuText(
@@ -231,10 +233,12 @@ bool UpscalerSection(BbSettings::Values& s) {
                 "быть FSR 3.1."));
         } else if (s.upscaler == BbSettings::UpscalerFsr411) {
             Hint(BbSettings::MenuText(
-                "FSR 4.1.1: the model from AMD's 4.1.1 DLL, reproduced in Vulkan (output matches "
-                "the DLL). Assets are built from your DLL in the launcher.",
-                "FSR 4.1.1: модель из DLL AMD 4.1.1, воспроизведённая в Vulkan (результат совпадает "
-                "с DLL). Ассеты собираются из вашей DLL в лаунчере."));
+                "FSR 4.1.x: AMD's model from your DLL (4.1.1; INT8 RDNA2 and INT8 Lite: 4.1.2), "
+                "reproduced in Vulkan (output matches the DLL). Assets are built from your DLL in "
+                "the launcher.",
+                "FSR 4.1.x: модель AMD из вашей DLL (4.1.1; INT8 RDNA2 и INT8 Lite: 4.1.2), "
+                "воспроизведённая в Vulkan (результат совпадает с DLL). Ассеты собираются из вашей "
+                "DLL в лаунчере."));
         } else {
             Hint(BbSettings::MenuText(
                 "FSR 4 in INT8 mode (v07 model from AMD FidelityFX SDK sources). Higher quality "
@@ -289,10 +293,10 @@ bool UpscalerSection(BbSettings::Values& s) {
     }
     ImGui::Text(
         BbSettings::MenuText("Active scene render: %d x %d", "Активный рендер сцены: %d x %d"),
-        s.active_render_width.load(), s.active_render_height.load());
+        BbSettings::Telemetry().active_render_width.load(), BbSettings::Telemetry().active_render_height.load());
     if (BbSettings::HybridSession()) {
         ImGui::Text(BbSettings::MenuText("Startup preset: %s", "Пресет при запуске: %s"),
-                    BbSettings::PresetName(s.startup_preset));
+                    BbSettings::PresetName(BbSettings::Startup().preset));
         Hint(BbSettings::MenuText(
             "The game renders at the startup preset's size as if it were its own resolution: "
             "nothing extra a frame. Another preset applies at once (drawn in stand-in targets of "
@@ -302,7 +306,7 @@ bool UpscalerSection(BbSettings::Values& s) {
             "размера). Со следующего запуска выбранный пресет станет собственным размером игры."));
     } else if (BbSettings::FixedRenderSession()) {
         ImGui::Text(BbSettings::MenuText("Startup preset: %s", "Пресет при запуске: %s"),
-                    BbSettings::PresetName(s.startup_preset));
+                    BbSettings::PresetName(BbSettings::Startup().preset));
         if (bb_env_on("BB_AUTO_RENDER_RES")) {
             Hint(BbSettings::MenuText(
                 "When output is not 1080p, the entire game renders at the preset resolution "
@@ -350,10 +354,10 @@ bool UpscalerSection(BbSettings::Values& s) {
     {
         const int current = std::clamp(s.frame_generation.load(), 0, BbSettings::FrameGenCount - 1);
         const bool fsr3_shown = true;
-        const bool dlss_shown = s.dlss_supported.load() || current == BbSettings::FrameGenDlss;
-        const int dlss_max = s.dlssg_max_multiplier.load(std::memory_order_relaxed);
+        const bool dlss_shown = BbSettings::Caps().dlss_supported.load() || current == BbSettings::FrameGenDlss;
+        const int dlss_max = BbSettings::Caps().dlssg_max_multiplier.load(std::memory_order_relaxed);
         const bool dlss_available = dlss_max > 1;
-        const bool shown = fsr3_shown || dlss_available || s.dlss_supported.load() ||
+        const bool shown = fsr3_shown || dlss_available || BbSettings::Caps().dlss_supported.load() ||
                            current != BbSettings::FrameGenOff;
         if (shown) {
             const char* names[BbSettings::FrameGenCount] = {
@@ -361,7 +365,7 @@ bool UpscalerSection(BbSettings::Values& s) {
                 BbSettings::MenuText("FSR 3.1 (experimental)", "FSR 3.1 (экспериментально)"),
                 "DLSS (NVIDIA RTX 40/50)",
                 BbSettings::MenuText("FSR 4 (AMD's DLL)", "FSR 4 (DLL AMD)")};
-            const bool amd_available = s.fg_amd_supported.load(std::memory_order_relaxed);
+            const bool amd_available = BbSettings::Caps().fg_amd_supported.load(std::memory_order_relaxed);
             if (ImGui::BeginCombo(BbSettings::MenuText("Frame generation", "Генерация кадров"),
                                   names[current])) {
                 for (int i = 0; i < BbSettings::FrameGenCount; ++i) {
@@ -373,7 +377,7 @@ bool UpscalerSection(BbSettings::Values& s) {
                     const bool supported =
                         i == BbSettings::FrameGenOff ||
                         (i == BbSettings::FrameGenFsr3
-                             ? s.frame_generation_supported.load(std::memory_order_relaxed)
+                             ? BbSettings::Caps().frame_generation_supported.load(std::memory_order_relaxed)
                          : i == BbSettings::FrameGenFsrAmd ? amd_available
                                                            : dlss_available);
                     ImGui::BeginDisabled(!supported);
@@ -412,14 +416,14 @@ bool UpscalerSection(BbSettings::Values& s) {
                     "Чтобы их было видно, нужна такая частота обновления дисплея."));
             }
             const char* problem = current == BbSettings::FrameGenDlss
-                                      ? s.dlssg_problem.load(std::memory_order_relaxed)
+                                      ? BbSettings::Caps().dlssg_problem.load(std::memory_order_relaxed)
                                   : current == BbSettings::FrameGenFsr3
-                                      ? s.frame_generation_problem.load(std::memory_order_relaxed)
+                                      ? BbSettings::Caps().frame_generation_problem.load(std::memory_order_relaxed)
                                   : current == BbSettings::FrameGenFsrAmd
-                                      ? s.fg_amd_problem.load(std::memory_order_relaxed)
+                                      ? BbSettings::Caps().fg_amd_problem.load(std::memory_order_relaxed)
                                       : nullptr;
             if (current == BbSettings::FrameGenFsrAmd) {
-                if (const char* provider = s.fg_amd_provider.load(std::memory_order_relaxed)) {
+                if (const char* provider = BbSettings::Caps().fg_amd_provider.load(std::memory_order_relaxed)) {
                     ImGui::TextDisabled("%s", provider);
                 }
             }
@@ -437,7 +441,7 @@ bool UpscalerSection(BbSettings::Values& s) {
                     ProblemText(BbSettings::MenuText(
                         "Frame generation needs an upscaler: FSR or DLSS (Native AA too)",
                         "Генерации кадров нужен апскейлер: FSR или DLSS (подойдёт и «Натив AA»)"));
-                } else if (s.frame_generation_restart.load(std::memory_order_relaxed)) {
+                } else if (BbSettings::Caps().frame_generation_restart.load(std::memory_order_relaxed)) {
                     ProblemText(BbSettings::MenuText(
                         "Frame generation starts after a restart of the game",
                         "Генерация кадров включится после перезапуска игры"));
@@ -583,13 +587,13 @@ void OutputSection(BbSettings::Values& s) {
     // Low latency (NVIDIA Reflex through VK_NV_low_latency2, AMD Anti-Lag 2 through
     // VK_AMD_anti_lag): shown where the driver has one, and on any NVIDIA GPU so that the entry
     // says when the driver is too old.
-    if (s.low_latency_supported.load(std::memory_order_relaxed) || s.dlss_supported.load()) {
+    if (BbSettings::Caps().low_latency_supported.load(std::memory_order_relaxed) || BbSettings::Caps().dlss_supported.load()) {
         const char* latency_modes[BbSettings::LowLatencyCount] = {
             BbSettings::MenuText("Off", "Выкл"), BbSettings::MenuText("On", "Вкл"),
             BbSettings::MenuText("On + Boost", "Вкл + Boost")};
         const int latency = std::clamp(s.low_latency.load(), 0, BbSettings::LowLatencyCount - 1);
-        const bool supported = s.low_latency_supported.load(std::memory_order_relaxed);
-        const bool anti_lag = s.low_latency_backend.load(std::memory_order_relaxed) == 2;
+        const bool supported = BbSettings::Caps().low_latency_supported.load(std::memory_order_relaxed);
+        const bool anti_lag = BbSettings::Caps().low_latency_backend.load(std::memory_order_relaxed) == 2;
         // With DLSS Frame Generation at least On (BbSettings::EffectiveLowLatency): Off is shown
         // as what runs and cannot be chosen.
         const int effective = std::clamp(BbSettings::EffectiveLowLatency(), 0, BbSettings::LowLatencyCount - 1);
@@ -748,10 +752,10 @@ void GameEffectsSection(BbSettings::Values& s) {
         "затенения): VBAO, если включено, иначе SSAO игры."));
 
     bool restart =
-        s.object_motion != s.startup_object_motion || s.model_lod != s.startup_model_lod ||
+        s.object_motion != BbSettings::Startup().object_motion || s.model_lod != BbSettings::Startup().model_lod ||
         BbSettings::ResolutionNeedsRestart();
     for (int e = 0; e < BbSettings::EffectCount; ++e) {
-        restart |= !BbSettings::IsHotEffect(e) && s.effects[e] != s.startup_effects[e];
+        restart |= !BbSettings::IsHotEffect(e) && s.effects[e] != BbSettings::Startup().effects[e];
     }
     if (restart) {
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s",

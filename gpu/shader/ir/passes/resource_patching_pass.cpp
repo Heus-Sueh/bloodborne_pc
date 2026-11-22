@@ -730,8 +730,15 @@ void PatchImageSample(IR::Inst& inst, const Info& info, const ImageResource& ima
             return ir.ConvertFToU(32, ir.FPMul(value, extent));
         }
         if (unnormalized) {
+            // An unnormalized coordinate addresses the centre of the texel it falls in, so
+            // normalize that centre and not the texel corner, or linear filtering blends in the
+            // neighbouring texel (shadPS4 #5672). Array layers keep the raw index.
             const auto extent = ir.ConvertUToF(32, 32, IR::U32{ir.CompositeExtract(size, dim)});
-            return ir.FPDiv(value, extent);
+            const bool is_layer = (dim == 1 && view_type == ImageType::Color1DArray);
+            if (is_layer) {
+                return ir.FPDiv(value, extent);
+            }
+            return ir.FPDiv(ir.FPAdd(value, ir.Imm32(0.5f)), extent);
         }
         return value;
     };
@@ -802,11 +809,19 @@ void PatchImageArgs(IR::Inst& inst, const Info& info) {
     const IR::Value handle = inst.Arg(0);
     const ImageResource& image_res = info.images[handle.U32() & 0xFFFF];
     const auto image = image_res.GetSharp(info);
-    if (inst.GetOpcode() == Opcode::ImageSampleRaw) {
+    // The view type picks which address registers get used below. Keep all of them alive so the
+    // resources the shader needs (like flatbuf) match across view types (shadPS4 #5739).
+    IR::IREmitter ir{*inst.GetParent(), IR::Block::InstructionList::s_iterator_to(inst)};
+    const bool is_sample = inst.GetOpcode() == Opcode::ImageSampleRaw;
+    for (u32 arg = is_sample ? 2 : 1; arg <= (is_sample ? 5u : 1u); ++arg) {
+        if (inst.Arg(arg).TryInst()) {
+            ir.KeepAlive(inst.Arg(arg));
+        }
+    }
+    if (is_sample) {
         PatchImageSample(inst, info, image_res, image);
         return;
     }
-    IR::IREmitter ir{*inst.GetParent(), IR::Block::InstructionList::s_iterator_to(inst)};
     auto flags = inst.Flags<IR::TextureInstInfo>();
     const ImageType view_type = image.GetViewType(image_res.is_array);
     const IR::Inst* const body = inst.Arg(1).Inst();

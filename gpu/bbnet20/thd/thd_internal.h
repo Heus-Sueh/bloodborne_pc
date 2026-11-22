@@ -12,9 +12,7 @@
 #include <nlohmann/json.hpp>
 
 #include "common/types.h"
-
-extern "C" int32_t runtime_thread_spawn(void** out, void* PS4_SYSV_ABI (*entry)(void*),
-                                        void* argument, uint64_t stack, const char* name);
+#include "runtime_gpu_abi.h"
 
 namespace Core::Loader {
 class SymbolsResolver;

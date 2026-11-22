@@ -37,31 +37,31 @@ int main() {
                 std::fprintf(config, "upscaler=%s\npreset=3\noutput_res=2560x1440\n",
                              UpscalerName(requested));
                 std::fclose(config);
-                s.fsr4_problem = nullptr;
+                Caps().fsr4_problem = nullptr;
                 Load();
                 assert(s.upscaler == requested);
                 ConfigureUpscalerSupport(fsr4, fsr411);
                 const bool unsupported = (requested == UpscalerFsr4 && !fsr4) ||
                     (requested == UpscalerFsr411 && !(fsr4 && fsr411));
                 assert(s.upscaler == (unsupported ? UpscalerFsr3 : requested));
-                assert(s.fsr4_supported == fsr4);
-                assert(s.fsr411_supported == (fsr4 && fsr411));
-                assert(bool(s.fsr4_problem.load()) == unsupported);
+                assert(Caps().fsr4_supported == fsr4);
+                assert(Caps().fsr411_supported == (fsr4 && fsr411));
+                assert(bool(Caps().fsr4_problem.load()) == unsupported);
                 assert(s.preset == Performance && CurrentOutput() == (OutputSize{2560, 1440}));
                 // Startup patch settings still describe the already applied guest patches.
-                assert(s.startup_upscaler == requested);
+                assert(Startup().upscaler == requested);
                 ConfigureUpscalerSupport(fsr4, fsr411);
                 assert(s.upscaler == (unsupported ? UpscalerFsr3 : requested));
             }
         }
     }
-    s.startup_preset = Quality;
-    s.startup_upscaler = UpscalerFsr3;
+    Startup().preset = Quality;
+    Startup().upscaler = UpscalerFsr3;
     s.upscaler = UpscalerFsr3;
     s.preset = Performance;
     assert(RenderPreset() == Performance && !ResolutionNeedsRestart());
     setenv("BB_RENDER_RES", "1706x960", 1);
-    s.startup_output = CurrentOutput(); // Load with BB_OUTPUT_RES
+    Startup().output = CurrentOutput(); // Load with BB_OUTPUT_RES
     assert(RenderPreset() == Quality && ResolutionNeedsRestart());
     s.preset = Quality;
     assert(!ResolutionNeedsRestart());
@@ -74,7 +74,7 @@ int main() {
     s.upscaler = UpscalerFsr4;
     s.output_res = PackSize({3840, 2160});
     assert(ResolutionNeedsRestart());
-    s.output_res = PackSize(s.startup_output);
+    s.output_res = PackSize(Startup().output);
     assert(!ResolutionNeedsRestart());
     s.aspect = Aspect21x9; // the same height in another aspect ratio: 3440x1440
     assert(CurrentOutput() == (OutputSize{3440, 1440}) && ResolutionNeedsRestart());

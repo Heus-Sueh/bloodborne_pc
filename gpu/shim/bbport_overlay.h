@@ -8,11 +8,13 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 #include "common/types.h"
 #include "vulkan/vk_common.h"
 
 union SDL_Event;
 struct SDL_Window;
+struct ImTextureData;
 
 namespace Vulkan {
 class Instance;
@@ -32,10 +34,46 @@ void UpdateTextInput(SDL_Window* window);
 bool Visible();
 /// A line of text over the game until called with null (bbgpu_overlay_banner).
 void SetBanner(const char* text);
-/// A trophy unlocked (bbport_trophies.cpp): announced at the top right for a few seconds, one
-/// after another. grade: P G S B, '?' unknown; icon: the trophy's PNG (empty: the grade's badge).
-/// delay: seconds of drawn frames before it shows (BB_TROPHY_TEST: past the game's start).
+/// A trophy unlocked (bbport_trophies.cpp): announced in PlayStation 4's top-left notification
+/// style for a few seconds, one after another. grade: P G S B, '?' unknown; icon: the trophy's PNG
+/// (empty: a metallic trophy cup tile). delay: seconds of drawn frames before it shows
+/// (BB_TROPHY_TEST: past the game's start).
 void ShowTrophy(char grade, const std::string& name, const std::filesystem::path& icon, float delay = 0.0f);
+
+/// Snapshot of a trophy entry for the in-game PS4 Quick Menu (RmlUi).
+struct TrophyEntryView {
+    int id = 0;
+    char grade = 'B'; // P, G, S, B, ?
+    bool hidden = false;
+    bool unlocked = false;
+    std::string name;
+    std::string detail;
+    std::string unlocked_at;
+    std::filesystem::path icon_path;
+};
+
+/// Returns the current trophy catalog with unlock status and icon paths (thread-safe).
+std::vector<TrophyEntryView> GetTrophyCatalogSnapshot();
+
+/// Triggers an immediate in-game PlayStation trophy notification preview (without recording).
+void TriggerTrophyPreview(char grade = 'P');
+
+/// Trophy notification visual style: PlayStation 4 (Black or Classic White) or PlayStation 5.
+enum class TrophyStyle : int {
+    Ps4Black = 0,
+    Ps4White = 1,
+    Ps5 = 2,
+};
+
+TrophyStyle GetTrophyStyle();
+void SetTrophyStyle(TrophyStyle style);
+
+/// PlayStation 4 trophy pop-up color theme (false = PS4 FW 5.0+ Black, true = PS4 Classic White).
+bool GetTrophyLightTheme();
+void SetTrophyLightTheme(bool light);
+
+/// Loads or retrieves a cached RGBA32 PNG texture registered with the active ImGui Vulkan backend.
+ImTextureData* GetOrLoadTexture(const std::filesystem::path& path);
 
 /// Present thread: draws into `view` (layout ColorAttachmentOptimal).
 void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent);

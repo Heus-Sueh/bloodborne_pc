@@ -225,6 +225,7 @@ constexpr NumberFormat RemapNumberFormat(NumberFormat format, DataFormat data_fo
     case NumberFormat::SnormNz:
         return NumberFormat::Sint;
     case NumberFormat::Ubnorm:
+    case NumberFormat::UbnormNz:
         return NumberFormat::Unorm;
     case NumberFormat::Float:
         // 8-bit float: games read the stencil of a depth-stencil image this way. As uint it
@@ -279,6 +280,7 @@ constexpr NumberConversion MapNumberConversion(NumberFormat num_fmt, DataFormat 
     case NumberFormat::Sscaled:
         return NumberConversion::SintToSscaled;
     case NumberFormat::Ubnorm:
+    case NumberFormat::UbnormNz:
         return NumberConversion::UnormToUbnorm;
     case NumberFormat::SnormNz:
         switch (data_fmt) {

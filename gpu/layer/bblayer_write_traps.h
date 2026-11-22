@@ -8,9 +8,7 @@
 #pragma once
 #include <cstdint>
 
-extern "C" void runtime_memory_trap(std::uintptr_t address, std::uint64_t size, unsigned reason,
-                                    int on);
-extern "C" unsigned runtime_memory_trap_reasons(std::uintptr_t address);
+#include "runtime_gpu_abi.h"
 
 namespace BbLayer::WriteTraps {
 

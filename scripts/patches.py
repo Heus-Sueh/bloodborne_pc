@@ -466,6 +466,58 @@ def compile_external(selected, segments):
     return writes
 
 
+def compile_all(*, out, fps='uncap', extra='', settings_path=None, game_dir=None,
+                render_res='', output_res='', patches_dir=None, patches_config=None,
+                large_heaps=False, xml=None, app_version='01.09', env=None):
+    """Compile built-in and external patches into out/patches.bin in-process."""
+    env = os.environ if env is None else env
+    out = Path(out)
+    xml = Path(xml) if xml is not None else Path(__file__).resolve().parent.parent / 'patches/Bloodborne.xml'
+    settings_path = Path(settings_path) if settings_path is not None else Path(__file__).resolve().parent.parent / 'bbport.ini'
+    game_dir = Path(game_dir) if game_dir is not None else Path(env.get('BB_GAME_DIR', '../CUSA03173'))
+    settings = read_settings(settings_path)
+
+    names = fps_patches(fps, env) + [n.strip() for n in extra.split(';') if n.strip()]
+    names += [n for n in effect_patches(settings) if n not in names]
+    if intel_tonemap_fix(env) and INTEL_TONEMAP not in names:
+        names.append(INTEL_TONEMAP)
+    if skip_network_choice(env) and SKIP_NETWORK_CHOICE not in names:
+        names.append(SKIP_NETWORK_CHOICE)
+    if gx_command_heap(env) and GX_COMMAND_HEAP not in names:
+        names.append(GX_COMMAND_HEAP)
+    names = validate_patch_requirements(names, game_dir)
+    elf = (out / 'eboot.elf').read_bytes()
+    segments = eboot_segments(elf)
+    writes = compile_patches(xml, names, app_version, segments)
+    writes += language_writes(settings, elf)
+    size = render_size(settings, render_res) if render_res else None
+    ui = OUTPUT_SIZE
+    if size:
+        writes += resolution_writes(xml, size, app_version, segments, ui)
+    large = bool(large_heaps)
+    if graphics_heaps(size, large) and GRAPHICS_HEAP_PATCH not in names:
+        heaps = graphics_heap_writes(elf, size, full=large)
+        if heaps:
+            writes += heaps
+            print('Patches: graphics heaps ' + ', '.join(
+                f'{struct.unpack("<Q", data)[0] >> 20} MiB' for _, data in heaps) +
+                (' (texture pack)' if large else ' for the scene'))
+        else:
+            writes += compile_patches(xml, [GRAPHICS_HEAP_PATCH], app_version, segments)
+            names.append(GRAPHICS_HEAP_PATCH)
+    if size:
+        print(f'Patches: scene {size[0]}x{size[1]}; UI {ui[0]}x{ui[1]}')
+    if patches_dir:
+        writes += compile_external(external_selection(external_patches(patches_dir, app_version, xml),
+                                                      patches_config), segments)
+    blob = struct.pack('<8sQQ', b'BBPATCH2', EBOOT_BASE, len(writes))
+    for offset, data in writes:
+        blob += struct.pack('<QQ', offset, len(data)) + data
+    (out / 'patches.bin').write_bytes(blob)
+    print(f'Patches: FPS preset {fps}; {len(writes)} writes from {names or "none"}')
+    return len(writes)
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--patches-dir',type=Path,help='third-party patch XML files (shadPS4 format)')
@@ -499,50 +551,20 @@ def main():
         size=render_size(settings)
         if size: print(f'{size[0]}x{size[1]}')
         return
-    names=fps_patches(a.fps)+[n.strip() for n in a.extra.split(';') if n.strip()]
-    names+=[n for n in effect_patches(read_settings(a.settings)) if n not in names]
-    if intel_tonemap_fix() and INTEL_TONEMAP not in names:
-        names.append(INTEL_TONEMAP)
-    if skip_network_choice() and SKIP_NETWORK_CHOICE not in names:
-        names.append(SKIP_NETWORK_CHOICE)
-    if gx_command_heap() and GX_COMMAND_HEAP not in names:
-        names.append(GX_COMMAND_HEAP)
-    names=validate_patch_requirements(names,a.game_dir)
-    elf=(a.out/'eboot.elf').read_bytes()
-    segments=eboot_segments(elf)
-    writes=compile_patches(a.xml,names,a.app_version,segments)
-    writes+=language_writes(read_settings(a.settings),elf)
-    size=render_size(read_settings(a.settings),a.render_res) if a.render_res else None
-    # The UI keeps the game's 1920x1080 coordinates even for a larger output: the port draws
-    # it into the output-size image with a viewport scaled by output / 1920
-    # (UiComposition::NativeViewport), so it is rasterized at the output resolution.
-    ui=OUTPUT_SIZE
-    if size:
-        writes+=resolution_writes(a.xml,size,a.app_version,segments,ui)
-    large=a.large_heaps=='1'
-    # BB_PATCHES may name the heap patch already: its writes go in once.
-    if graphics_heaps(size,large) and GRAPHICS_HEAP_PATCH not in names:
-        heaps=graphics_heap_writes(elf,size,full=large)
-        if heaps:
-            writes+=heaps
-            print('Patches: graphics heaps '+', '.join(
-                f'{struct.unpack("<Q",data)[0]>>20} MiB' for _,data in heaps)+
-                (' (texture pack)' if large else ' for the scene'))
-        else:
-            writes+=compile_patches(a.xml,[GRAPHICS_HEAP_PATCH],a.app_version,segments)
-            names.append(GRAPHICS_HEAP_PATCH)
-    if size:
-        print(f'Patches: scene {size[0]}x{size[1]}; UI {ui[0]}x{ui[1]}')
-    if a.patches_dir:
-        # After the built-in ones: an external patch of the same bytes wins.
-        writes+=compile_external(external_selection(external_patches(a.patches_dir,a.app_version,a.xml),
-                                                    a.patches_config),segments)
-    # BBPATCH2: the patch base, so the loader can rebase pointers the patches write into
-    # relocated slots (60/90 FPS++ replace function pointers).
-    blob=struct.pack('<8sQQ',b'BBPATCH2',EBOOT_BASE,len(writes))
-    for offset,data in writes: blob+=struct.pack('<QQ',offset,len(data))+data
-    (a.out/'patches.bin').write_bytes(blob)
-    print(f'Patches: FPS preset {a.fps}; {len(writes)} writes from {names or "none"}')
+    compile_all(
+        out=a.out,
+        fps=a.fps,
+        extra=a.extra,
+        settings_path=a.settings,
+        game_dir=a.game_dir,
+        render_res=a.render_res,
+        output_res=a.output_res,
+        patches_dir=a.patches_dir,
+        patches_config=a.patches_config,
+        large_heaps=(a.large_heaps == '1'),
+        xml=a.xml,
+        app_version=a.app_version,
+    )
 
 
 if __name__=='__main__':

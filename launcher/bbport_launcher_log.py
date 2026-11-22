@@ -1,14 +1,27 @@
 # SPDX-FileCopyrightText: Copyright 2026 bbport contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""The launcher's log page: the game's output, copy and export."""
+"""Composed GTK page adapter for the launcher's log page: game output, copy and export."""
 
-from bbport_launcher_common import *  # noqa: F401,F403
+import time
+from pathlib import Path
+
+from bbport_i18n import tr
+from bbport_launcher_common import GLib, Gtk
+from bbport_launcher_core import MAX_LOG_LINES
 
 
 class LogPage:
-    """Part of LauncherWindow (bbport_launcher.py)."""
+    """Owns the Log view and its copy/export controls inside LauncherWindow."""
 
-    def build_log_page(self):
+    def __init__(self, window, show_toast):
+        self.window = window
+        self.show_toast = show_toast
+        self.log_view = None
+        self.log_scroller = None
+        self.copy_log_button = None
+        self.export_log_button = None
+
+    def build(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.log_view = Gtk.TextView(editable=False, monospace=True, cursor_visible=False,
                                      wrap_mode=Gtk.WrapMode.WORD_CHAR)
@@ -36,16 +49,22 @@ class LogPage:
         self.copy_log_button.set_sensitive(has_text)
         self.export_log_button.set_sensitive(has_text)
 
-    def log_text(self):
+    def text(self):
+        if self.log_view is None:
+            return ""
         buffer = self.log_view.get_buffer()
         return buffer.get_text(*buffer.get_bounds(), False)
 
+    def set_text(self, value):
+        if self.log_view is not None:
+            self.log_view.get_buffer().set_text(value)
+
     def on_copy_log(self, _button):
-        self.get_clipboard().set(self.log_text())
-        self.toasts.add_toast(Adw.Toast(title=tr("Журнал скопирован")))
+        self.window.get_clipboard().set(self.text())
+        self.show_toast(tr("Журнал скопирован"))
 
     def on_export_log(self, _button):
-        text = self.log_text()
+        text = self.text()
         dialog = Gtk.FileDialog(title=tr("Экспорт журнала"))
         dialog.set_initial_name(f"bbport-{time.strftime('%Y%m%d_%H%M%S')}.log")
 
@@ -59,13 +78,12 @@ class LogPage:
             try:
                 Path(chosen.get_path()).write_text(text, encoding="utf-8")
             except OSError as error:
-                self.toasts.add_toast(Adw.Toast(
-                    title=tr("Не удалось сохранить журнал: {}").format(error.strerror or error)))
+                self.show_toast(tr("Не удалось сохранить журнал: {}").format(error.strerror or error))
                 return
-            self.toasts.add_toast(Adw.Toast(title=tr("Журнал сохранён: {}").format(chosen.get_path())))
-        dialog.save(self, None, finish)
+            self.show_toast(tr("Журнал сохранён: {}").format(chosen.get_path()))
+        dialog.save(self.window, None, finish)
 
-    def append_log(self, text):
+    def append(self, text):
         buffer = self.log_view.get_buffer()
         buffer.insert(buffer.get_end_iter(), text)
         extra = buffer.get_line_count() - MAX_LOG_LINES
@@ -73,5 +91,3 @@ class LogPage:
             buffer.delete(buffer.get_start_iter(), buffer.get_iter_at_line(extra)[1])
         adj = self.log_scroller.get_vadjustment()
         GLib.idle_add(lambda: adj.set_value(adj.get_upper()) and False)
-
-    # --- process -------------------------------------------------------------------------

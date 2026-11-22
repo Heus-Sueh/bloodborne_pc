@@ -21,6 +21,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #if BB_TROPHY_DECRYPT
@@ -37,6 +38,7 @@ namespace fs = std::filesystem;
 std::mutex trophy_mutex;
 bool set_up = false;
 fs::path folder;                          // <user>/trophy/<NP communication ID>
+fs::path user_root_dir;                   // <user>
 std::vector<BbTrophy::Trophy> trophies;   // empty: names unknown (no key or no package)
 std::set<int> unlocked;
 
@@ -49,6 +51,63 @@ std::string Text(const fs::path& path) {
 std::vector<std::uint8_t> ReadFile(const fs::path& path) {
     std::ifstream file(path, std::ios::binary);
     return file ? std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file), {}) : std::vector<std::uint8_t>{};
+}
+
+int SystemLanguageId() {
+    const char* env = bb_env("BB_LANGUAGE");
+    return env && *env ? std::atoi(env) : 1;
+}
+
+// Extract unencrypted .PNG trophy icons from trophy00.trp even when no BB_TROPHY_KEY is present.
+void ExtractIconsOnly(const fs::path& trp_path) {
+    const auto trp = ReadFile(trp_path);
+    const auto entries = BbTrophy::ReadTrpEntries(trp);
+    if (entries.empty()) {
+        return;
+    }
+    std::error_code ec;
+    fs::create_directories(folder, ec);
+    unsigned written = 0;
+    for (const auto& e : entries) {
+        if (e.name.ends_with(".PNG") && !fs::exists(folder / e.name, ec)) {
+            const char* data = reinterpret_cast<const char*>(trp.data() + e.offset);
+            std::ofstream(folder / e.name, std::ios::binary).write(data, std::streamsize(e.size));
+            ++written;
+        }
+    }
+    if (written > 0) {
+        std::printf("Trophies: extracted %u unencrypted PNG icons from %s into %s\n",
+                    written, Text(trp_path.filename()).c_str(), Text(folder).c_str());
+    }
+}
+
+std::unordered_map<int, std::string> ReadUnlockTimestamps() {
+    std::unordered_map<int, std::string> times;
+    const fs::path jl = (user_root_dir.empty() ? fs::path("user") : user_root_dir) / "trophies.jsonl";
+    std::ifstream in(jl);
+    for (std::string line; std::getline(in, line);) {
+        const auto id_pos = line.find("\"trophy_id\":");
+        if (id_pos == std::string::npos) continue;
+        const int id = std::atoi(line.c_str() + id_pos + 12);
+        const auto at_pos = line.find("\"unlocked_at\":\"");
+        if (at_pos != std::string::npos) {
+            const auto start = at_pos + 15;
+            const auto end = line.find('"', start);
+            if (end != std::string::npos) {
+                std::string ts = line.substr(start, end - start);
+                if (const auto t_sep = ts.find('T'); t_sep != std::string::npos) {
+                    ts[t_sep] = ' ';
+                }
+                if (!ts.empty() && ts.back() == 'Z') {
+                    ts.pop_back();
+                }
+                if (!times.contains(id)) {
+                    times[id] = std::move(ts);
+                }
+            }
+        }
+    }
+    return times;
 }
 
 // BB_TROPHY_KEY from the environment, else from the .env file in the working directory (the
@@ -159,8 +218,10 @@ void Save() {
 void SetUp(const char* sce_sys, const char* user_dir) {
     set_up = true;
     const fs::path sys = sce_sys ? sce_sys : "";
+    user_root_dir = fs::path(user_dir ? user_dir : "user");
     const auto np_comm_id = BbTrophy::NpCommId(ReadFile(sys / "npbind.dat"));
-    folder = fs::path(user_dir ? user_dir : "user") / "trophy" / np_comm_id.value_or("unknown");
+    const std::string comm_id = np_comm_id.value_or("NPWR05818_00");
+    folder = user_root_dir / "trophy" / comm_id;
     std::error_code ec;
     fs::create_directories(folder, ec);
     {
@@ -171,11 +232,14 @@ void SetUp(const char* sce_sys, const char* user_dir) {
             }
         }
     }
+    for (const auto& [id, _] : ReadUnlockTimestamps()) {
+        unlocked.insert(id);
+    }
+    fs::path trp = sys / "trophy" / "trophy00.trp";
+    if (!fs::exists(trp)) {
+        trp = sys / "trophy00.trp";
+    }
     if (!fs::exists(folder / "TROP.XML") && np_comm_id) {
-        fs::path trp = sys / "trophy" / "trophy00.trp";
-        if (!fs::exists(trp)) {
-            trp = sys / "trophy00.trp";
-        }
         const auto key = TrophyKey();
 #if BB_TROPHY_DECRYPT
         if (key && fs::exists(trp)) {
@@ -183,19 +247,43 @@ void SetUp(const char* sce_sys, const char* user_dir) {
         }
 #endif
         if (!key) {
-            std::printf("Trophies: no trophy key (BB_TROPHY_KEY in the environment or .env): shown by number\n");
+            std::printf("Trophies: no BB_TROPHY_KEY (using built-in Bloodborne catalog + unencrypted PNG icons)\n");
         }
+    }
+    if (fs::exists(trp) && !fs::exists(folder / "TROP000.PNG")) {
+        ExtractIconsOnly(trp);
     }
     const auto xml = ReadFile(LanguageFile());
     trophies = BbTrophy::ParseTrophies(std::string_view(reinterpret_cast<const char*>(xml.data()), xml.size()));
-    std::printf("Trophies: %s, %zu known, %zu unlocked here (%s)\n", np_comm_id.value_or("no NP ID").c_str(),
+    if (trophies.empty()) {
+        trophies = BbTrophy::BloodborneTrophies(SystemLanguageId());
+    }
+    std::printf("Trophies: %s, %zu known, %zu unlocked here (%s)\n", comm_id.c_str(),
                 trophies.size(), unlocked.size(), Text(folder).c_str());
-    // BB_TROPHY_TEST=<id>: that trophy's announcement once, nothing recorded (to see the look).
+    // BB_TROPHY_TEST=<id|all|P|G|S|B>: preview notification(s) without recording.
     if (const char* test = bb_env("BB_TROPHY_TEST"); test && *test) {
-        const int id = std::atoi(test);
-        const auto it = std::find_if(trophies.begin(), trophies.end(), [id](const auto& t) { return t.id == id; });
-        BbOverlay::ShowTrophy(it != trophies.end() ? it->grade : '?',
-                              it != trophies.end() ? it->name : "#" + std::to_string(id), IconPath(id), 40.0f);
+        const auto show_id = [](int id, float delay_s) {
+            const auto it = std::find_if(trophies.begin(), trophies.end(), [id](const auto& t) { return t.id == id; });
+            BbOverlay::ShowTrophy(it != trophies.end() ? it->grade : 'B',
+                                  it != trophies.end() ? it->name : "#" + std::to_string(id),
+                                  IconPath(id), delay_s);
+        };
+        if (std::strcmp(test, "all") == 0) {
+            show_id(14, 4.0f); // Bronze: Father Gascoigne
+            show_id(7,  4.0f); // Silver: Weapon Master
+            show_id(5,  4.0f); // Gold: Hunter's Essence
+            show_id(0,  4.0f); // Platinum: Bloodborne
+        } else if (test[0] == 'P' || test[0] == 'p') {
+            show_id(0, 4.0f);
+        } else if (test[0] == 'G' || test[0] == 'g') {
+            show_id(5, 4.0f);
+        } else if (test[0] == 'S' || test[0] == 's') {
+            show_id(7, 4.0f);
+        } else if (test[0] == 'B' || test[0] == 'b') {
+            show_id(14, 4.0f);
+        } else {
+            show_id(std::atoi(test), 4.0f);
+        }
     }
 }
 
@@ -235,3 +323,47 @@ extern "C" int bbgpu_trophy_unlock(int id) {
     }
     return platinum;
 }
+
+namespace BbOverlay {
+
+std::vector<TrophyEntryView> GetTrophyCatalogSnapshot() {
+    std::scoped_lock lock{trophy_mutex};
+    if (!set_up) {
+        SetUp(nullptr, bb_env("BB_USER_DIR"));
+    }
+    const auto times = ReadUnlockTimestamps();
+    std::vector<TrophyEntryView> out;
+    out.reserve(trophies.size());
+    for (const auto& t : trophies) {
+        TrophyEntryView v;
+        v.id = t.id;
+        v.grade = (t.grade == 'P' || t.grade == 'G' || t.grade == 'S' || t.grade == 'B') ? t.grade : 'B';
+        v.hidden = t.hidden;
+        v.unlocked = unlocked.contains(t.id) || times.contains(t.id);
+        v.name = t.name;
+        v.detail = t.detail;
+        if (const auto it = times.find(t.id); it != times.end()) {
+            v.unlocked_at = it->second;
+        }
+        v.icon_path = IconPath(t.id);
+        out.push_back(std::move(v));
+    }
+    return out;
+}
+
+void TriggerTrophyPreview(char grade) {
+    std::scoped_lock lock{trophy_mutex};
+    if (!set_up) {
+        SetUp(nullptr, bb_env("BB_USER_DIR"));
+    }
+    const int sample_id = (grade == 'P') ? 0 : (grade == 'G') ? 5 : (grade == 'S') ? 7 : 14;
+    const auto it = std::find_if(trophies.begin(), trophies.end(),
+                                 [sample_id](const auto& t) { return t.id == sample_id; });
+    if (it != trophies.end()) {
+        ShowTrophy(it->grade, it->name, IconPath(it->id), 0.0f);
+    } else {
+        ShowTrophy(grade, "Bloodborne", {}, 0.0f);
+    }
+}
+
+} // namespace BbOverlay

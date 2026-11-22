@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'launcher'))
-from bbport_assets import fsr411_problem
+from bbport_launcher_core import fsr411_problem
 
 
 class UpscalerAssetsTests(unittest.TestCase):

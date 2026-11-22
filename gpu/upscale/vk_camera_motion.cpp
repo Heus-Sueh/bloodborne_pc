@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include <fmt/format.h>
 #include <string>
 
@@ -521,10 +522,10 @@ void CameraMotion::Overlay(VideoCore::ImageId frame) {
         .size = {float(color.info.size.width), float(color.info.size.height)},
         .jitter = jitter,
         .previous_jitter = previous_jitter,
-        .mode = BbToggle::Disabled(1u << 20)   ? 1u
-                : BbToggle::Disabled(1u << 21) ? 2u
-                : BbToggle::Disabled(1u << 22) ? 3u
-                : BbToggle::Disabled(1u << 23) ? 4u
+        .mode = BbToggle::Disabled(BbToggle::CameraMotionMode1)   ? 1u
+                : BbToggle::Disabled(BbToggle::CameraMotionMode2) ? 2u
+                : BbToggle::Disabled(BbToggle::CameraMotionMode3) ? 3u
+                : BbToggle::Disabled(BbToggle::CameraMotionMode4) ? 4u
                                                : 0u,
     };
     static u32 log_counter = 0;

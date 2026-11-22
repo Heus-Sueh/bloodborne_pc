@@ -21,6 +21,26 @@ if(NOT Freetype_FOUND)
     find_package(Freetype QUIET)
 endif()
 
+# nlohmann/json (system package, header in /usr/include, or FetchContent fallback)
+find_package(nlohmann_json QUIET)
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp)
+    if(NLOHMANN_JSON_INCLUDE_DIR)
+        add_library(nlohmann_json_headers INTERFACE)
+        target_include_directories(nlohmann_json_headers INTERFACE "${NLOHMANN_JSON_INCLUDE_DIR}")
+        add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json_headers)
+    else()
+        include(FetchContent)
+        FetchContent_Declare(
+            nlohmann_json
+            GIT_REPOSITORY https://github.com/nlohmann/json.git
+            GIT_TAG v3.11.3
+            GIT_SHALLOW TRUE
+        )
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif()
+endif()
+
 # RmlUi Dependency (Use local third_party if present, otherwise FetchContent)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/RmlUi/Include/RmlUi/Core.h")
     set(RMLUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/RmlUi")
@@ -66,26 +86,49 @@ else()
     FetchContent_MakeAvailable(rmlui)
 endif()
 
-add_executable(bb-launcher
-    src/main.cpp
-    src/launcher_model.cpp
-    src/config_manager.cpp
-    src/mods_manager.cpp
-    src/trophy_manager.cpp
+# Deep headless core library (SettingsStore, LaunchEnvCompiler, ContentStores, ProcessRunner, LauncherCore)
+add_library(bbport_launcher_core STATIC
+    src/port_paths.cpp
+    src/system_probe.cpp
+    src/settings_store.cpp
+    src/launch_env.cpp
+    src/native_launch_planner.cpp
+    src/process_runner.cpp
+    src/content_stores.cpp
+    src/launcher_core.cpp
     src/i18n.cpp
+    ../gpu/shim/bbport_trophy_data.cpp
+)
+set_target_properties(bbport_launcher_core PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+target_include_directories(bbport_launcher_core
+    PUBLIC src
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../gpu/shim"
+)
+target_link_libraries(bbport_launcher_core
+    PRIVATE nlohmann_json::nlohmann_json Threads::Threads
 )
 
+set(BB_LAUNCHER_SOURCES
+    src/main.cpp
+    src/launcher_model.cpp
+)
+if(WIN32)
+    list(APPEND BB_LAUNCHER_SOURCES bbport.rc)
+endif()
+
+add_executable(bb-launcher WIN32
+    ${BB_LAUNCHER_SOURCES}
+)
 set_target_properties(bb-launcher PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     OUTPUT_NAME "bb-launcher"
 )
-
-target_include_directories(bb-launcher PRIVATE
-    src
-)
-
 target_link_libraries(bb-launcher PRIVATE
+    bbport_launcher_core
     rmlui
     OpenGL::GL
     Threads::Threads
@@ -114,19 +157,18 @@ add_custom_command(TARGET bb-launcher POST_BUILD
         "$<TARGET_FILE_DIR:bb-launcher>/assets"
 )
 
-# Unit tests
+# Deep interface tests (zero RmlUi/SDL dependencies)
 enable_testing()
 add_executable(test_launcher
     tests/test_launcher.cpp
-    src/config_manager.cpp
-    src/mods_manager.cpp
-    src/trophy_manager.cpp
-    src/i18n.cpp
 )
 set_target_properties(test_launcher PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
 )
-target_include_directories(test_launcher PRIVATE src)
+target_link_libraries(test_launcher PRIVATE bbport_launcher_core Threads::Threads)
+target_compile_options(test_launcher PRIVATE -UNDEBUG)
+target_compile_definitions(test_launcher PRIVATE
+    BBPORT_REPO_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.."
+)
 add_test(NAME test_launcher COMMAND test_launcher)
-

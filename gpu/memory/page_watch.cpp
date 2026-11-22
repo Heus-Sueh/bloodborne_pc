@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #include "bblayer_write_traps.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "games/game_profile.h"
 #include "common/assert.h"
 #include "common/error.h"
@@ -28,8 +28,7 @@
 #include "buffers/buffer.h"
 #include "render/rasterizer.h"
 
-extern "C" void runtime_memory_set_write_watch(uintptr_t address, uint64_t size, int watch);
-extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
+#include "runtime_gpu_abi.h"
 
 namespace BbMem {
 

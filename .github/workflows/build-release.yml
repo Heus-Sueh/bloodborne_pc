@@ -1,0 +1,346 @@
+name: Build Windows Portable & Linux AppImage
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - "contrib/**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux-appimage:
+    name: Linux AppImage (x86_64)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang cmake ninja-build pkg-config git curl wget file \
+            glslang-tools spirv-tools patchelf desktop-file-utils squashfs-tools zstd \
+            libfuse2t64 libvulkan-dev libgl-dev libx11-dev libxext-dev libxrandr-dev \
+            libxi-dev libxcursor-dev libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev \
+            libdrm-dev libgbm-dev libasound2-dev libpulse-dev libudev-dev libdbus-1-dev \
+            libfreetype-dev libxxhash-dev libboost-dev tsl-robin-map-dev libzydis-dev \
+            libssl-dev libprotobuf-dev protobuf-compiler nlohmann-json3-dev libminiupnpc-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
+            libfmt-dev
+
+      - name: Build and install SDL3 (>= 3.4.0)
+        run: |
+          if ! pkg-config --atleast-version=3.4.0 sdl3; then
+            git clone --depth 1 --branch release-3.4.0 https://github.com/libsdl-org/SDL.git /tmp/SDL3
+            cmake -S /tmp/SDL3 -B /tmp/SDL3/build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              -DSDL_SHARED=ON \
+              -DSDL_STATIC=OFF \
+              -DSDL_TESTS=OFF
+            sudo ninja -C /tmp/SDL3/build install
+            sudo ldconfig
+          fi
+
+      - name: Ensure packaging/bbport.icon and packaging/bbport.png exist
+        run: |
+          cp -f packaging/bbport.ico packaging/bbport.icon
+          python3 -c '
+          import struct
+          data = open("packaging/bbport.ico", "rb").read()
+          _, _, count = struct.unpack_from("<HHH", data, 0)
+          best_w, best_blob = 0, None
+          for i in range(count):
+              w, h, _, _, _, _, size, offset = struct.unpack_from("<BBBBHHII", data, 6 + i*16)
+              rw = 256 if w == 0 else w
+              blob = data[offset:offset+size]
+              if blob[:8] == b"\x89PNG\r\n\x1a\n" and rw >= best_w:
+                  best_w, best_blob = rw, blob
+          if best_blob:
+              open("packaging/bbport.png", "wb").write(best_blob)
+              open("launcher/assets/bbport.png", "wb").write(best_blob)
+          '
+
+      - name: Build Bloodborne PC Port & Adaptive RmlUi Launcher
+        run: |
+          BB_LTO=OFF bash build.sh --test
+
+      - name: Assemble AppDir and build Linux AppImage with packaging/bbport.icon
+        run: |
+          set -euo pipefail
+          APPDIR="$PWD/out/AppDir"
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share/bbport/out/gpu" \
+                   "$APPDIR/usr/share/bbport/packaging" \
+                   "$APPDIR/usr/share/applications" \
+                   "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+
+          # Copy binaries & GPU libraries
+          install -m755 out/bb-probe "$APPDIR/usr/share/bbport/out/bb-probe"
+          install -m755 out/bb-gpu-capabilities "$APPDIR/usr/share/bbport/out/bb-gpu-capabilities"
+          install -m755 out/bb-launcher "$APPDIR/usr/share/bbport/out/bb-launcher"
+          install -m755 out/gpu/libbbgpu.so "$APPDIR/usr/share/bbport/out/gpu/libbbgpu.so"
+          if [ -f out/gpu/libbbnet20.so ]; then
+            install -m755 out/gpu/libbbnet20.so "$APPDIR/usr/share/bbport/out/gpu/libbbnet20.so"
+          fi
+
+          # Copy runtime scripts, assets, and icons
+          cp -a run.sh run.py VERSION LICENSE NOTICE "$APPDIR/usr/share/bbport/"
+          [ -f shader_recipes.bin ] && cp -a shader_recipes.bin "$APPDIR/usr/share/bbport/"
+          [ -f image_shapes.txt ] && cp -a image_shapes.txt "$APPDIR/usr/share/bbport/"
+          cp -a scripts patches fsr4_shaders launcher "$APPDIR/usr/share/bbport/"
+          rm -rf "$APPDIR/usr/share/bbport/launcher/build"
+          install -m644 packaging/bbport.ico "$APPDIR/usr/share/bbport/packaging/bbport.ico"
+          install -m644 packaging/bbport.icon "$APPDIR/usr/share/bbport/packaging/bbport.icon"
+          install -m644 packaging/bbport.png "$APPDIR/usr/share/bbport/packaging/bbport.png"
+
+          # Bundle non-core shared libraries required by bb-probe, bb-launcher, libbbgpu.so, libbbnet20.so
+          for bin in "$APPDIR/usr/share/bbport/out/bb-probe" \
+                     "$APPDIR/usr/share/bbport/out/bb-launcher" \
+                     "$APPDIR/usr/share/bbport/out/gpu/libbbgpu.so" \
+                     "$APPDIR/usr/share/bbport/out/gpu/libbbnet20.so"; do
+            [ -f "$bin" ] || continue
+            ldd "$bin" | awk '/=> \// { print $3 }' | while read -r lib; do
+              base=$(basename "$lib")
+              case "$base" in
+                libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*|ld-linux*.so.*|libstdc++.so.*|libgcc_s.so.*|libvulkan.so.*|libGL*.so.*|libEGL*.so.*|libGLX*.so.*|libX11*.so.*|libxcb*.so.*|libwayland*.so.*|libdrm*.so.*|libgbm*.so.*)
+                  ;;
+                *)
+                  cp -nL "$lib" "$APPDIR/usr/lib/" || true
+                  ;;
+              esac
+            done
+          done
+
+          # AppImage icon & desktop metadata from packaging/bbport.icon / packaging/bbport.png
+          install -m644 packaging/bbport.png "$APPDIR/bbport.png"
+          install -m644 packaging/bbport.png "$APPDIR/.DirIcon"
+          install -m644 packaging/bbport.icon "$APPDIR/bbport.icon"
+          install -m644 packaging/bbport.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/bbport.png"
+
+          cat > "$APPDIR/bbport.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Bloodborne (bbport)
+          Comment=Native PC port launcher for Bloodborne
+          Exec=AppRun
+          Icon=bbport
+          Terminal=false
+          Categories=Game;
+          StartupWMClass=bbport
+          EOF
+          cp "$APPDIR/bbport.desktop" "$APPDIR/usr/share/applications/bbport.desktop"
+
+          cat > "$APPDIR/AppRun" <<'EOF'
+          #!/usr/bin/env bash
+          set -e
+          HERE="$(cd -- "$(dirname -- "$0")" && pwd)"
+          export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/share/bbport/out/gpu:${LD_LIBRARY_PATH:-}"
+          export BB_DATA_DIR="${BB_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/bbport}"
+          mkdir -p "$BB_DATA_DIR"
+          cd "$HERE/usr/share/bbport"
+          exec "$HERE/usr/share/bbport/out/bb-launcher" "$@"
+          EOF
+          chmod 755 "$APPDIR/AppRun"
+
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -O /tmp/appimagetool
+          chmod +x /tmp/appimagetool
+          mkdir -p dist
+          ARCH=x86_64 /tmp/appimagetool --appimage-extract-and-run "$APPDIR" dist/Bloodborne-bbport-x86_64.AppImage
+          chmod +x dist/Bloodborne-bbport-x86_64.AppImage
+          ls -lh dist/Bloodborne-bbport-x86_64.AppImage
+
+      - name: Upload Linux AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bloodborne-bbport-Linux-x86_64-AppImage
+          path: dist/Bloodborne-bbport-x86_64.AppImage
+          if-no-files-found: error
+
+  windows-portable:
+    name: Windows Portable (x86_64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSYS2 CLANG64 environment
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            git zip unzip
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-llvm
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-vulkan-headers
+            mingw-w64-clang-x86_64-vulkan-loader
+            mingw-w64-clang-x86_64-glslang
+            mingw-w64-clang-x86_64-spirv-tools
+            mingw-w64-clang-x86_64-sdl3
+            mingw-w64-clang-x86_64-freetype
+            mingw-w64-clang-x86_64-fmt
+            mingw-w64-clang-x86_64-boost
+            mingw-w64-clang-x86_64-robin-map
+            mingw-w64-clang-x86_64-xxhash
+            mingw-w64-clang-x86_64-zydis
+            mingw-w64-clang-x86_64-ffmpeg
+            mingw-w64-clang-x86_64-openssl
+            mingw-w64-clang-x86_64-protobuf
+            mingw-w64-clang-x86_64-nlohmann-json
+            mingw-w64-clang-x86_64-miniupnpc
+            mingw-w64-clang-x86_64-vulkan-memory-allocator
+            mingw-w64-clang-x86_64-xbyak
+            mingw-w64-clang-x86_64-miniz
+
+      - name: Prepare icons (packaging/bbport.icon, packaging/bbport.ico, packaging/bbport.png) & FSR-Vulkan patches
+        run: |
+          cp -f packaging/bbport.ico packaging/bbport.icon
+          for patch in gpu/patches/fsr-vulkan/*.patch; do
+            if ! git -C gpu/third_party/fsr-vulkan apply --reverse --check "$PWD/$patch" 2>/dev/null; then
+              git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
+            fi
+          done
+
+      - name: Build Windows Port (bb-probe.exe, bbnet20.dll, bb-gpu-capabilities.exe) & Native C++ RmlUi Launcher (Bloodborne.exe)
+        run: |
+          set -euo pipefail
+          cmake -S gpu -B out/win-gpu -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DBB_LTO=OFF \
+            -DBB_PGO=off
+          ninja -C out/win-gpu bb-probe
+          if grep -q "build bbnet20.dll" out/win-gpu/build.ninja; then
+            ninja -C out/win-gpu bbnet20
+          fi
+
+          clang -std=c11 -O2 -Wall -Wextra tools/gpu_capabilities.c \
+            $(pkg-config --cflags --libs vulkan sdl3) \
+            -o out/win-gpu/bb-gpu-capabilities.exe
+
+          cmake -S launcher -B out/win-launcher -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          ninja -C out/win-launcher bb-launcher
+
+      - name: Assemble Windows Portable Package (Zero Python Dependency)
+        run: |
+          set -euo pipefail
+          STAGE="dist/bbport-windows"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/bin" "$STAGE/launcher" "$STAGE/packaging"
+
+          # Native C++ RmlUi launcher with embedded packaging/bbport.ico & in-process C++ launch planner
+          llvm-strip --strip-debug -o "$STAGE/Bloodborne.exe" out/win-launcher/bb-launcher.exe
+          cp -a "$STAGE/Bloodborne.exe" "$STAGE/bb-launcher.exe"
+
+          # Copy port executables
+          llvm-strip --strip-debug -o "$STAGE/bin/bb-probe.exe" out/win-gpu/bb-probe.exe
+          llvm-strip --strip-debug -o "$STAGE/bin/bb-gpu-capabilities.exe" out/win-gpu/bb-gpu-capabilities.exe
+          if [ -f out/win-gpu/libbbgpu.dll ]; then
+            llvm-strip --strip-debug -o "$STAGE/bin/libbbgpu.dll" out/win-gpu/libbbgpu.dll
+          elif [ -f out/win-gpu/bbgpu.dll ]; then
+            llvm-strip --strip-debug -o "$STAGE/bin/bbgpu.dll" out/win-gpu/bbgpu.dll
+          fi
+
+          if [ -f out/win-gpu/bbnet20.dll ]; then
+            mkdir -p "$STAGE/online"
+            llvm-strip --strip-debug -o "$STAGE/online/bbnet20.dll" out/win-gpu/bbnet20.dll
+          elif [ -f out/win-gpu/libbbnet20.dll ]; then
+            mkdir -p "$STAGE/online"
+            llvm-strip --strip-debug -o "$STAGE/online/bbnet20.dll" out/win-gpu/libbbnet20.dll
+          fi
+
+          # Collect required runtime DLLs from /clang64/bin
+          collect_dlls() {
+            local target_dir="$1"
+            shift
+            local -a queue=("$@")
+            declare -A seen
+            while ((${#queue[@]})); do
+              local file="${queue[0]}"
+              queue=("${queue[@]:1}")
+              [ -f "$file" ] || continue
+              for dll in $(llvm-objdump -p "$file" | sed -n 's/^ *DLL Name: //p'); do
+                local key="${dll,,}"
+                [[ -n "${seen[$key]:-}" || "$key" == "vulkan-1.dll" || "$key" == "bb-probe.exe" ]] && continue
+                seen[$key]=1
+                if [ -f "/clang64/bin/$dll" ]; then
+                  cp -n "/clang64/bin/$dll" "$target_dir/" || true
+                  queue+=("/clang64/bin/$dll")
+                fi
+              done
+            done
+          }
+
+          collect_dlls "$STAGE/bin" "$STAGE/bin/bb-probe.exe" "$STAGE/bin/bb-gpu-capabilities.exe" "$STAGE/bin/"*.dll
+          collect_dlls "$STAGE" "$STAGE/Bloodborne.exe"
+          if [ -f "$STAGE/online/bbnet20.dll" ]; then
+            collect_dlls "$STAGE/online" "$STAGE/online/bbnet20.dll"
+          fi
+          rm -f "$STAGE/bin/vulkan-1.dll" "$STAGE/vulkan-1.dll" "$STAGE/online/vulkan-1.dll"
+
+          # Assets, patches, and icons (zero Python scripts required to run the game)
+          cp -a launcher/assets "$STAGE/launcher/"
+          cp -a launcher/settings_schema.json "$STAGE/launcher/"
+          cp -a packaging/bbport.ico "$STAGE/packaging/bbport.ico"
+          cp -a packaging/bbport.icon "$STAGE/packaging/bbport.icon"
+          cp -a packaging/bbport.png "$STAGE/packaging/bbport.png"
+          cp -a packaging/bbport.ico "$STAGE/launcher/bloodborne.ico"
+          cp -a packaging/bbport.png "$STAGE/launcher/bloodborne.png"
+          cp -a patches "$STAGE/"
+          cp -a LICENSE NOTICE VERSION "$STAGE/"
+          [ -f shader_recipes.bin ] && cp -a shader_recipes.bin "$STAGE/"
+          [ -f image_shapes.txt ] && cp -a image_shapes.txt "$STAGE/"
+          [ -d fsr4_shaders ] && cp -a fsr4_shaders "$STAGE/"
+          cp -a packaging/windows/README-Windows.txt "$STAGE/"
+
+          cd dist
+          rm -f Bloodborne-bbport-Windows-x86_64-Portable.zip
+          zip -qr Bloodborne-bbport-Windows-x86_64-Portable.zip bbport-windows
+          ls -lh Bloodborne-bbport-Windows-x86_64-Portable.zip
+
+      - name: Upload Windows Portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bloodborne-bbport-Windows-x86_64-Portable
+          path: dist/Bloodborne-bbport-Windows-x86_64-Portable.zip
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [linux-appimage, windows-portable]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/Bloodborne-bbport-x86_64.AppImage
+            release-assets/Bloodborne-bbport-Windows-x86_64-Portable.zip
+          generate_release_notes: true

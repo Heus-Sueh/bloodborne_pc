@@ -32,7 +32,7 @@
 #include "bbport_fx_init_clear.h"
 #include "bbport_heap_sites.h"
 #include "bbport_timeline.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "platform/kernel.h"
@@ -56,7 +56,7 @@ extern Frontend::WindowSDL* g_window;
 std::unique_ptr<Vulkan::Presenter> presenter;
 std::unique_ptr<BbCp::CommandProcessor> liverpool;
 
-extern "C" std::uint64_t runtime_heap_growths(void);
+#include "runtime_gpu_abi.h"
 
 
 namespace BbGnm {

@@ -7,6 +7,8 @@
 #include "shim/bb_env.h"
 #include "render/raster_internal.h"
 #include "upscale/motion_history.h"
+#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 

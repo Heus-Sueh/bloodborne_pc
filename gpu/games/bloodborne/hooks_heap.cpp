@@ -9,7 +9,7 @@
 #include "bbport_settings.h"
 #include "bbport_guest_code.h"
 #include "bbport_heap_sites.h"
-#include "bbport_toggles.h"
+
 #include "bbport_fx_init_clear.h"
 #include "bbport_effect_flags.h"
 #include "platform/gnm/gnm.h"
@@ -39,6 +39,7 @@
 #include <utility>
 #include "bbport_guest_memory.h"
 #include "games/bloodborne/hooks_internal.h"
+#include "runtime_gpu_abi.h"
 
 namespace BbGuestHooks {
 namespace {
@@ -195,12 +196,6 @@ void PS4_SYSV_ABI HeapGrowObserve(u64, const Core::GuestRegisterSnapshot* r) {
 // reserve is freed: fences keep every block within one piece, so every buffer the GPU binds lies
 // whole in one Vulkan chunk. The heap's counters ([core + 0xb0] blocks, [core + 0xb8] free bytes)
 // are kept as if the reserves were free: the game budgets its streaming by them.
-extern "C" void runtime_memory_set_grow(const std::uint64_t* size_at, std::uint64_t initial);
-extern "C" int runtime_memory_deferred(std::uint64_t* phys, std::uint64_t* end);
-extern "C" int runtime_memory_commit(std::uint64_t phys, std::uint64_t size);
-extern "C" int runtime_memory_decommit(std::uint64_t phys, std::uint64_t size);
-extern "C" int runtime_memory_direct_phys(uintptr_t address, std::uint64_t* phys, uintptr_t* end);
-extern "C" void runtime_memory_commit_ahead(std::uint64_t phys, std::uint64_t size);
 using CoreAlloc = u64(PS4_SYSV_ABI*)(u64 core, u64 size, u64 alignment);
 using CoreFree = void(PS4_SYSV_ABI*)(u64 core, u64 address);
 constexpr u64 CoreAllocate = 0x2088030, CoreRelease = 0x2088900;

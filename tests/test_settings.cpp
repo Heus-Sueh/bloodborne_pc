@@ -18,9 +18,9 @@ static std::string Read(const char* path) {
 }
 
 int main() {
-    assert(!BbSettings::IsHotEffect(6)); // SSR resizes resources on restart.
-    assert(BbSettings::IsHotEffect(7));  // Bloom still switches live.
-    assert(!BbSettings::IsHotEffect(8)); // Startup intros.
+    assert(!BbSettings::IsHotEffect(BbSettings::EffectSsr));   // SSR resizes resources on restart.
+    assert(BbSettings::IsHotEffect(BbSettings::EffectBloom));  // Bloom still switches live.
+    assert(!BbSettings::IsHotEffect(BbSettings::EffectSkipIntro)); // Startup intros.
     char path[] = "/tmp/bbport-settings-test-XXXXXX";
     const int fd = mkstemp(path);
     assert(fd >= 0);
@@ -63,8 +63,8 @@ int main() {
     BbSettings::Load();
     assert(s.menu_language == BbSettings::MenuLanguage::Russian && s.menu_language_chosen);
 
-    // Frame generation: DLSS from the file stays; FSR 3.1 only with BB_FRAME_GEN (hidden until
-    // its artifacts are fixed); the environment wins; "1"/"0" of earlier versions still parse.
+    // Frame generation: FSR 3.1 and DLSS load from bbport.ini; the environment wins; "1"/"0"
+    // of earlier versions still parse.
     const auto write_frame_gen = [&](const char* text) {
         FILE* file = std::fopen(path, "w");
         assert(file);
@@ -78,7 +78,7 @@ int main() {
     assert(s.frame_generation == BbSettings::FrameGenDlss && s.frame_generation_multiplier == 3);
     write_frame_gen("frame_generation=fsr3\nframe_generation_multiplier=9\n");
     BbSettings::Load();
-    assert(s.frame_generation == BbSettings::FrameGenOff && s.frame_generation_multiplier == 4);
+    assert(s.frame_generation == BbSettings::FrameGenFsr3 && s.frame_generation_multiplier == 4);
     setenv("BB_FRAME_GEN", "1", 1);
     BbSettings::Load();
     assert(s.frame_generation == BbSettings::FrameGenFsr3);
@@ -93,7 +93,7 @@ int main() {
     unsetenv("BB_FRAME_GEN_MULTIPLIER");
     write_frame_gen("frame_generation=1\n");
     BbSettings::Load();
-    assert(s.frame_generation == BbSettings::FrameGenOff); // FSR 3.1 without BB_FRAME_GEN
+    assert(s.frame_generation == BbSettings::FrameGenFsr3);
     s.frame_generation = BbSettings::FrameGenDlss;
     s.frame_generation_multiplier = 4;
     BbSettings::Save();
@@ -121,9 +121,9 @@ int main() {
     // With DLSS Frame Generation running, Off becomes On; Boost stays; off without it.
     s.low_latency = BbSettings::LowLatencyOff;
     s.frame_generation = BbSettings::FrameGenDlss;
-    s.dlssg_max_multiplier = 1; // unavailable: the setting stands
+    BbSettings::Caps().dlssg_max_multiplier = 1; // unavailable: the setting stands
     assert(BbSettings::EffectiveLowLatency() == BbSettings::LowLatencyOff);
-    s.dlssg_max_multiplier = 2;
+    BbSettings::Caps().dlssg_max_multiplier = 2;
     assert(BbSettings::EffectiveLowLatency() == BbSettings::LowLatencyOn);
     s.low_latency = BbSettings::LowLatencyBoost;
     assert(BbSettings::EffectiveLowLatency() == BbSettings::LowLatencyBoost);

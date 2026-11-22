@@ -7,7 +7,7 @@ at its start (`Environment:` in the log) and warns about `BB_*` names it does no
 `=1: ...` / `=0: ...` / `=N: ...` say what that value does; `set: ...` means any value
 turns it on (even `0`).
 
-## Settings (85)
+## Settings (86)
 
 What players and the launchers set. The menu, bbport.ini and the launcher write most of them; set one by hand to override them.
 
@@ -93,6 +93,7 @@ What players and the launchers set. The menu, bbport.ini and the launcher write 
 | `BB_TEXTURE_QUALITY` | texture quality over bbport.ini's texture_quality |
 | `BB_THD_ONLINE_ID` | The Hunter's Dream online name (the launcher's) |
 | `BB_THD_TOKEN` | The Hunter's Dream account token (the launcher's) |
+| `BB_TROPHY_COLOR` | =black/white (default black): PlayStation 4 trophy pop-up color |
 | `BB_TROPHY_KEY` | the trophy data key (from the environment or the port's .env) |
 | `BB_UPNP` | =1: UPnP port forwarding for online play |
 | `BB_UPSCALER` | =none / fsr3 / fsr4 / dlss / ...: the upscaler over the menu's (scripts, A/B) |
@@ -336,7 +337,7 @@ Defaults to change on a machine where they misbehave, workarounds, and switches 
 | `BB_VULKANINFO` | path of vulkaninfo for the launcher |
 | `BB_WORK_RETIRED` | =0: the recording thread and fences do not wait for retired work |
 
-## Diagnostics (274)
+## Diagnostics (275)
 
 Logs, dumps, traces, probes and experiments, for finding bugs. Most cost frame time; none is meant for playing.
 
@@ -433,6 +434,7 @@ Logs, dumps, traces, probes and experiments, for finding bugs. Most cost frame t
 | `BB_GAME_MENU_TRACE` | =1: how often the game asks for the port's menu texts |
 | `BB_GAME_PROFILE` | =none: no game profile (hooks, fixes), the plain runtime |
 | `BB_GARLIC_VRAM_RANGE` | =begin:end: VRAM copies only for guest addresses in that range |
+| `BB_GCN_NAN` | =0: disable GCN NaN/Inf rules in the shader recompiler (min/max/med3, saturate, legacy mac/mad, clamped rcp/rsq, negated compares) |
 | `BB_GC_TRIGGER_MB` | =N: the texture collector starts at N MiB (tests) |
 | `BB_GNM_CENSUS` | =1: calls per Gnm function, printed |
 | `BB_GNM_CENSUS_FILE` | =path: every Gnm function's total calls written there |
@@ -617,7 +619,7 @@ Logs, dumps, traces, probes and experiments, for finding bugs. Most cost frame t
 | `BB_WRITE_VERIFY` | =1: page protection to catch writes nothing announced |
 | `BB_ZERO_SCAN` | =seconds: that long after the first mapping, how much direct memory is zero |
 
-## Internal (30)
+## Internal (33)
 
 Passed between the launchers, run.py / run.sh and the game. Not meant to be set by hand.
 
@@ -628,6 +630,7 @@ Passed between the launchers, run.py / run.sh and the game. Not meant to be set 
 | `BB_CLIENT_VERSION` | the online client's name for the server (bbport VERSION, set by run.py) |
 | `BB_DATA_DIR` | the port's data folder (set by run.py) |
 | `BB_FSR411_OUT` | where the launcher's FSR 4.1.1 build puts its assets |
+| `BB_FSR412` | =1: the FSR 4 build takes FSR 4.1.2's models from the upscaler DLL it is given (AMD FSR SDK 2.4; set by the launcher) |
 | `BB_FSR4CAP_CLEAN` | =1: the FSR 4.1.1 build removes its work folder afterwards (set by the launcher) |
 | `BB_FSR4CAP_TOOLS` | the FSR 4.1.1 build's tools folder (set by the launcher) |
 | `BB_FSR4CAP_WORK` | the FSR 4.1.1 build's work folder (set by the launcher) |
@@ -645,9 +648,11 @@ Passed between the launchers, run.py / run.sh and the game. Not meant to be set 
 | `BB_PATCHES_DIR` | the patches folder (default <data>/patches) |
 | `BB_PREBUILT` | =1: packaged build, run.sh builds nothing (set by the AppImage) |
 | `BB_PROBE` | path of bb-probe for run.py |
+| `BB_RESTART_BY_EXIT` | =1: Windows runtime_restart exits with code 75 so run.py replans |
 | `BB_SHADER_GAME_DIR` | the game's files the shader recipes' programs come from (set by run.py) |
 | `BB_SHADER_RECIPES` | the shader recipes pack (set by run.py) |
 | `BB_SKIP_NETWORK_CHOICE` | =1: no online choice at start (the launcher's) |
+| `BB_SKIP_PREPARE` | =1: launch_plan.py skips eboot/module preparation (tests) |
 | `BB_STALL_THREADS_DONE` | set by the port once all threads were reported |
 | `BB_STEAM_OVERLAY` | the Steam overlay's preload kept for the game (=0: off; set by the AppImage entry) |
 | `BB_TIMEOUT` | =seconds: run.py stops the game after this long (tests) |

@@ -37,6 +37,8 @@ class CommandProcessor;
 #include "render/pipeline_cache.h"
 #include "render/scheduler.h"
 #include "textures/texture_cache.h"
+#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 
 namespace Core {

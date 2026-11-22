@@ -16,7 +16,7 @@
 #include "render/vk_breadcrumbs.h"
 #include "vulkan/instance.h"
 
-extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
+#include "runtime_gpu_abi.h"
 
 #include <vk_mem_alloc.h>
 

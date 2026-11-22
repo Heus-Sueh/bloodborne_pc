@@ -36,6 +36,7 @@ Inst::~Inst() {
 bool Inst::MayHaveSideEffects() const noexcept {
     switch (op) {
     // Control and synchronization.
+    case Opcode::KeepAlive:
     case Opcode::Barrier:
     case Opcode::WorkgroupMemoryBarrier:
     case Opcode::DeviceMemoryBarrier:

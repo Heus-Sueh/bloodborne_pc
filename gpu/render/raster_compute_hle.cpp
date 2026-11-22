@@ -7,6 +7,7 @@
 
 #include "render/raster_internal.h"
 #include "shim/bb_env.h"
+#include "bbport_toggles.h"
 
 namespace Vulkan {
 

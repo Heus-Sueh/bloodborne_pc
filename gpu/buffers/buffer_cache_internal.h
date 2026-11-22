@@ -15,13 +15,12 @@
 #include <map>
 #include <mutex>
 #include <vector>
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "common/types.h"
 #include "core/emulator_settings.h"
 #include "core/memory.h"
 
-extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
-extern "C" int runtime_memory_direct_phys(uintptr_t address, uint64_t* phys, uintptr_t* end);
+#include "runtime_gpu_abi.h"
 
 namespace VideoCore {
 

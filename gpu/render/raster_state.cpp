@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "render/raster_internal.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 

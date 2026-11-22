@@ -9,10 +9,7 @@
 
 #include "common/singleton.h"
 #include "common/types.h"
-
-extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
-// The low region (the game's image, stacks): its static pointers live there (#282).
-extern "C" int runtime_memory_low_info(uintptr_t address, int* prot, uintptr_t* end);
+#include "runtime_gpu_abi.h"
 
 namespace Core {
 

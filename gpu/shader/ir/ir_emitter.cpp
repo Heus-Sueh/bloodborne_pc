@@ -104,6 +104,9 @@ F16 IREmitter::BitCast<F16, U16>(const U16& value) {
 U1 IREmitter::ConditionRef(const U1& value) {
     return Inst<U1>(Opcode::ConditionRef, value);
 }
+void IREmitter::KeepAlive(const Value& value) {
+    Inst(Opcode::KeepAlive, value);
+}
 void IREmitter::Prologue() {
     Inst(Opcode::Prologue);
 }

@@ -6,6 +6,8 @@
 #include <bit>
 #include "render/raster_internal.h"
 #include "shim/bb_env.h"
+#include "bbport_toggles.h"
+#include "bbport_stats.h"
 
 namespace Vulkan {
 

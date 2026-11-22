@@ -292,12 +292,12 @@ void DefineTexts() {
             {f, AddText(en, ru), AddText(help_en, help_ru), std::move(choices), kind});
     };
 
-    // Two pages of the ControllSetting layout's six rows (the game's other layouts are fixed
-    // forms): the picture, then the game's effects. Choices are the game's pop-up rows
+    // Pages of at most the ControllSetting layout's six rows (the game's other layouts are fixed
+    // forms): display, detail, then the game's effects. Choices are the game's pop-up rows
     // (SelectRow). The other patches (intros, the free camera, the debug menu), the game's own AA
     // and the FPS counter are in the overlay menu and the launcher.
-    page("Display", "Изображение", "Aspect ratio, resolution, upscaler and detail (bbport)",
-         "Соотношение сторон, разрешение, апскейлер и детализация (bbport)", ControlsLayout);
+    page("Display", "Изображение", "Aspect ratio, resolution and upscaler (bbport)",
+         "Соотношение сторон, разрешение и апскейлер (bbport)", ControlsLayout);
     row(Aspect, "Aspect ratio", "Соотношение сторон",
         "Of the final frame: wider sees more to the sides, the UI keeps to the screen edges",
         "Готового кадра: шире - больше видно по бокам, интерфейс у краёв экрана",
@@ -317,7 +317,7 @@ void DefineTexts() {
     }
     row(Upscaler, "Upscaler", "Апскейлер", "Temporal upscaler and anti-aliasing",
         "Временной апскейлер и сглаживание",
-        {off, AddText("FSR 3.1", "FSR 3.1"), AddText("FSR 4", "FSR 4"), AddText("FSR 4.1.1", "FSR 4.1.1"),
+        {off, AddText("FSR 3.1", "FSR 3.1"), AddText("FSR 4", "FSR 4"), AddText("FSR 4.1.x", "FSR 4.1.x"),
          AddText("TAA", "TAA"), AddText("DLSS", "DLSS"), AddText("FSR 1", "FSR 1"),
          AddText("FSR 4 (AMD DLL)", "FSR 4 (DLL AMD)")},
         Kind::Select);
@@ -328,6 +328,11 @@ void DefineTexts() {
         Kind::Select);
     row(Sharpness, "Sharpness", "Резкость", "RCAS after the upscaler: 0 off, 10 strongest",
         "RCAS после апскейлера: 0 выкл, 10 сильнее всего", {}, Kind::Slider);
+
+    // Seven controls overflow the six-row layout: scrolling then misaligns labels and values
+    // (#398, #424). Keep model and texture detail together on a separate page.
+    page("Detail", "Детализация", "Model and texture detail (bbport)",
+         "Детализация моделей и текстур (bbport)", ControlsLayout);
     row(ModelLod, "Model detail", "Детализация", "Level of detail of models (after a restart)",
         "Детализация моделей (после перезапуска)",
         {AddText("Highest", "Максимальная"), AddText("Game default", "Как в игре"),
@@ -446,11 +451,10 @@ void MakeTexts(u8* pair, u32 name, u32 help) {
 
 /// Upscalers this GPU and build can run (known once the device exists, before any menu).
 bool UpscalerAvailable(int i) {
-    const auto& s = BbSettings::Get();
-    return i == BbSettings::UpscalerFsr4     ? s.fsr4_supported.load()
-           : i == BbSettings::UpscalerFsr411 ? s.fsr411_supported.load()
-           : i == BbSettings::UpscalerDlss   ? s.dlss_supported.load()
-           : i == BbSettings::UpscalerFsrAmd ? s.fsr_amd_supported.load()
+    return i == BbSettings::UpscalerFsr4     ? BbSettings::Caps().fsr4_supported.load()
+           : i == BbSettings::UpscalerFsr411 ? BbSettings::Caps().fsr411_supported.load()
+           : i == BbSettings::UpscalerDlss   ? BbSettings::Caps().dlss_supported.load()
+           : i == BbSettings::UpscalerFsrAmd ? BbSettings::Caps().fsr_amd_supported.load()
                                              : true;
 }
 

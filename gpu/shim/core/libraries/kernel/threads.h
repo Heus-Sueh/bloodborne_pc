@@ -8,7 +8,7 @@
 #include <thread>
 #include "common/types.h"
 
-extern "C" void runtime_thread_attach_host(const char* name);
+#include "runtime_gpu_abi.h"
 
 namespace Libraries::Kernel {
 class Thread {

@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "common/thread.h"
@@ -26,7 +26,7 @@
 #include "bbport_timeline.h"
 #include "bbport_sections.h"
 
-extern "C" uint64_t runtime_tsc_frequency(void);
+#include "runtime_gpu_abi.h"
 
 extern std::unique_ptr<Vulkan::Presenter> presenter;
 extern std::unique_ptr<BbCp::CommandProcessor> liverpool;

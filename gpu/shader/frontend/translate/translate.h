@@ -114,9 +114,11 @@ public:
     void S_LSHL_B32(const GcnInst& inst);
     void S_LSHL_B64(const GcnInst& inst);
     void S_LSHR_B32(const GcnInst& inst);
+    void S_LSHR_B64(const GcnInst& inst);
     void S_ASHR_I32(const GcnInst& inst);
     void S_ASHR_I64(const GcnInst& inst);
     void S_BFM_B32(const GcnInst& inst);
+    void S_BFM_B64(const GcnInst& inst);
     void S_MUL_I32(const GcnInst& inst);
     void S_BFE(const GcnInst& inst, bool is_signed);
     void S_BFE_I32(const GcnInst& inst);
@@ -168,6 +170,8 @@ public:
     void V_WRITELANE_B32(const GcnInst& inst);
     void V_MUL_F32(const GcnInst& inst);
     void V_MUL_LEGACY_F32(const GcnInst& inst);
+    void V_MAC_LEGACY_F32(const GcnInst& inst);
+    void V_MAD_LEGACY_F32(const GcnInst& inst);
     void V_MUL_I32_I24(const GcnInst& inst, bool is_signed);
     void V_MIN_F32(const GcnInst& inst, bool is_legacy = false);
     void V_MAX_F32(const GcnInst& inst, bool is_legacy = false);
@@ -192,6 +196,8 @@ public:
     void V_CVT_OFF_F32_I4(const GcnInst& inst);
     void V_CVT_F32_UBYTE(u32 index, const GcnInst& inst);
     void V_RCP_LEGACY_F32(const GcnInst& inst);
+    void V_RCP_CLAMP_F32(const GcnInst& inst);
+    void V_RSQ_CLAMP_F32(const GcnInst& inst);
     void V_FFBH_U32(const GcnInst& inst);
     void V_FFBH_I32(const GcnInst& inst);
     void V_MOVRELD_B32(const GcnInst& inst);
@@ -200,7 +206,8 @@ public:
 
     // VOPC
     template <typename T>
-    void V_CMP(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst);
+    void V_CMP(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst,
+               bool negated = false);
     void V_CMP_CLASS_F32(const GcnInst& inst);
 
     // VOP3a
@@ -298,6 +305,8 @@ private:
     void VopPacked(const GcnInst& inst, Op&& op);
     IR::U32 GetCarryIn(const GcnInst& inst);
     void SetCarryOut(const GcnInst& inst, const IR::U1& carry);
+    IR::F32 LegacyMul(const IR::F32& a, const IR::F32& b);
+    IR::F32 ClampInfToMax(const IR::F32& value);
     IR::U32 VMovRelSHelper(u32 src_vgprno, const IR::U32 m0);
     void VMovRelDHelper(u32 dst_vgprno, const IR::U32 src_val, const IR::U32 m0);
 

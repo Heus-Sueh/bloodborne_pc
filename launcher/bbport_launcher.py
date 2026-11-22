@@ -10,17 +10,84 @@ Russian, English, Brazilian Portuguese and Simplified Chinese (bbport_i18n: the 
 text is the key).
 """
 
-from bbport_launcher_common import *  # noqa: F401,F403
-from bbport_launcher_content import ContentPages
+import os
+import signal
+import subprocess
+import sys
+from pathlib import Path
+
+from bbport_i18n import set_language, tr
+from bbport_launcher_common import (
+    Adw,
+    Gio,
+    GLib,
+    Gtk,
+    choose_folder,
+    combo_row,
+    combo_value,
+    flat_button,
+    open_folder,
+    show_alert,
+)
+from bbport_launcher_content import ContentPage
+from bbport_launcher_core import (
+    ANTI_ALIASING,
+    ASPECTS,
+    BUTTON_PROMPTS,
+    CONTROLS,
+    DRAW_PIPE,
+    EFFECTS,
+    FPS_MODES,
+    FRAME_GENS,
+    GAME_TEXT_LANGUAGES,
+    GAME_VOICE_LANGUAGES,
+    LANGUAGES,
+    LINUX_SECTIONS,
+    LOW_LATENCIES,
+    MODEL_LOD,
+    PORT_DIR,
+    PRESENT_MODES,
+    PRESETS,
+    SECTION_ICONS,
+    SETTINGS_SCHEMA,
+    TEXTURE_QUALITY,
+    UI_LANGUAGES,
+    UPSCALERS,
+    binaries_dir,
+    connected_displays,
+    connected_gamepads,
+    connected_gpus,
+    create_shortcuts,
+    frame_gen_choice,
+    frame_gen_ini,
+    fsr411_build_command,
+    fsr411_dir,
+    fsr411_problem,
+    game_check,
+    game_dir,
+    game_environment,
+    load_ini,
+    load_settings,
+    nearest_output,
+    ngx_libraries,
+    online_module,
+    output_sizes,
+    parse_size,
+    resolved_aspect,
+    save_ini,
+    save_settings,
+    schema_text,
+    user_dir,
+)
 from bbport_launcher_log import LogPage
 from bbport_launcher_online import OnlinePage
 from bbport_launcher_trophies import TrophiesPage
-from bbport_launcher_upscalers import UpscalerFiles
+from bbport_launcher_upscalers import UpscalerPanel
 
 
-# The window's pages and lists live in the bbport_launcher_*.py modules (mixins).
-class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFiles,
-                     Adw.ApplicationWindow):
+class LauncherWindow(Adw.ApplicationWindow):
+    """Main GTK4 / libadwaita launcher window composing focused page adapters."""
+
     def __init__(self, app):
         super().__init__(application=app, title="Bloodborne")
         self.set_default_size(1000, 760)
@@ -29,14 +96,44 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.ini, self.ini_lines = load_ini()
         self.process = None
         self.stream = None
-        self.fsr411_build = None  # tools/fsr4cap/build_assets.sh while it runs
+        self.toasts = None
+        self.breakpoints = []
+        self.display_sizes = {}
+        self._game_problem_key = None
+        self._game_problem = None
+
+        self.content_panel = ContentPage(self, self.settings, on_store=self.store)
+        self.online_page = OnlinePage(self.settings)
+        self.trophies_page = TrophiesPage(self.settings, get_user_dir=self.user_dir)
+        self.log_page = LogPage(self, show_toast=self.show_toast)
+        self.upscaler_panel = UpscalerPanel(
+            window=self,
+            settings=self.settings,
+            get_user_dir=self.user_dir,
+            append_log=self.log_page.append,
+            show_toast=self.show_toast,
+            show_alert=self.alert,
+            on_build_state_changed=self.update_launch_button,
+            on_upscaler_changed=self.update_upscaler_status,
+            on_fsr411_ready=self.on_fsr411_ready,
+        )
+
         self.build()
         self.connect("close-request", self.on_close)
+
+    def show_toast(self, title, timeout=None):
+        if self.toasts is None:
+            return
+        toast = Adw.Toast(title=title) if timeout is None else Adw.Toast(title=title, timeout=timeout)
+        self.toasts.add_toast(toast)
+
+    def alert(self, heading, body):
+        show_alert(self, self.toasts, heading, body)
 
     def build(self):
         """(Re)creates the window's content in the current launcher language."""
         selected = getattr(self, "section_name", os.environ.get("BB_LAUNCHER_SECTION") or "game")
-        log_text = self.log_text() if hasattr(self, "log_view") else ""
+        log_text = self.log_page.text()
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.section_titles = {}
         self.sidebar = Gtk.ListBox(css_classes=["navigation-sidebar"])
@@ -44,9 +141,9 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         pages = [(section["id"], schema_text(section["title"]), SECTION_ICONS[section["id"]], page,
                   schema_text(section.get("description", {})))
                  for section, page in zip(LINUX_SECTIONS, self.build_settings_page())]
-        pages.append(("trophies", tr("Трофеи"), "starred-symbolic", self.build_trophies_page(), ""))
-        pages.append(("online", tr("Онлайн"), "network-workgroup-symbolic", self.build_online_page(), ""))
-        pages.append(("log", tr("Журнал"), "utilities-terminal-symbolic", self.build_log_page(), ""))
+        pages.append(("trophies", tr("Трофеи"), "starred-symbolic", self.trophies_page.build(), ""))
+        pages.append(("online", tr("Онлайн"), "network-workgroup-symbolic", self.online_page.build(), ""))
+        pages.append(("log", tr("Журнал"), "utilities-terminal-symbolic", self.log_page.build(), ""))
         for name, title, icon, page, description in pages:
             if description and isinstance(page, Adw.PreferencesPage):
                 page.set_description(description)
@@ -86,18 +183,18 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
 
         self.split = Adw.NavigationSplitView(min_sidebar_width=200, max_sidebar_width=260)
         self.split.set_sidebar(Adw.NavigationPage(title="Bloodborne", child=side))
-        self.content_page = Adw.NavigationPage(title="", child=content)
-        self.split.set_content(self.content_page)
+        self.nav_content_page = Adw.NavigationPage(title="", child=content)
+        self.split.set_content(self.nav_content_page)
         # Narrow windows: one pane at a time (the sidebar first, a section opens over it).
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 640sp"))
         breakpoint.add_setter(self.split, "collapsed", True)
-        for old in list(getattr(self, "breakpoints", [])):
+        for old in list(self.breakpoints):
             self.remove_breakpoint(old)
         self.breakpoints = [breakpoint]
         self.add_breakpoint(breakpoint)
         self.set_content(self.split)
 
-        self.log_view.get_buffer().set_text(log_text)
+        self.log_page.set_text(log_text)
         self.select_section(selected if selected in self.sidebar_rows else "game")
         self.update_launch_button()
         self.update_game_status()
@@ -109,9 +206,9 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
             return
         self.section_name = row.section
         if row.section == "trophies":
-            self.refresh_trophies()  # the game may have unlocked some since
+            self.trophies_page.refresh()  # the game may have unlocked some since
         self.stack.set_visible_child_name(row.section)
-        self.content_page.set_title(self.section_titles[row.section])
+        self.nav_content_page.set_title(self.section_titles[row.section])
         self.split.set_show_content(True)
 
     def select_section(self, name):
@@ -124,11 +221,15 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.launch_button.add_css_class("destructive-action" if running else "suggested-action")
         # The game and an FSR 4.1.1 build do not run together (both want the GPU, the build
         # replaces the assets the game reads).
-        self.launch_button.set_sensitive(self.fsr411_build is None)
-        if hasattr(self, "fsr411_button"):
-            self.fsr411_button.set_sensitive(not running)
-        if hasattr(self, "fsr412_button"):
-            self.fsr412_button.set_sensitive(not running)
+        self.launch_button.set_sensitive(not self.upscaler_panel.is_building)
+        self.upscaler_panel.set_game_running(running)
+
+    def on_fsr411_ready(self):
+        for index, (_label, value) in enumerate(UPSCALERS):
+            if value == "fsr411":
+                self.upscaler_row.set_selected(index)
+        self.update_upscaler_status()
+        self.store()
 
     # --- settings page -------------------------------------------------------------------
 
@@ -187,45 +288,13 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         # The GPU the game runs on, as in shadPS4 (laptops with two GPUs).
         self.gpu_row = Adw.ComboRow(title=tr("Видеокарта"))
         self.gpu_row.add_suffix(flat_button("view-refresh-symbolic", tr("Обновить список"),
-                                            lambda _button: self.fill_gpus()))
+                                            lambda _button: self.fill_gpus(force_refresh=True)))
         self.fill_gpus()
         mode.add(self.gpu_row)
 
-        self.mods_group = Adw.PreferencesGroup(
-            title=tr("Моды"), description=tr(
-                "Распакуйте каждый мод в отдельную папку (с dvdroot_ps4 или сразу с chr/, parts/ и т. п.). "
-                "При совпадении файлов побеждает мод ниже в списке. Применяется при запуске."))
-        self.mods_enabled_row = Adw.SwitchRow(title=tr("Загружать моды"),
-                                               active=self.settings["mods_enabled"])
-        self.mods_group.add(self.mods_enabled_row)
-        self.mods_folder_row = Adw.ActionRow(title=tr("Папка модов"))
-        self.mods_folder_row.add_suffix(flat_button("folder-open-symbolic", tr("Выбрать папку модов"),
-                                                    self.on_choose_mods))
-        self.mods_folder_row.add_suffix(flat_button("system-file-manager-symbolic", tr("Открыть папку модов"),
-                                                    lambda _b: open_folder(self, self.mods_dir())))
-        self.mods_folder_row.add_suffix(flat_button("view-refresh-symbolic", tr("Обновить список"),
-                                                    self.on_refresh_mods))
-        self.mods_group.add(self.mods_folder_row)
-        self.mod_list = FolderList(self.mods_group)
-        self.refresh_mods()
-        sec["mods"].add(self.mods_group)
-
-        self.patches_group = Adw.PreferencesGroup(
-            title=tr("Сторонние патчи"),
-            description=tr("XML-патчи в формате shadPS4 для версии 01.09 из папки патчей. "
-                           "Применяются при запуске."))
-        self.patches_folder_row = Adw.ActionRow(title=tr("Папка патчей"))
-        self.patches_folder_row.add_suffix(flat_button("folder-open-symbolic", tr("Выбрать папку патчей"),
-                                                       self.on_choose_patches))
-        self.patches_folder_row.add_suffix(flat_button(
-            "system-file-manager-symbolic", tr("Открыть папку патчей"),
-            lambda _b: open_folder(self, patches_dir(self.settings))))
-        self.patches_folder_row.add_suffix(flat_button("view-refresh-symbolic", tr("Обновить список"),
-                                                       self.on_refresh_patches))
-        self.patches_group.add(self.patches_folder_row)
-        self.patch_list = FolderList(self.patches_group)
-        self.refresh_patches()
-        sec["mods"].add(self.patches_group)
+        mods_group, patches_group = self.content_panel.build_groups()
+        sec["mods"].add(mods_group)
+        sec["mods"].add(patches_group)
 
         screen = Adw.PreferencesGroup(title=tr("Экран"))
         # The aspect ratio, then its resolutions (rebuilt when it changes, the height kept).
@@ -309,6 +378,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.mouse_invert_x_row = Adw.SwitchRow(title=tr("Инвертировать мышь по горизонтали"),
                                                 active=self.ini.get("mouse_invert_x") == "1")
         controls.add(self.mouse_invert_x_row)
+
         def mouse_rows_sensitive(*_):
             for row in (self.mouse_sensitivity_row, self.mouse_invert_row, self.mouse_invert_x_row):
                 row.set_sensitive(self.mouse_look_row.get_active())
@@ -331,40 +401,11 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         sec["controls"].add(controls)
 
         upscaler = Adw.PreferencesGroup(title=tr("Апскейлер"))
-        libraries = Adw.PreferencesGroup(title=tr("Библиотеки AMD и NVIDIA"), description=tr(
-            "Свои файлы AMD и NVIDIA: порт их не распространяет"))
         quality = Adw.PreferencesGroup(title=tr("Качество изображения"))
         self.upscaler_row = combo_row(tr("Апскейлер"), None, UPSCALERS, self.ini["upscaler"])
         self.upscaler_row.connect("notify::selected", lambda *_: self.update_upscaler_status())
         upscaler.add(self.upscaler_row)
-        # FSR 4.1.1 is built from the user's own AMD DLL (nothing of AMD's is shipped).
-        self.fsr411_row = Adw.ActionRow(title=tr("FSR 4.1.1 из своей DLL AMD"))
-        self.fsr411_button = Gtk.Button(valign=Gtk.Align.CENTER)
-        self.fsr411_button.connect("clicked", self.on_fsr411_button)
-        self.fsr411_row.add_suffix(self.fsr411_button)
-        self.fsr411_row.set_visible((FSR4CAP_DIR / "build_assets.sh").is_file())
-        libraries.add(self.fsr411_row)
-        # FSR 4.1.2's models (INT8 RDNA2, INT8 Lite) from AMD's driver, also the user's own.
-        self.fsr412_row = Adw.ActionRow(title=tr("FSR 4.1.2 из драйвера AMD"))
-        self.fsr412_button = Gtk.Button(valign=Gtk.Align.CENTER, label=tr("Выбрать файл…"))
-        self.fsr412_button.connect("clicked", self.on_fsr412_button)
-        self.fsr412_row.add_suffix(self.fsr412_button)
-        self.fsr412_row.set_subtitle(tr(
-            "Модели INT8 RDNA2 и INT8 Lite: установщик AMD Adrenalin 26.10.1+ (.exe) или "
-            "amdxcffx64.dll из него. Нужна и DLL FSR 4.1.x (как для FSR 4.1.1); ~4 минуты. "
-            "Модель выбирается в меню игры"))
-        self.fsr412_row.set_visible((FSR4CAP_DIR / "driver_model.py").is_file())
-        libraries.add(self.fsr412_row)
-        self.update_fsr411_row()
-        # DLSS: NVIDIA's library, chosen like the FSR 4.1.1 DLL (the package may bring one).
-        self.dlss_row = Adw.ActionRow(title=tr("DLSS: библиотека NVIDIA"))
-        self.dlss_row.add_suffix(flat_button("document-open-symbolic", tr("Выбрать файл…"),
-                                             lambda _b: self.choose_ngx()))
-        self.dlss_reset_button = flat_button("edit-undo-symbolic", tr("Убрать выбранную"),
-                                             lambda _b: self.reset_ngx())
-        self.dlss_row.add_suffix(self.dlss_reset_button)
-        libraries.add(self.dlss_row)
-        self.update_dlss_row()
+        libraries = self.upscaler_panel.build_group()
         # Frame generation (the game's menu has it too): FSR 3.1 on any GPU (experimental), DLSS
         # where an NVIDIA GPU is connected (or the GPUs are unknown).
         vendors = {vendor.lower() for _index, vendor, _kind, _name, _best in connected_gpus()}
@@ -521,11 +562,12 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
             "fps_mode": self.fps_row, "fps_limit": self.limit_row, "low_latency": self.low_latency_row,
             "gpu": self.gpu_row, "draw_pipe": self.pipe_row, "gamepad": self.gamepad_row,
             "mouse_look": self.mouse_look_row, "mouse_sensitivity": self.mouse_sensitivity_row,
-            "mouse_invert_y": self.mouse_invert_row, "mouse_invert_x": self.mouse_invert_x_row, "button_prompts": self.prompts_row,
-            "mods_enabled": self.mods_enabled_row, "mangohud": self.mangohud_row,
+            "mouse_invert_y": self.mouse_invert_row, "mouse_invert_x": self.mouse_invert_x_row,
+            "button_prompts": self.prompts_row, "mangohud": self.mangohud_row,
             "save_log": self.save_log_row, "crash_diag": self.crash_diag_row,
             "frame_stats": self.stats_row, "gpu_profile": self.profile_row,
-            "vk_validation": self.validation_row, **self.camera_speed_rows, **self.effect_rows,
+            "vk_validation": self.validation_row,
+            **self.content_panel.described_rows(), **self.camera_speed_rows, **self.effect_rows,
         }
         # Rows whose subtitle shows a state (a path, a device): the description is a tooltip.
         stateful = {"game_dir", "user_dir", "gpu", "gamepad", "display"}
@@ -559,19 +601,17 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         if self.process:
             # The log keeps streaming into the current page; rebuild on the next start.
             set_language(choice)
-            self.toasts.add_toast(Adw.Toast(
-                title=tr("Применится после перезапуска лаунчера, пока игра запущена")))
+            self.show_toast(tr("Применится после перезапуска лаунчера, пока игра запущена"))
             return
         set_language(choice)
         # After this handler returns: the row that emitted the signal is replaced.
         GLib.idle_add(lambda: self.build() and False)
 
     def game_dir(self):
-        return Path(self.settings["game_dir"]).expanduser()
+        return game_dir(self.settings)
 
     def user_dir(self):
-        return Path(self.settings["user_dir"]).expanduser() if self.settings["user_dir"] \
-            else DATA_DIR / "user"
+        return user_dir(self.settings)
 
     def update_user_status(self):
         path = self.user_dir()
@@ -584,26 +624,12 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
                                           else tr("Сохранений пока нет: игра создаст их здесь"))
         self.user_reset.set_sensitive(custom)
 
-    def choose_folder(self, title, current, done):
-        dialog = Gtk.FileDialog(title=title)
-        if Path(current).is_dir():
-            dialog.set_initial_folder(Gio.File.new_for_path(str(current)))
-
-        def finish(dialog, result):
-            try:
-                folder = dialog.select_folder_finish(result)
-            except GLib.Error:
-                return
-            if folder:
-                done(folder.get_path())
-        dialog.select_folder(self, None, finish)
-
     def on_choose_user(self, _button):
         def chosen(path):
             self.settings["user_dir"] = path
             self.update_user_status()
             self.store()
-        self.choose_folder(tr("Папка сохранений"), self.user_dir(), chosen)
+        choose_folder(self, tr("Папка сохранений"), self.user_dir(), chosen)
 
     def on_reset_user(self, _button):
         self.settings["user_dir"] = ""
@@ -624,7 +650,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         elif value == "dlss":
             # The game looks for the bridge and NVIDIA's library next to bb-probe (vk_dlss.cpp); the
             # AppImage has neither (NVIDIA's DLSS SDK is not bundled): DLSS then falls back to FSR 3.1.
-            binaries = PORT_DIR / ("bin" if PACKAGED else "out")
+            binaries = binaries_dir()
             found = (binaries / "libbbport_dlss.so").is_file() and bool(
                 ngx_libraries(self.user_dir() / "dlss") or ngx_libraries(binaries))
             hint = tr("DLSS найден (нужна видеокарта NVIDIA RTX)") if found else tr(
@@ -646,7 +672,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
                 (f.stat().st_size, f.stat().st_mtime_ns) for f in (path / "eboot.bin", path / "sce_sys/param.sfo"))
         except OSError:
             key = (str(path),)
-        if getattr(self, "_game_problem_key", None) != key:
+        if self._game_problem_key != key:
             self._game_problem_key = key
             self._game_problem = game_check.problem(path)
         return self._game_problem
@@ -681,7 +707,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
             self.settings["game_dir"] = path
             self.update_game_status()
             self.store()
-        self.choose_folder(tr("Папка игры (с eboot.bin)"), self.game_dir(), chosen)
+        choose_folder(self, tr("Папка игры (с eboot.bin)"), self.game_dir(), chosen)
 
     def show_control(self, kind, name):
         row, default = self.control_rows[(kind, name)]
@@ -700,12 +726,12 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
     def assign_control(self, kind, name, append=False):
         """The next key or button pressed: the binding, or (append) one more for the same action
         (runtime_pad.c takes up to four per action, chords like "Left Shift+Mouse Left" too)."""
-        tool = PORT_DIR / ("bin" if PACKAGED else "out") / "bb-gpu-capabilities"
+        tool = binaries_dir() / "bb-gpu-capabilities"
         try:
             process = Gio.Subprocess.new([str(tool), "--read-input", kind],
                                          Gio.SubprocessFlags.STDOUT_PIPE)
         except GLib.Error as error:
-            self.toasts.add_toast(Adw.Toast(title=tr("Не удалось запустить: {}").format(error.message)))
+            self.show_toast(tr("Не удалось запустить: {}").format(error.message))
             return
         row, _default = self.control_rows[(kind, name)]
         row.set_subtitle(tr("Нажмите клавишу или кнопку… (Esc — отмена)"))
@@ -748,8 +774,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
     def monitor_size(self):
         """The size of the monitor chosen for the game (Auto's aspect ratio), None if unknown."""
         value = combo_value(self.display_row) if self.display_row.values else ""
-        sizes = getattr(self, "display_sizes", {})
-        return sizes.get(value) or sizes.get("")
+        return self.display_sizes.get(value) or self.display_sizes.get("")
 
     def fill_aspects(self, current):
         labels = [tr("Авто") + f" ({resolved_aspect('auto', self.monitor_size())})"] + ASPECTS[1:]
@@ -801,11 +826,11 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.display_row.values = [value for _, value in choices]
         self.display_row.set_selected(self.display_row.values.index(current) if current in self.display_row.values else 0)
 
-    def fill_gpus(self):
+    def fill_gpus(self, force_refresh=False):
         """The GPU choices: the port's own (named), the GPUs found, and the saved one while it is
         not found."""
         current = self.settings.get("gpu", "")
-        gpus = connected_gpus()
+        gpus = connected_gpus(force_refresh=force_refresh)
         best = [name for _index, _vendor, _kind, name, is_best in gpus if is_best]
         auto = tr("Авто") + (f" ({best[0]})" if best else "")
         choices = [(auto, "")]
@@ -846,21 +871,9 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         s["gpu_profile"] = self.profile_row.get_active()
         s["vk_validation"] = self.validation_row.get_active()
         s["extra_env"] = self.extra_row.get_text().strip()
-        s["trophy_key"] = self.trophy_key_row.get_text().strip()
-        s["mods_enabled"] = self.mods_enabled_row.get_active()
-        s["online"] = self.online_row.get_active()
-        s["online_bbsc"] = self.bbsc_row.get_active()
-        s["online_community"] = self.community_row.get_text().strip()
-        s["online_server"] = self.server_row.get_text().strip()
-        s["online_webapi"] = self.webapi_row.get_text().strip()
-        s["online_npid"] = self.npid_row.get_text().strip()
-        s["online_password"] = self.password_row.get_text()
-        s["online_upnp"] = self.upnp_row.get_active()
-        s["online_pool"] = self.online_pool()
-        s["thd_server"] = self.thd_server_row.get_text().strip()
-        s["thd_online_id"], s["thd_token"] = self.thd_id, self.thd_token
-        self.save_mod_profile()
-        self.save_patch_profile()
+        self.content_panel.read_into(s)
+        self.trophies_page.read_into(s)
+        self.online_page.read_into(s)
         save_settings(s)
         frame_gen_choice_now = combo_value(self.frame_gen_row)
         if frame_gen_choice_now == "fsr3":
@@ -899,24 +912,22 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
     def environment(self):
         return game_environment(self.settings)
 
-    # --- mods ----------------------------------------------------------------------------
-
     def on_create_shortcut(self):
         self.store()  # the shortcut plays with what the window shows now
         try:
             paths = create_shortcuts()
         except OSError as error:
-            self.toasts.add_toast(Adw.Toast(title=tr("Не удалось создать ярлык: {}").format(error)))
+            self.show_toast(tr("Не удалось создать ярлык: {}").format(error))
             return
-        self.toasts.add_toast(Adw.Toast(title=tr("Ярлык создан: {}").format(
-            ", ".join(str(path.parent) for path in paths))))
+        self.show_toast(tr("Ярлык создан: {}").format(
+            ", ".join(str(path.parent) for path in paths)))
 
     def on_launch(self, _button):
         if self.process:
             self.stop_game()
             return
-        npid = self.npid_row.get_text().strip()
-        if online_module() and not self.online_row.get_active() and npid and hasattr(Adw, "AlertDialog"):
+        npid = self.online_page.npid()
+        if online_module() and not self.online_page.is_online_enabled() and npid and hasattr(Adw, "AlertDialog"):
             dialog = Adw.AlertDialog(heading="Bloodborne", body=tr(
                 "Учётная запись для игры онлайн указана, но «Играть онлайн» выключено"))
             dialog.add_response("cancel", tr("Отмена"))
@@ -926,7 +937,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
 
             def on_response(_dialog, response):
                 if response != "cancel":
-                    self.online_row.set_active(response == "online")
+                    self.online_page.set_online_enabled(response == "online")
                     self.start_game()
             dialog.connect("response", on_response)
             dialog.present(self)
@@ -934,13 +945,13 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.start_game()
 
     def start_game(self):
-        if self.online_row.get_active() and "@" in self.npid_row.get_text():
+        if self.online_page.has_invalid_npid():
             self.alert("Bloodborne", tr("Online ID — это имя учётной записи (NPID), "
                                         "зарегистрированное на сервере, а не адрес email"))
             self.select_section("online")
             return
         self.store()
-        self.log_view.get_buffer().set_text("")
+        self.log_page.set_text("")
         launcher = Gio.SubprocessLauncher.new(
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE)
         launcher.set_environ([f"{k}={v}" for k, v in self.environment().items()])
@@ -949,7 +960,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
             # setsid: the game and its helpers form one process group, stopped together.
             self.process = launcher.spawnv(["setsid", "bash", str(PORT_DIR / "run.sh")])
         except GLib.Error as error:
-            self.toasts.add_toast(Adw.Toast(title=tr("Не удалось запустить: {}").format(error.message)))
+            self.show_toast(tr("Не удалось запустить: {}").format(error.message))
             return
         self.stream = Gio.DataInputStream.new(self.process.get_stdout_pipe())
         self.read_line()
@@ -967,7 +978,7 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
             return
         if line is None:
             return
-        self.append_log(line + "\n")
+        self.log_page.append(line + "\n")
         self.read_line()
 
     def stop_game(self):
@@ -997,19 +1008,15 @@ class LauncherWindow(ContentPages, OnlinePage, TrophiesPage, LogPage, UpscalerFi
         self.process = None
         self.update_launch_button()
         self.update_game_status()
-        self.refresh_trophies()  # what this session unlocked, and the names once decrypted
-        self.append_log(tr("\n— игра завершилась (код {}) —\n").format(status))
+        self.trophies_page.refresh()  # what this session unlocked, and the names once decrypted
+        self.log_page.append(tr("\n— игра завершилась (код {}) —\n").format(status))
 
     def on_close(self, _window):
         self.store()
         if self.process:
             self.stop_game()
-        if self.fsr411_build:
-            self.stop_fsr411_build()
+        self.upscaler_panel.stop_build()
         return False
-
-    # --- FSR 4.1.1 from the user's DLL -----------------------------------------------------
-
 
 
 class LauncherApp(Adw.Application):

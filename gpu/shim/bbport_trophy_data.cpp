@@ -211,4 +211,198 @@ std::optional<std::vector<std::uint8_t>> ParseKey(std::string_view hex) {
     return key;
 }
 
+std::vector<Trophy> BloodborneTrophies(int language) {
+    struct Entry {
+        int id;
+        char grade;
+        int pid;
+        bool hidden;
+        const char* en_name;
+        const char* en_detail;
+        const char* pt_name;
+        const char* pt_detail;
+        const char* ru_name;
+        const char* ru_detail;
+    };
+    static constexpr Entry kCatalog[40] = {
+        {0, 'P', -1, false,
+         "Bloodborne", "All trophies acquired. Hats off!",
+         "Bloodborne", "Todos os troféus conquistados. Tiramos o chapéu!",
+         "Bloodborne", "Получены все трофеи. Снимаем шляпу!"},
+        {1, 'G', 0, true,
+         "Yharnam Sunrise", "You lived through the hunt, and saw another day.",
+         "Nascer do Sol de Yharnam", "Você sobreviveu à caçada e viu um novo dia.",
+         "Ярнамский восход", "Вы пережили охоту и встретили новый день."},
+        {2, 'G', 0, true,
+         "Honouring Wishes", "Captivated by the moon presence, you pledge to watch over the hunter's dream.",
+         "Honrando Desejos", "Cativado pela presença da lua, você promete vigiar o sonho do caçador.",
+         "Исполнение желаний", "Плененный присутствием луны, вы клянетесь оберегать сон охотника."},
+        {3, 'G', 0, true,
+         "Childhood's Beginning", "You became an infant Great One, lifting humanity into its next childhood.",
+         "Início da Infância", "Você se tornou um Eminente infante, elevando a humanidade à sua próxima infância.",
+         "Начало детства", "Вы стали младенцем Великим и привели человечество к новому детству."},
+        {4, 'G', 0, true,
+         "Yharnam, Pthumerian Queen", "Defeat Yharnam, Blood Queen of the Old Labyrinth.",
+         "Yharnam, Rainha Pthumeriana", "Derrote Yharnam, Rainha de Sangue do Antigo Labirinto.",
+         "Ярнам, Птумерианская королева", "Победите Ярнам, кровавую королеву Старого лабиринта."},
+        {5, 'G', 0, false,
+         "Hunter's Essence", "Acquire all hunter weapons.",
+         "Essência do Caçador", "Adquira todas as armas de caçador.",
+         "Сущность охотника", "Соберите все виды оружия охотника."},
+        {6, 'G', 0, false,
+         "Hunter's Craft", "Acquire all special hunter tools.",
+         "Ofício do Caçador", "Adquira todas as ferramentas especiais de caçador.",
+         "Ремесло охотника", "Соберите все особые охотничьи инструменты."},
+        {7, 'S', 0, false,
+         "Weapon Master", "Acquire a weapon of the highest level.",
+         "Mestre das Armas", "Adquira uma arma do nível mais alto.",
+         "Мастер оружия", "Получите оружие максимального уровня."},
+        {8, 'S', 0, false,
+         "Blood Gem Master", "Acquire an extremely precious blood gem.",
+         "Mestre das Gemas de Sangue", "Adquira uma gema de sangue extremamente preciosa.",
+         "Мастер кровавых самоцветов", "Добудьте невероятно ценный кровавый самоцвет."},
+        {9, 'S', 0, false,
+         "Rune Master", "Acquire an extremely precious Caryll Rune.",
+         "Mestre das Runas", "Adquira uma Runa Caryll extremamente preciosa.",
+         "Мастер рун", "Добудьте невероятно ценную руну Кэрилла."},
+        {10, 'S', 0, true,
+         "Cainhurst", "Gain entry to Cainhurst, the lost and ruined castle.",
+         "Cainhurst", "Entre em Cainhurst, o castelo perdido e arruinado.",
+         "Кейнхёрст", "Проникните в затерянный замок Кейнхёрст."},
+        {11, 'S', 0, true,
+         "The Choir", "Gain entry to the realm of the Choir, the high stratum of the Healing Church.",
+         "O Coro", "Entre no domínio do Coro, o alto escalão da Igreja da Cura.",
+         "Хор", "Проникните в обитель Хора — высшей иерархии Церкви Исцеления."},
+        {12, 'S', 0, true,
+         "The Source of the Dream", "Discover the abandoned old workshop, the source of the hunter's dream.",
+         "A Fonte do Sonho", "Descubra a antiga oficina abandonada, a origem do sonho do caçador.",
+         "Источник сна", "Найдите заброшенную старую мастерскую — источник сна охотника."},
+        {13, 'S', 0, true,
+         "Nightmare Lecture Building", "Gain entry into the Byrgenwerth lecture building, that drifts within the realm of nightmare.",
+         "Edifício de Palestras do Pesadelo", "Entre no edifício de palestras de Byrgenwerth, à deriva no reino do pesadelo.",
+         "Лекционный корпус кошмара", "Проникните в лекционный корпус Бюргенверта в мире кошмара."},
+        {14, 'B', 0, true,
+         "Father Gascoigne", "Defeat the beast that once was Father Gascoigne.",
+         "Padre Gascoigne", "Derrote a fera que um dia foi o Padre Gascoigne.",
+         "Отец Гаскойн", "Победите чудовище, которым стал отец Гаскойн."},
+        {15, 'B', 0, true,
+         "Vicar Amelia", "Defeat the beast that once was Vicar Amelia.",
+         "Vigário Amélia", "Derrote a fera que um dia foi a Vigário Amélia.",
+         "Викарий Амелия", "Победите чудовище, которым стала викарий Амелия."},
+        {16, 'B', 0, true,
+         "Shadow of Yharnam", "Defeat the Shadow of Yharnam.",
+         "Sombra de Yharnam", "Derrote a Sombra de Yharnam.",
+         "Тень Ярнама", "Победите Тень Ярнама."},
+        {17, 'B', 0, true,
+         "Rom, the Vacuous Spider", "Defeat Great One: Rom, the Vacuous Spider.",
+         "Rom, a Aranha Vazia", "Derrote o Eminente: Rom, a Aranha Vazia.",
+         "Ром, Праздный Паук", "Победите Великого: Ром, Праздного Паука."},
+        {18, 'B', 0, true,
+         "The One Reborn", "Defeat The One Reborn.",
+         "O Renascido", "Derrote O Renascido.",
+         "Возродившийся", "Победите Возродившегося."},
+        {19, 'B', 0, true,
+         "Micolash, Host of the Nightmare", "Defeat Micolash, Host of the Nightmare.",
+         "Micolash, Anfitrião do Pesadelo", "Derrote Micolash, Anfitrião do Pesadelo.",
+         "Миколаш, Хозяин Кошмара", "Победите Миколаша, Хозяина Кошмара."},
+        {20, 'B', 0, true,
+         "Mergo's Wet Nurse", "Defeat Great One: Mergo's Wet Nurse.",
+         "Ama de Leite de Mergo", "Derrote o Eminente: Ama de Leite de Mergo.",
+         "Кормилица Мерго", "Победите Великого: Кормилицу Мерго."},
+        {21, 'B', 0, true,
+         "Cleric Beast", "Defeat Cleric Beast.",
+         "Fera Clériga", "Derrote a Fera Clériga.",
+         "Церковное чудовище", "Победите Церковное чудовище."},
+        {22, 'B', 0, true,
+         "Blood-starved Beast", "Defeat Blood-starved Beast.",
+         "Fera Sedenta de Sangue", "Derrote a Fera Sedenta de Sangue.",
+         "Чудовище-кровоглот", "Победите Чудовище-кровоглота."},
+        {23, 'B', 0, true,
+         "The Witch of Hemwick", "Defeat the Witch of Hemwick.",
+         "A Bruxa de Hemwick", "Derrote a Bruxa de Hemwick.",
+         "Ведьма Хемвика", "Победите Ведьму Хемвика."},
+        {24, 'B', 0, true,
+         "Darkbeast Paarl", "Defeat Darkbeast Paarl.",
+         "Fera Negra Paarl", "Derrote a Fera Negra Paarl.",
+         "Черное чудовище Паарл", "Победите Черное чудовище Паарл."},
+        {25, 'B', 0, true,
+         "Amygdala", "Defeat Great One: Amygdala.",
+         "Amygdala", "Derrote o Eminente: Amygdala.",
+         "Амигдала", "Победите Великого: Амигдалу."},
+        {26, 'B', 0, true,
+         "Martyr Logarius", "Defeat Martyr Logarius.",
+         "Mártir Logarius", "Derrote o Mártir Logarius.",
+         "Мученик Логариус", "Победите Мученика Логариуса."},
+        {27, 'B', 0, true,
+         "Celestial Emissary", "Defeat Great One: Celestial Emissary.",
+         "Emissário Celestial", "Derrote o Eminente: Emissário Celestial.",
+         "Посланник небес", "Победите Великого: Посланника небес."},
+        {28, 'B', 0, true,
+         "Ebrietas, Daughter of the Cosmos", "Defeat Great One: Ebrietas, Daughter of the Cosmos.",
+         "Ebrietas, Filha do Cosmo", "Derrote o Eminente: Ebrietas, Filha do Cosmo.",
+         "Ибраитас, Дочь Космоса", "Победите Великого: Ибраитас, Дочь Космоса."},
+        {29, 'B', 0, false,
+         "Blood Gem Contact", "Acquire a blood gem that imbues hunter weapons with special strength.",
+         "Contato com Gema de Sangue", "Adquira uma gema de sangue que concede força especial às armas.",
+         "Контакт с самоцветом", "Получите кровавый самоцвет, наделяющий оружие особой силой."},
+        {30, 'B', 0, false,
+         "Rune Contact", "Acquire a Caryll Rune that endows hunters with special strength.",
+         "Contato com Runa", "Adquira uma Runa Caryll que concede força especial aos caçadores.",
+         "Контакт с руной", "Получите руну Кэрилла, наделяющую охотника особой силой."},
+        {31, 'B', 0, false,
+         "Chalice of Pthumeru", "Acquire the Chalice of Pthumeru that seals the catacombs that form a web deep below Yharnam.",
+         "Cálice de Pthumeru", "Adquira o Cálice de Pthumeru que sela as catacumbas sob Yharnam.",
+         "Чаша Птумеру", "Получите Чашу Птумеру, открывающую катакомбы под Ярнамом."},
+        {32, 'B', 0, false,
+         "Chalice of Ailing Loran", "Acquire the Chalice of Ailing Loran that seals the tragic land lost to the sands.",
+         "Cálice de Loran Enferma", "Adquira o Cálice de Loran Enferma que sela a terra perdida nas areias.",
+         "Чаша Больного Лорана", "Получите Чашу Больного Лорана, открывающую погребенные песками земли."},
+        {33, 'B', 0, false,
+         "Chalice of Isz", "Acquire the Great Chalice of Isz that seals the home of the cosmic kin.",
+         "Cálice de Isz", "Adquira o Grande Cálice de Isz que sela o lar dos parentes cósmicos.",
+         "Чаша Исза", "Получите Великую чашу Исза, открывающую обитель космических сородичей."},
+        // The Old Hunters DLC (34..39)
+        {34, 'G', -1, false,
+         "Old Hunter's Essence", "Acquire all old hunter weapons.",
+         "Essência do Velho Caçador", "Adquira todas as armas dos velhos caçadores.",
+         "Сущность старого охотника", "Соберите все виды оружия старых охотников."},
+        {35, 'S', -1, true,
+         "Orphan of Kos", "Defeat Great One: Orphan of Kos.",
+         "Órfão de Kos", "Derrote o Eminente: Órfão de Kos.",
+         "Сирота Кос", "Победите Великого: Сироту Кос."},
+        {36, 'B', -1, true,
+         "Ludwig, the Holy Blade", "Defeat the beast that was once Ludwig, the Holy Blade.",
+         "Ludwig, a Lâmina Sagrada", "Derrote a fera que um dia foi Ludwig, a Lâmina Sagrada.",
+         "Людвиг, Священный Клинок", "Победите чудовище, которым стал Людвиг, Священный Клинок."},
+        {37, 'B', -1, true,
+         "Lady Maria of the Astral Clocktower", "Defeat Lady Maria of the Astral Clocktower.",
+         "Lady Maria da Torre do Relógio Astral", "Derrote Lady Maria da Torre do Relógio Astral.",
+         "Леди Мария из Астральной часовой башни", "Победите леди Марию из Астральной часовой башни."},
+        {38, 'B', -1, true,
+         "Living Failures", "Defeat the failed attempts to become Great Ones.",
+         "Fracassos Vivos", "Derrote as tentativas fracassadas de se tornarem Eminentes.",
+         "Живые неудачи", "Победите неудачные попытки создать Великих."},
+        {39, 'B', -1, true,
+         "Laurence, the First Vicar", "Defeat the beast that was once Laurence, the First Vicar.",
+         "Laurence, o Primeiro Vigário", "Derrote a fera que um dia foi Laurence, o Primeiro Vigário.",
+         "Лоуренс, Первый Викарий", "Победите чудовище, которым стал Лоуренс, Первый Викарий."},
+    };
+
+    const bool is_pt = (language == 7 || language == 17);
+    const bool is_ru = (language == 8);
+    std::vector<Trophy> out;
+    out.reserve(40);
+    for (const auto& e : kCatalog) {
+        Trophy t;
+        t.id = e.id;
+        t.grade = e.grade;
+        t.platinum = e.pid;
+        t.hidden = e.hidden;
+        t.name = is_pt ? e.pt_name : (is_ru ? e.ru_name : e.en_name);
+        t.detail = is_pt ? e.pt_detail : (is_ru ? e.ru_detail : e.en_detail);
+        out.push_back(std::move(t));
+    }
+    return out;
+}
+
 } // namespace BbTrophy

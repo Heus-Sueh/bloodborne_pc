@@ -6,6 +6,12 @@ bbport.ini
 fsr4_shaders/
 pgo/
 *.png
+!packaging/bbport.png
+!launcher/assets/bbport.png
+mods.last
+bbport.toml
+/core/
+/tools/extractor/
 last_run.log
 dist/
 packaging/runtime-paths.nix

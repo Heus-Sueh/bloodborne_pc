@@ -157,16 +157,19 @@ bool HostImported() {
 }
 
 bool LayerMemory() {
-    // BB_LAYER_MEMORY=1/0 chooses; else MemoryModuleFits (which asks first) sets the module for every GPU
-    // (BB_LAYER_MEMORY=0: the sparse arena; NVIDIA's sparse binding stalls for seconds).
-    static const bool on = [] {
+    // BB_LAYER_MEMORY=1/0 chooses; else follows layer_default set by MemoryModuleFits()
+    // without latching false if queried before device initialization completes.
+    static const int env_override = [] {
         const char* env = bb_env("BB_LAYER_MEMORY");
         if (env && *env) {
-            return env[0] == '1';
+            return env[0] == '1' ? 1 : 0;
         }
-        return layer_default.load(std::memory_order_relaxed) == 1;
+        return -1;
     }();
-    return on;
+    if (env_override >= 0) {
+        return env_override == 1;
+    }
+    return layer_default.load(std::memory_order_relaxed) == 1;
 }
 
 

@@ -19,7 +19,7 @@
 
 #include <vk_mem_alloc.h>
 
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "common/elf_info.h"
 #include "common/path_util.h"
 #include "common/thread.h"

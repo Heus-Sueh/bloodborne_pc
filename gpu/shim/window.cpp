@@ -22,8 +22,8 @@ namespace {
 std::array<std::atomic<BbGpuEventFilter>, 4> event_filters{};
 
 /// runtime_pad.c: a Steam Deck's or Steam Controller's own controls are the gamepad, which Steam's
-/// desktop layout also sends as keys and the mouse. Weak: tools linking the GPU library alone.
-extern "C" int runtime_pad_steam_only(void) __attribute__((weak));
+/// desktop layout also sends as keys and the mouse.
+#include "runtime_gpu_abi.h"
 
 /// A keyboard or mouse event the game must not take (runtime_pad_steam_only): the gamepad's own
 /// presses again. The port's menu (the overlay) keeps them, the trackpad as its pointer.

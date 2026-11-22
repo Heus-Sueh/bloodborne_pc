@@ -1,15 +1,28 @@
 # SPDX-FileCopyrightText: Copyright 2026 bbport contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""The launcher's trophies page."""
+"""Composed GTK page adapter for the launcher's trophies page."""
 
-from bbport_launcher_common import *  # noqa: F401,F403
+import datetime
+
+from bbport_i18n import tr
+from bbport_launcher_common import Adw, GLib, Gtk
+from bbport_launcher_core import trophy_list
 
 
 class TrophiesPage:
-    """Part of LauncherWindow (bbport_launcher.py)."""
+    """Owns the Trophies preferences page inside LauncherWindow."""
 
-    def build_trophies_page(self):
-        """The trophies the port keeps (launcher/trophy_list.py) and the player's trophy key."""
+    TROPHY_GRADES = {"P": "Платиновый", "G": "Золотой", "S": "Серебряный", "B": "Бронзовый"}
+
+    def __init__(self, settings, get_user_dir):
+        self.settings = settings
+        self.get_user_dir = get_user_dir
+        self.page = None
+        self.trophy_key_row = None
+        self.trophy_groups = []
+
+    def build(self):
+        """The trophies the port keeps (scripts/trophy_list.py) and the player's trophy key."""
         page = Adw.PreferencesPage(description=tr(
             "Трофеи, полученные в этой папке сохранений. Названия, описания и значки игра берёт из "
             "своего пакета трофеев: для этого нужен ключ трофеев — тот же, что просит shadPS4."))
@@ -20,10 +33,13 @@ class TrophiesPage:
         key.add(self.trophy_key_row)
         self.on_trophy_key_changed(self.trophy_key_row)
         page.add(key)
-        self.trophy_page = page
+        self.page = page
         self.trophy_groups = []
-        self.refresh_trophies()
+        self.refresh()
         return page
+
+    def read_into(self, settings):
+        settings["trophy_key"] = self.trophy_key_row.get_text().strip()
 
     def on_trophy_key_changed(self, row):
         text = row.get_text().strip()
@@ -33,13 +49,13 @@ class TrophiesPage:
             row.remove_css_class("error")
         self.settings["trophy_key"] = text
 
-    def refresh_trophies(self):
-        if not hasattr(self, "trophy_page"):
+    def refresh(self):
+        if self.page is None:
             return
         for group in self.trophy_groups:
-            self.trophy_page.remove(group)
+            self.page.remove(group)
         self.trophy_groups = []
-        content = trophy_list.load(self.user_dir(), self.settings.get("language", "1"))
+        content = trophy_list.load(self.get_user_dir(), self.settings.get("language", "1"))
         summary = Adw.PreferencesGroup(title=tr("Прогресс"))
         if content["total"] == 0:
             summary.add(Adw.ActionRow(title=tr("Трофеев пока нет"), subtitle=tr(
@@ -58,13 +74,13 @@ class TrophiesPage:
             if not content["named"]:
                 summary.add(Adw.ActionRow(title=tr("Названия неизвестны"), subtitle=tr(
                     "Укажите ключ трофеев выше и запустите игру: она расшифрует названия и значки.")))
-        self.trophy_page.add(summary)
+        self.page.add(summary)
         self.trophy_groups.append(summary)
         if content["trophies"]:
             group = Adw.PreferencesGroup(title=tr("Трофеи"))
             for trophy in content["trophies"]:
                 group.add(self.trophy_row(trophy, content["named"]))
-            self.trophy_page.add(group)
+            self.page.add(group)
             self.trophy_groups.append(group)
 
     def trophy_row(self, trophy, named):

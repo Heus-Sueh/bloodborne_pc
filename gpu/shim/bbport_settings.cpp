@@ -269,6 +269,21 @@ Values& Get() {
     return values;
 }
 
+Capabilities& Caps() {
+    static Capabilities caps;
+    return caps;
+}
+
+FrameTelemetry& Telemetry() {
+    static FrameTelemetry telemetry;
+    return telemetry;
+}
+
+StartupSnapshot& Startup() {
+    static StartupSnapshot startup;
+    return startup;
+}
+
 const char* MenuText(const char* english, const char* russian) {
     return Get().menu_language == MenuLanguage::Russian ? russian : english;
 }
@@ -324,38 +339,41 @@ void Load() {
         {"BB_LOW_LATENCY", "low_latency"},
     };
     for (const auto& [env, key] : env_keys) {
-        if (const char* value = std::getenv(env)) {
+        if (const char* value = bb_env(env)) {
             Set(v, key, value);
         }
     }
-    v.startup_preset = v.preset;
+    auto& st = Startup();
+    st.preset = v.preset;
     // Settings from before anti_aliasing: the game's AA switched off stays off.
     if (!anti_aliasing_seen && !v.effects[GameAaEffect]) {
         v.anti_aliasing = AaOff;
     }
     SyncAntiAliasing();
-    v.startup_upscaler = v.upscaler;
-    v.startup_object_motion = v.object_motion;
+    st.upscaler = v.upscaler;
+    st.object_motion = v.object_motion;
     for (int e = 0; e < EffectCount; ++e) {
-        v.startup_effects[e] = v.effects[e];
+        st.effects[e] = v.effects[e];
     }
-    v.startup_model_lod = v.model_lod;
+    st.model_lod = v.model_lod;
+    st.output = {0, 0};
     if (FixedRenderSession()) {
         int w = 0, h = 0;
         const char* output = bb_env("BB_OUTPUT_RES");
-        if (output && std::sscanf(output, "%dx%d", &w, &h) == 2) v.startup_output = {w, h};
+        if (output && std::sscanf(output, "%dx%d", &w, &h) == 2) st.output = {w, h};
     }
-    v.startup_live_resolution = v.live_resolution;
+    st.live_resolution = v.live_resolution;
 }
 
 void ConfigureUpscalerSupport(bool fsr4, bool fsr411) {
     auto& v = Get();
-    v.fsr4_supported = fsr4;
-    v.fsr411_supported = fsr4 && fsr411;
+    auto& caps = Caps();
+    caps.fsr4_supported = fsr4;
+    caps.fsr411_supported = fsr4 && fsr411;
     const int requested = v.upscaler;
-    if ((requested == UpscalerFsr4 && !v.fsr4_supported) ||
-        (requested == UpscalerFsr411 && !v.fsr411_supported)) {
-        v.fsr4_problem = "GPU does not support the selected FSR 4 shaders; using FSR 3.1";
+    if ((requested == UpscalerFsr4 && !caps.fsr4_supported) ||
+        (requested == UpscalerFsr411 && !caps.fsr411_supported)) {
+        caps.fsr4_problem = "GPU does not support the selected FSR 4 shaders; using FSR 3.1";
         std::printf("Upscaler: %s unsupported on this GPU; falling back to FSR 3.1 before the first frame\n",
                     UpscalerName(requested));
         v.upscaler = UpscalerFsr3;
@@ -364,7 +382,7 @@ void ConfigureUpscalerSupport(bool fsr4, bool fsr411) {
 
 void ConfigureFsrAmdSupport(bool available) {
     auto& v = Get();
-    v.fsr_amd_supported = available;
+    Caps().fsr_amd_supported = available;
     if (v.upscaler == UpscalerFsrAmd && !available) {
         std::printf("Upscaler: AMD's FSR DLLs not found (amd_fidelityfx_loader_vk.dll); "
                     "falling back to FSR 3.1\n");
@@ -374,10 +392,11 @@ void ConfigureFsrAmdSupport(bool available) {
 
 void ConfigureDlssSupport(bool available, const char* problem) {
     auto& v = Get();
-    v.dlss_supported = available;
+    auto& caps = Caps();
+    caps.dlss_supported = available;
     static std::string kept;
     kept = problem ? problem : "";
-    v.dlss_problem = available || kept.empty() ? nullptr : kept.c_str();
+    caps.dlss_problem = available || kept.empty() ? nullptr : kept.c_str();
     if (v.upscaler == UpscalerDlss && !available) {
         std::printf("Upscaler: DLSS unavailable (%s); falling back to FSR 3.1\n",
                     kept.empty() ? "the DLSS bridge or NVIDIA's DLSS library is missing" : kept.c_str());
@@ -420,28 +439,25 @@ bool HybridSession() {
 
 int RenderPreset() {
     const auto& v = Get();
-    return FixedRenderSession() && !HybridSession() ? v.startup_preset :
+    return FixedRenderSession() && !HybridSession() ? Startup().preset :
         v.upscaler == UpscalerTaa ? NativeAA : v.preset.load();
 }
 
 bool ResolutionNeedsRestart() {
     const auto& v = Get();
+    const auto& st = Startup();
     // A GPU that cannot reduce the scene live (scene_proxies): presets and the output at the next
     // start, where run.sh patches the game's targets for them.
-    if (!v.scene_proxies.load(std::memory_order_relaxed) &&
-        (v.preset != v.startup_preset ||
-         (v.startup_output.width != 0 && PackSize(CurrentOutput()) != PackSize(v.startup_output)))) {
+    if (!Caps().scene_proxies.load(std::memory_order_relaxed) &&
+        (v.preset != st.preset ||
+         (st.output.width != 0 && PackSize(CurrentOutput()) != PackSize(st.output)))) {
         return true;
     }
-    // TAA needs the live path (native guest targets): run.sh selects it on restart.
-    // Over the startup patch (HybridSession) presets and the output apply at once (proxies,
-    // larger than the game's targets too); the upscaler's kind needs the next start.
-    const bool preset_restart = !HybridSession() && v.preset != v.startup_preset;
-    // Hybrid: another output applies at once too (the scene within the game's targets).
+    const bool preset_restart = !HybridSession() && v.preset != st.preset;
     return FixedRenderSession() &&
-        (preset_restart || (!HybridSession() && CurrentOutput() != v.startup_output) ||
-         (v.upscaler == UpscalerOff) != (v.startup_upscaler == UpscalerOff) ||
-         (v.upscaler == UpscalerTaa) != (v.startup_upscaler == UpscalerTaa));
+        (preset_restart || (!HybridSession() && CurrentOutput() != st.output) ||
+         (v.upscaler == UpscalerOff) != (st.upscaler == UpscalerOff) ||
+         (v.upscaler == UpscalerTaa) != (st.upscaler == UpscalerTaa));
 }
 
 void Save() {
@@ -570,7 +586,7 @@ int EffectiveLowLatency() {
     const auto& v = Get();
     const int mode = std::clamp(v.low_latency.load(std::memory_order_relaxed), 0, LowLatencyCount - 1);
     const bool dlss_frame_gen = v.frame_generation.load(std::memory_order_relaxed) == FrameGenDlss &&
-                                v.dlssg_max_multiplier.load(std::memory_order_relaxed) > 1;
+                                Caps().dlssg_max_multiplier.load(std::memory_order_relaxed) > 1;
     return dlss_frame_gen && mode == LowLatencyOff ? int(LowLatencyOn) : mode;
 }
 

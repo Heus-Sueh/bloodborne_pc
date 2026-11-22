@@ -16,6 +16,7 @@
 #include "bbport_settings.h"
 #include "common/path_util.h"
 #include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "shader/runtime_info.h"
 #include "vulkan/instance.h"
 #include "render/scheduler.h"
@@ -226,9 +227,12 @@ ObjectMotion::ObjectMotion(const Instance& instance_, Scheduler& scheduler_)
     : instance{instance_}, scheduler{scheduler_},
       PositionsPerFrame{[&] {
           if (const char* env = bb_env("BB_MOTION_VERTICES_MI")) {
-              return u32(std::clamp(std::strtoul(env, nullptr, 10), 1ul, 8ul)) << 20;
+              return u32(std::clamp(std::strtoul(env, nullptr, 10), 1ul, 16ul)) << 20;
           }
-          return instance_.GetTotalMemoryBudget() <= (u64{4} << 30) ? 1u << 20 : 4u << 20;
+          const u64 budget = instance_.GetTotalMemoryBudget();
+          return budget <= (u64{4} << 30)  ? 1u << 20
+                 : budget >= (u64{12} << 30) ? 16u << 20
+                                           : 4u << 20;
       }()} {
     // Pipeline selection limits the extra attachment and vertex stores to likely
     // animated draws. A setting or environment override can still disable the path.
@@ -331,7 +335,7 @@ void ObjectMotion::OnFrameStart() {
 }
 
 u32 ObjectMotion::PrepareDraw(const DrawInfo& draw, Motion::Anchor anchor) {
-    if (!enabled || BbToggle::Disabled(1u << 29) || params_used >= ParamsPerFrame) {
+    if (!enabled || BbToggle::Disabled(BbToggle::ObjectMotionDraws) || params_used >= ParamsPerFrame) {
         return 0;
     }
     const auto allocation = history.Prepare(draw, anchor);

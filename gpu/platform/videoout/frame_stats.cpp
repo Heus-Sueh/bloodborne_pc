@@ -19,28 +19,21 @@
 #include <unistd.h>
 
 #include "bbport_heap_sites.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "bbport_wait_trace.h"
 #include "core/emulator_settings.h"
 #include "platform/kernel/event_queue.h"
 #include "platform/videoout/frame_stats.h"
 #include "bbport_sections.h"
-
-extern "C" uint64_t runtime_tsc_frequency(void);
-
-extern "C" int runtime_memory_pool_fd(void);
+#include "runtime_gpu_abi.h"
 #include "render/vk_breadcrumbs.h"
 #include "memory/fault_sites.h"
 #include "vulkan/instance.h"
 #include "render/scheduler.h"
 
-extern "C" void runtime_sleep_stats(uint64_t* calls, uint64_t* ns);
 #ifdef _WIN32
 extern "C" unsigned long long bb_win32_protect_calls(void); // posix_memory.cpp
 #endif
-extern "C" void runtime_memory_trap_stats(uint64_t* wait_ns, uint64_t* apply_ns, uint64_t* calls,
-                                          uint64_t* bytes);
-extern "C" void runtime_wait_report(double frames);
 
 namespace Vulkan {
 extern std::atomic<u64> g_bb_compile_ns;

@@ -319,8 +319,16 @@ static void sync_directory(const char *file) {
     int d=open(dir,O_RDONLY|O_DIRECTORY|O_CLOEXEC);
     if (d>=0) { fsync(d); close(d); }
 }
+static int is_sound_hack_save(const char *path) {
+    return path && !bb_env_off("BB_SOUND_HACK") &&
+           (strstr(path,"userdata0010")!=NULL || strstr(path,"backup0010")!=NULL);
+}
 static int commit_file(const File *f) {
     if (!f->dirty) { close(f->host); unlink(f->temp); return 0; } /* opened for writing, not written */
+    if (is_sound_hack_save(f->commit)) {
+        struct stat st;
+        if (!fstat(f->host,&st) && st.st_size>0x204E) (void)pwrite(f->host,"\x01",1,0x204E);
+    }
     int e=fsync(f->host) ? errno : 0;
     close(f->host);
     if (!e && rename(f->temp,f->commit)) e=errno;
@@ -608,8 +616,13 @@ static int64_t do_pread(int fd,void *buffer,uint64_t size,int64_t offset) {
     touch_for_write(buffer,size);
     ssize_t n=read_retrying(h,buffer,size,offset,1);
     if (n<0) { if (audio_trace()) printf("Audio trace: pread(fd %d, %llu @%lld) failed, errno %d\n",fd,(unsigned long long)size,(long long)offset,errno); return -errno; }
-    if (n>0) runtime_memory_note_write((uintptr_t)buffer,(uint64_t)n); /* and once the data is there */
-    if (n>0) runtime_memory_note_cpu_write((uintptr_t)buffer,(uint64_t)n);
+    if (n>0) {
+        File *f=get(fd);
+        if (f && is_sound_hack_save(f->path) && offset<=0x204E && offset+n>0x204E)
+            ((unsigned char *)buffer)[0x204E - offset]=1;
+        runtime_memory_note_write((uintptr_t)buffer,(uint64_t)n); /* and once the data is there */
+        runtime_memory_note_cpu_write((uintptr_t)buffer,(uint64_t)n);
+    }
     __atomic_add_fetch(&reads,1,__ATOMIC_RELAXED); __atomic_add_fetch(&bytes_read,(uint64_t)n,__ATOMIC_RELAXED);
     return n;
 }

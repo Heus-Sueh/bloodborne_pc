@@ -81,7 +81,8 @@ void Translator::VopPacked(const GcnInst& inst, Op&& op) {
 /// VOPC: D (VCC or an SGPR pair) = the lanes' compare results; V_CMPX also writes EXEC, and
 /// both get EXEC & result (inactive lanes clear).
 template <typename T>
-void Translator::V_CMP(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst) {
+void Translator::V_CMP(ConditionOp op, bool is_signed, bool set_exec, const GcnInst& inst,
+                       bool negated) {
     constexpr bool is_float = std::is_same_v<T, IR::F32> || std::is_same_v<T, IR::F64>;
     const T src0 = ReadSrc<T>(inst.src[0]);
     const T src1 = ReadSrc<T>(inst.src[1]);
@@ -95,19 +96,21 @@ void Translator::V_CMP(ConditionOp op, bool is_signed, bool set_exec, const GcnI
             break;
         }
         if constexpr (is_float) {
+            // V_CMP_N* are true for NaN: the unordered form of the inverse compare.
+            const bool ordered = !negated || !profile.gcn_nan_semantics;
             switch (op) {
             case ConditionOp::EQ:
-                return ir.FPEqual(src0, src1);
+                return ir.FPEqual(src0, src1, ordered);
             case ConditionOp::LG:
-                return ir.FPNotEqual(src0, src1);
+                return ir.FPNotEqual(src0, src1, ordered);
             case ConditionOp::GT:
-                return ir.FPGreaterThan(src0, src1);
+                return ir.FPGreaterThan(src0, src1, ordered);
             case ConditionOp::LT:
-                return ir.FPLessThan(src0, src1);
+                return ir.FPLessThan(src0, src1, ordered);
             case ConditionOp::LE:
-                return ir.FPLessThanEqual(src0, src1);
+                return ir.FPLessThanEqual(src0, src1, ordered);
             case ConditionOp::GE:
-                return ir.FPGreaterThanEqual(src0, src1);
+                return ir.FPGreaterThanEqual(src0, src1, ordered);
             case ConditionOp::U:
                 return ir.LogicalOr(ir.FPIsNan(src0), ir.FPIsNan(src1));
             default:
@@ -167,6 +170,7 @@ void Translator::EmitVectorAlu(const GcnInst& inst) {
     case Opcode::V_SUBREV_F32:
         return VopBinary<F32>(inst, [&](F32 a, F32 b) { return ir.FPSub(b, a); });
     case Opcode::V_MAC_LEGACY_F32:
+        return V_MAC_LEGACY_F32(inst);
     case Opcode::V_MAC_F32:
         return V_MAC_F32(inst);
     case Opcode::V_MUL_LEGACY_F32:
@@ -328,14 +332,16 @@ void Translator::EmitVectorAlu(const GcnInst& inst) {
         return VopUnary<F32>(inst, [&](F32 a) { return ir.FPLog2(a); });
     case Opcode::V_RCP_F32:
     case Opcode::V_RCP_IFLAG_F32:
-    case Opcode::V_RCP_CLAMP_F32:
         return VopUnary<F32>(inst, [&](F32 a) { return ir.FPRecip(a); });
+    case Opcode::V_RCP_CLAMP_F32:
+        return V_RCP_CLAMP_F32(inst);
     case Opcode::V_RCP_LEGACY_F32:
         return V_RCP_LEGACY_F32(inst);
     case Opcode::V_RSQ_F32:
-    case Opcode::V_RSQ_CLAMP_F32:
     case Opcode::V_RSQ_LEGACY_F32:
         return VopUnary<F32>(inst, [&](F32 a) { return ir.FPRecipSqrt(a); });
+    case Opcode::V_RSQ_CLAMP_F32:
+        return V_RSQ_CLAMP_F32(inst);
     case Opcode::V_SQRT_F32:
         return VopUnary<F32>(inst, [&](F32 a) { return ir.FPSqrt(a); });
     case Opcode::V_SIN_F32:
@@ -363,71 +369,91 @@ void Translator::EmitVectorAlu(const GcnInst& inst) {
     case Opcode::V_MOVRELSD_B32:
         return V_MOVRELSD_B32(inst);
 
-    // VOPC (the N* forms are the negated compares, which equal the plain ones but for NaN)
+    // VOPC (the N* forms are the negated compares, true on NaN under GCN rules)
     case Opcode::V_CMP_F_F32:
-        return V_CMP<F32>(F, false, false, inst);
+        return V_CMP<F32>(F, false, false, inst, false);
     case Opcode::V_CMP_LT_F32:
-    case Opcode::V_CMP_NGE_F32:
-        return V_CMP<F32>(LT, false, false, inst);
+        return V_CMP<F32>(LT, false, false, inst, false);
     case Opcode::V_CMP_EQ_F32:
-        return V_CMP<F32>(EQ, false, false, inst);
+        return V_CMP<F32>(EQ, false, false, inst, false);
     case Opcode::V_CMP_LE_F32:
-    case Opcode::V_CMP_NGT_F32:
-        return V_CMP<F32>(LE, false, false, inst);
+        return V_CMP<F32>(LE, false, false, inst, false);
     case Opcode::V_CMP_GT_F32:
-    case Opcode::V_CMP_NLE_F32:
-        return V_CMP<F32>(GT, false, false, inst);
+        return V_CMP<F32>(GT, false, false, inst, false);
     case Opcode::V_CMP_LG_F32:
-    case Opcode::V_CMP_NEQ_F32:
-        return V_CMP<F32>(LG, false, false, inst);
+        return V_CMP<F32>(LG, false, false, inst, false);
     case Opcode::V_CMP_GE_F32:
-    case Opcode::V_CMP_NLT_F32:
-        return V_CMP<F32>(GE, false, false, inst);
+        return V_CMP<F32>(GE, false, false, inst, false);
     case Opcode::V_CMP_U_F32:
-        return V_CMP<F32>(U, false, false, inst);
+        return V_CMP<F32>(U, false, false, inst, false);
+    case Opcode::V_CMP_NGE_F32:
+        return V_CMP<F32>(LT, false, false, inst, true);
+    case Opcode::V_CMP_NLG_F32:
+        return V_CMP<F32>(EQ, false, false, inst, true);
+    case Opcode::V_CMP_NGT_F32:
+        return V_CMP<F32>(LE, false, false, inst, true);
+    case Opcode::V_CMP_NLE_F32:
+        return V_CMP<F32>(GT, false, false, inst, true);
+    case Opcode::V_CMP_NEQ_F32:
+        return V_CMP<F32>(LG, false, false, inst, true);
+    case Opcode::V_CMP_NLT_F32:
+        return V_CMP<F32>(GE, false, false, inst, true);
     case Opcode::V_CMPX_F_F32:
-        return V_CMP<F32>(F, false, true, inst);
+        return V_CMP<F32>(F, false, true, inst, false);
     case Opcode::V_CMPX_LT_F32:
-    case Opcode::V_CMPX_NGE_F32:
-        return V_CMP<F32>(LT, false, true, inst);
+        return V_CMP<F32>(LT, false, true, inst, false);
     case Opcode::V_CMPX_EQ_F32:
-    case Opcode::V_CMPX_NLG_F32:
-        return V_CMP<F32>(EQ, false, true, inst);
+        return V_CMP<F32>(EQ, false, true, inst, false);
     case Opcode::V_CMPX_LE_F32:
-    case Opcode::V_CMPX_NGT_F32:
-        return V_CMP<F32>(LE, false, true, inst);
+        return V_CMP<F32>(LE, false, true, inst, false);
     case Opcode::V_CMPX_GT_F32:
-    case Opcode::V_CMPX_NLE_F32:
-        return V_CMP<F32>(GT, false, true, inst);
+        return V_CMP<F32>(GT, false, true, inst, false);
     case Opcode::V_CMPX_LG_F32:
-    case Opcode::V_CMPX_NEQ_F32:
-        return V_CMP<F32>(LG, false, true, inst);
+        return V_CMP<F32>(LG, false, true, inst, false);
     case Opcode::V_CMPX_GE_F32:
+        return V_CMP<F32>(GE, false, true, inst, false);
+    case Opcode::V_CMPX_NGE_F32:
+        return V_CMP<F32>(LT, false, true, inst, true);
+    case Opcode::V_CMPX_NLG_F32:
+        return V_CMP<F32>(EQ, false, true, inst, true);
+    case Opcode::V_CMPX_NGT_F32:
+        return V_CMP<F32>(LE, false, true, inst, true);
+    case Opcode::V_CMPX_NLE_F32:
+        return V_CMP<F32>(GT, false, true, inst, true);
+    case Opcode::V_CMPX_NEQ_F32:
+        return V_CMP<F32>(LG, false, true, inst, true);
     case Opcode::V_CMPX_NLT_F32:
-        return V_CMP<F32>(GE, false, true, inst);
+        return V_CMP<F32>(GE, false, true, inst, true);
     case Opcode::V_CMPX_TRU_F32:
-        return V_CMP<F32>(TRU, false, true, inst);
+        return V_CMP<F32>(TRU, false, true, inst, false);
     case Opcode::V_CMP_F_F64:
-        return V_CMP<F64>(F, false, false, inst);
+        return V_CMP<F64>(F, false, false, inst, false);
     case Opcode::V_CMP_LT_F64:
-    case Opcode::V_CMP_NGE_F64:
-        return V_CMP<F64>(LT, false, false, inst);
+        return V_CMP<F64>(LT, false, false, inst, false);
     case Opcode::V_CMP_EQ_F64:
-        return V_CMP<F64>(EQ, false, false, inst);
+        return V_CMP<F64>(EQ, false, false, inst, false);
     case Opcode::V_CMP_LE_F64:
-    case Opcode::V_CMP_NGT_F64:
-        return V_CMP<F64>(LE, false, false, inst);
+        return V_CMP<F64>(LE, false, false, inst, false);
     case Opcode::V_CMP_GT_F64:
-    case Opcode::V_CMP_NLE_F64:
-        return V_CMP<F64>(GT, false, false, inst);
+        return V_CMP<F64>(GT, false, false, inst, false);
     case Opcode::V_CMP_LG_F64:
-    case Opcode::V_CMP_NEQ_F64:
-        return V_CMP<F64>(LG, false, false, inst);
+        return V_CMP<F64>(LG, false, false, inst, false);
     case Opcode::V_CMP_GE_F64:
-    case Opcode::V_CMP_NLT_F64:
-        return V_CMP<F64>(GE, false, false, inst);
+        return V_CMP<F64>(GE, false, false, inst, false);
     case Opcode::V_CMP_U_F64:
-        return V_CMP<F64>(U, false, false, inst);
+        return V_CMP<F64>(U, false, false, inst, false);
+    case Opcode::V_CMP_NGE_F64:
+        return V_CMP<F64>(LT, false, false, inst, true);
+    case Opcode::V_CMP_NLG_F64:
+        return V_CMP<F64>(EQ, false, false, inst, true);
+    case Opcode::V_CMP_NGT_F64:
+        return V_CMP<F64>(LE, false, false, inst, true);
+    case Opcode::V_CMP_NLE_F64:
+        return V_CMP<F64>(GT, false, false, inst, true);
+    case Opcode::V_CMP_NEQ_F64:
+        return V_CMP<F64>(LG, false, false, inst, true);
+    case Opcode::V_CMP_NLT_F64:
+        return V_CMP<F64>(GE, false, false, inst, true);
     case Opcode::V_CMP_LT_I32:
         return V_CMP<U32>(LT, true, false, inst);
     case Opcode::V_CMP_EQ_I32:
@@ -519,6 +545,7 @@ void Translator::EmitVectorAlu(const GcnInst& inst) {
 
     // VOP3a
     case Opcode::V_MAD_LEGACY_F32:
+        return V_MAD_LEGACY_F32(inst);
     case Opcode::V_MAD_F32:
         return VopTernary<F32>(
             inst, [&](F32 a, F32 b, F32 c) { return ir.FPAdd(ir.FPMul(a, b), c); });

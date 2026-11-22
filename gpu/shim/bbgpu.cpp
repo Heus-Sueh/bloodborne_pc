@@ -14,7 +14,7 @@
 #include "bbport_copy.h"
 #include <sys/resource.h>
 #include "bbport_free_check.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -41,26 +41,10 @@
 #include "render/rasterizer.h"
 #include "games/game_profile.h"
 
+#include "runtime_gpu_abi.h"
+
 extern "C" {
 void bbgpu_read_sample_start(); // memory/read_sample.cpp (Linux; BB_READ_SAMPLE)
-// runtime_memory.c
-int runtime_memory_is_mapped(uintptr_t address, uint64_t size);
-int runtime_memory_write_backing(uintptr_t address, const void* data, uint64_t size);
-void runtime_memory_read_backing(uintptr_t address, void* data, uint64_t size);
-uint64_t runtime_memory_clamp(uintptr_t address, uint64_t size);
-int runtime_memory_region(uintptr_t address, uintptr_t* start, uintptr_t* end, int* mapped);
-const uint64_t* runtime_memory_generation(void);
-void runtime_memory_gpu_protect(uintptr_t address, uint64_t size, int read, int write);
-typedef void (*RuntimeGpuRange)(uintptr_t address, uint64_t size);
-// runtime_kernel.c: one clock for guest and GPU timestamps
-uint64_t runtime_process_time_us(void);
-uint64_t runtime_process_time_counter(void);
-uint64_t runtime_tsc_frequency(void);
-int32_t* runtime_errno(void);
-void runtime_memory_set_gpu_hooks(RuntimeGpuRange map, RuntimeGpuRange unmap, RuntimeGpuRange invalidate);
-void runtime_memory_set_note_write_hook(RuntimeGpuRange note);
-void runtime_memory_set_cpu_write_hook(RuntimeGpuRange hook);
-void runtime_memory_set_host_only_allocations(uint64_t mask);
 }
 
 Frontend::WindowSDL* g_window = nullptr;

@@ -12,7 +12,7 @@
 #include <vk_mem_alloc.h>
 
 #include "bbport_guest_memory.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "vulkan/instance.h"

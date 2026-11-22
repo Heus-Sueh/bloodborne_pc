@@ -14,10 +14,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-extern "C" int runtime_memory_region(std::uintptr_t address, std::uintptr_t* start,
-                                     std::uintptr_t* end, int* mapped);
-extern "C" void runtime_memory_read_backing(std::uintptr_t address, void* data,
-                                            std::uint64_t size);
+#include "runtime_gpu_abi.h"
 
 extern "C" const char* extra_bbsc_save_root(void) {
     const char* dir = std::getenv("BB_GPU_USER_DIR");

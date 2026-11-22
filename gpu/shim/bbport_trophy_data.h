@@ -54,4 +54,9 @@ std::vector<int> Unlock(const std::vector<Trophy>& trophies, std::set<int>& unlo
 /// The hex key ("21F4...", 32 digits) as 16 bytes; nullopt when it is not one.
 std::optional<std::vector<std::uint8_t>> ParseKey(std::string_view hex);
 
+/// Built-in fallback catalog for Bloodborne + The Old Hunters (NPWR05818_00, 40 trophies:
+/// 0..33 base game, 34..39 DLC) used when TROP.XML has not been decrypted yet.
+/// `language` is the PS4 system language ID (1 English, 8 Russian, 7/17 Portuguese).
+std::vector<Trophy> BloodborneTrophies(int language = 1);
+
 } // namespace BbTrophy

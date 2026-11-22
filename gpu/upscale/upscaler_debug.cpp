@@ -29,7 +29,7 @@
 #include "bbport_guest_hooks.h"
 #include "game_profile.h"
 #include "bbport_settings.h"
-#include "bbport_toggles.h"
+#include "bbport_stats.h"
 #include "ffx_vk_portable.h"
 #include "bbgpu/shaders/upscale_merge_comp.h"
 #include "bbgpu/shaders/upscale_reactive_comp.h"
