@@ -184,7 +184,6 @@ jobs:
         with:
           msystem: CLANG64
           update: false
-          pacboy: false
 
       - name: Install MSYS2 CLANG64 toolchain & dependencies (resilient mirrors & timeout disabled)
         run: |
@@ -262,7 +261,7 @@ jobs:
       - name: Build Windows Port (bb-probe.exe, bbnet20.dll) & Native C++ RmlUi Launcher (Bloodborne.exe)
         run: |
           set -euo pipefail
-          cmake -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
+          cmake --no-warn-unused-cli -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
             -S gpu -B out/win-gpu -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DBB_LTO=OFF \

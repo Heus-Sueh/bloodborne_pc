@@ -64,7 +64,7 @@ if ! "$CMAKE" -P /dev/stdin <<<'include(FetchContent)' >/dev/null 2>&1; then
         fi
     done
 fi
-"$CMAKE" -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
+"$CMAKE" --no-warn-unused-cli -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
     -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
     -DBB_LTO="${BB_LTO:-ON}" -DBB_PGO_DIR="$PWD/pgo" > out/gpu-cmake.log
 grep '^-- Online module' out/gpu-cmake.log || true

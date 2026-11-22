@@ -327,7 +327,9 @@ static int commit_file(const File *f) {
     if (!f->dirty) { close(f->host); unlink(f->temp); return 0; } /* opened for writing, not written */
     if (is_sound_hack_save(f->commit)) {
         struct stat st;
-        if (!fstat(f->host,&st) && st.st_size>0x204E) (void)pwrite(f->host,"\x01",1,0x204E);
+        if (!fstat(f->host,&st) && st.st_size>0x204E) {
+            if (pwrite(f->host,"\x01",1,0x204E) < 0) {}
+        }
     }
     int e=fsync(f->host) ? errno : 0;
     close(f->host);
