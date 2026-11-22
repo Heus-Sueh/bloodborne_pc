@@ -1275,6 +1275,120 @@ input.checkbox:active, .input-checkbox:active {
 }
 
 /* ==========================================================================
+   SAVED MEMORIES (SAVE DATA MANAGEMENT)
+   ========================================================================== */
+
+.save-stats-grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.save-stat-box {
+    display: block;
+    flex: 1 1 150px;
+    background-color: #0d0913;
+    border: 1px #1f1729;
+    border-radius: 5px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+}
+
+.save-stat-label {
+    display: block;
+    font-family: Cinzel;
+    font-size: 9px;
+    font-weight: bold;
+    color: #8a7f92;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+}
+
+.save-stat-val {
+    display: block;
+    font-family: JetBrainsMono NF;
+    font-size: 13px;
+    font-weight: bold;
+    color: #f2ece1;
+}
+
+.save-stat-val.ok {
+    color: #38a169;
+    font-family: Cinzel;
+    font-size: 11px;
+}
+
+.save-stat-val.warn {
+    color: #e59b2b;
+    font-family: Cinzel;
+    font-size: 11px;
+}
+
+.save-feedback-banner {
+    display: block;
+    background-color: #191224;
+    border: 1px #c5a059;
+    border-radius: 4px;
+    padding: 8px 14px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    font-family: JetBrainsMono NF;
+    font-size: 11px;
+    color: #f2ece1;
+}
+
+.btn-primary-gold {
+    background-color: #8f1818;
+    border-color: #c5a059;
+    color: #ffffff;
+}
+
+.btn-primary-gold:hover {
+    background-color: #a81c1c;
+    border-color: #ffd166;
+}
+
+.save-empty-note {
+    display: block;
+    font-size: 12px;
+    color: #8a7f92;
+    padding: 10px 4px;
+}
+
+.save-slot-header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.save-badge-ok {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 9px;
+    font-weight: bold;
+    color: #38a169;
+    border: 1px #276749;
+    border-radius: 3px;
+    padding: 1px 6px;
+}
+
+.save-badge-warn {
+    display: inline-block;
+    font-family: JetBrainsMono NF;
+    font-size: 9px;
+    font-weight: bold;
+    color: #e59b2b;
+    border: 1px #975a16;
+    border-radius: 3px;
+    padding: 1px 6px;
+}
+
+/* ==========================================================================
    TROPHIES (HUNTER'S RECORDS)
    ========================================================================== */
 

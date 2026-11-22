@@ -33,6 +33,10 @@
                 <span class="nav-icon">&#xE29C;</span>
                 <span class="nav-text">{{ tr_tab_mods }}</span>
             </button>
+            <button class="nav-item" data-class-active="active_tab == 'saves'" data-event-click="set_tab('saves')">
+                <span class="nav-icon">&#xE14D;</span>
+                <span class="nav-text">{{ tr_tab_saves }}</span>
+            </button>
             <button class="nav-item" data-class-active="active_tab == 'trophies'" data-event-click="set_tab('trophies')">
                 <span class="nav-icon">&#xE373;</span>
                 <span class="nav-text">{{ tr_tab_trophies }}</span>
@@ -148,14 +152,16 @@
                     <div class="card util-card">
                         <div class="card-label">SAVED MEMORIES</div>
                         <div class="util-status">
-                            <span class="status-check">&#xE06C;</span>
-                            <span class="status-text">SAVE ACTIVE</span>
+                            <span class="status-check" data-if="save_has_saves">&#xE06C;</span>
+                            <span class="status-warn" data-if="!save_has_saves">&#xE193;</span>
+                            <span class="status-text" data-if="save_has_saves">SAVE ACTIVE</span>
+                            <span class="status-text warn" data-if="!save_has_saves">NO ACTIVE SAVE</span>
                         </div>
                         <div class="util-detail">{{ user_dir }}</div>
-                        <div class="util-sub">Profile: savedata_00.bin</div>
+                        <div class="util-sub">{{ save_status_line }}</div>
                         <div class="util-actions">
-                            <button class="btn-micro" data-event-click="choose_user_dir">BACKUP</button>
-                            <button class="btn-micro" data-event-click="choose_user_dir">FOLDER</button>
+                            <button class="btn-micro" data-event-click="create_save_backup('quick')">BACKUP</button>
+                            <button class="btn-micro" data-event-click="set_tab('saves')">MANAGE</button>
                         </div>
                     </div>
                 </div>
@@ -573,6 +579,102 @@
                         <div class="patch-info">
                             <div class="patch-title">{{ patch.name }}</div>
                             <div class="patch-author" data-if="patch.author != ''">Author: {{ patch.author }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: SAVED MEMORIES (SAVE DATA MANAGER) -->
+        <div class="tab-pane" data-if="active_tab == 'saves'">
+            <div class="pane-header">
+                <div class="pane-title">SAVED MEMORIES &amp; SNAPSHOTS</div>
+                <div class="pane-desc">Manage Bloodborne character slots (SPRJ0005), create or restore timestamped save backups, recover from internal slot backups, and verify the 0x204E audio flag.</div>
+            </div>
+
+            <!-- OVERVIEW & QUICK ACTIONS -->
+            <div class="card">
+                <div class="card-title">ACTIVE SAVE PROFILE OVERVIEW</div>
+                <div class="save-stats-grid">
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">ACTIVE TITLE ID</div>
+                        <div class="save-stat-val">{{ save_active_title_id }}</div>
+                    </div>
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">CHARACTER SLOTS</div>
+                        <div class="save-stat-val">{{ save_character_slots }} / 10</div>
+                    </div>
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">PROFILE SIZE</div>
+                        <div class="save-stat-val">{{ save_total_size }}</div>
+                    </div>
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">LAST MODIFIED</div>
+                        <div class="save-stat-val">{{ save_last_modified }}</div>
+                    </div>
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">AUDIO FLAG (0x204E)</div>
+                        <div class="save-stat-val ok" data-if="save_sound_ok">&#xE06C; SOUND ENABLED</div>
+                        <div class="save-stat-val warn" data-if="!save_sound_ok">&#xE193; NEEDS REPAIR</div>
+                    </div>
+                    <div class="save-stat-box">
+                        <div class="save-stat-label">SNAPSHOTS</div>
+                        <div class="save-stat-val">{{ save_backup_count }} Saved</div>
+                    </div>
+                </div>
+
+                <div class="save-feedback-banner" data-if="save_action_feedback != ''">
+                    {{ save_action_feedback }}
+                </div>
+
+                <div class="button-row">
+                    <button class="btn-secondary btn-primary-gold" data-event-click="create_save_backup('snapshot')">CREATE BACKUP SNAPSHOT</button>
+                    <button class="btn-secondary" data-event-click="import_save_folder">IMPORT SAVE FOLDER...</button>
+                    <button class="btn-secondary" data-event-click="repair_save_audio">VERIFY / REPAIR AUDIO FLAG (0x204E)</button>
+                    <button class="btn-secondary" data-event-click="choose_user_dir">CHANGE SAVES DIRECTORY...</button>
+                    <button class="btn-secondary" data-event-click="refresh_saves">REFRESH</button>
+                </div>
+            </div>
+
+            <!-- ACTIVE CHARACTER & SYSTEM SLOTS -->
+            <div class="card">
+                <div class="card-title">ACTIVE CHARACTER &amp; SYSTEM SLOTS (SPRJ0005)</div>
+                <div class="save-empty-note" data-if="save_slots_list.size == 0">
+                    No active Bloodborne save files (userdata0000..userdata0010) found under {{ user_dir }}/savedata. Launch the game or import/restore a save snapshot above.
+                </div>
+                <div class="mods-list" data-if="save_slots_list.size > 0">
+                    <div class="mod-item save-slot-row" data-for="slot : save_slots_list">
+                        <div class="mod-info">
+                            <div class="save-slot-header">
+                                <span class="badge-ver">{{ slot.title_id }}</span>
+                                <span class="mod-title">{{ slot.slot_label }}</span>
+                                <span class="save-badge-ok" data-if="slot.is_system_slot &amp;&amp; slot.sound_flag_ok">0x204E AUDIO OK</span>
+                                <span class="save-badge-warn" data-if="slot.is_system_slot &amp;&amp; !slot.sound_flag_ok">0x204E MUTED</span>
+                            </div>
+                            <div class="mod-path">Modified: {{ slot.modified_str }} • Size: {{ slot.size_str }} • {{ slot.backup_status }}</div>
+                        </div>
+                        <div class="mod-actions">
+                            <button class="btn-micro" data-if="slot.has_internal_backup" data-event-click="restore_slot_backup(slot.id)">RESTORE FROM {{ slot.backup_name }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAVEDATA BACKUP SNAPSHOTS -->
+            <div class="card">
+                <div class="card-title">SAVEDATA BACKUP SNAPSHOTS (savedata-backups)</div>
+                <div class="save-empty-note" data-if="save_backups_list.size == 0">
+                    No backup snapshots created yet. Click "CREATE BACKUP SNAPSHOT" above to preserve a point-in-time copy of all character and system saves.
+                </div>
+                <div class="mods-list" data-if="save_backups_list.size > 0">
+                    <div class="mod-item save-backup-row" data-for="b : save_backups_list">
+                        <div class="mod-info">
+                            <div class="mod-title">{{ b.label }}</div>
+                            <div class="mod-path">{{ b.date_str }} • {{ b.details_str }}</div>
+                        </div>
+                        <div class="mod-actions">
+                            <button class="btn-micro" data-event-click="restore_save_backup(b.id)">RESTORE SNAPSHOT</button>
+                            <button class="btn-micro btn-red" data-event-click="delete_save_backup(b.id)">DELETE</button>
                         </div>
                     </div>
                 </div>

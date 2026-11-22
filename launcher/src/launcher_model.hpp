@@ -27,12 +27,14 @@ private:
   void ApplyDelta(const StateDelta& delta);
   void SyncModsAndPatches();
   void SyncTrophies();
+  void SyncSaves();
   void SyncTranslations();
 
   void ChooseFolderForSetting(const char* setting_key);
   void ChooseDumpToExtract();
   void ChooseUpdateToInstall();
   void ChooseSaveLogPath();
+  void ChooseSaveFolderToImport();
 
   Rml::Context* context_ = nullptr;
   SDL_Window* window_ = nullptr;
@@ -47,12 +49,15 @@ private:
   std::vector<ModItem> mods_view_;
   std::vector<PatchItem> patches_view_;
   std::vector<TrophyItem> trophies_view_;
+  std::vector<SaveSlotItem> save_slots_view_;
+  std::vector<SaveBackupItem> save_backups_view_;
 
   std::string tr_tab_play_;
   std::string tr_tab_graphics_;
   std::string tr_tab_effects_;
   std::string tr_tab_controls_;
   std::string tr_tab_mods_;
+  std::string tr_tab_saves_;
   std::string tr_tab_trophies_;
   std::string tr_tab_online_;
   std::string tr_tab_log_;

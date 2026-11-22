@@ -87,6 +87,7 @@ void I18n::LoadTranslations() {
   add("tab_effects", "Effects & Engine", "Efeitos e Motor", "Эффекты", "效果与引擎", "Effets et Moteur");
   add("tab_controls", "Controls & Input", "Controles e Entrada", "Управление", "控制与输入", "Contrôles et Entrées");
   add("tab_mods", "Mods & Patches", "Mods e Patches", "Моды и патчи", "模组与补丁", "Mods et Patchs");
+  add("tab_saves", "Saved Memories", "Memórias Salvas", "Сохранения", "存档管理", "Sauvegardes");
   add("tab_trophies", "Trophies", "Troféus", "Трофеи", "奖杯", "Trophées");
   add("tab_online", "Network & Co-op", "Rede e Co-op", "Онлайн", "网络与联机", "Réseau et Co-op");
   add("tab_log", "Log & Console", "Log e Console", "Журнал", "日志与控制台", "Journal et Console");

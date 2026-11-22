@@ -48,6 +48,7 @@ LauncherModel::LauncherModel(Rml::Context* context, SDL_Window* window, Launcher
     : context_(context), window_(window), core_(core) {
   SyncModsAndPatches();
   SyncTrophies();
+  SyncSaves();
   SyncTranslations();
   BindModel();
 }
@@ -94,6 +95,31 @@ void LauncherModel::BindModel() {
     h.RegisterMember("hidden", &TrophyItem::hidden);
   }
   c.RegisterArray<std::vector<TrophyItem>>();
+
+  if (auto h = c.RegisterStruct<SaveSlotItem>()) {
+    h.RegisterMember("id", &SaveSlotItem::id);
+    h.RegisterMember("user_id", &SaveSlotItem::user_id);
+    h.RegisterMember("title_id", &SaveSlotItem::title_id);
+    h.RegisterMember("slot_label", &SaveSlotItem::slot_label);
+    h.RegisterMember("file_name", &SaveSlotItem::file_name);
+    h.RegisterMember("backup_name", &SaveSlotItem::backup_name);
+    h.RegisterMember("size_str", &SaveSlotItem::size_str);
+    h.RegisterMember("modified_str", &SaveSlotItem::modified_str);
+    h.RegisterMember("backup_status", &SaveSlotItem::backup_status);
+    h.RegisterMember("has_internal_backup", &SaveSlotItem::has_internal_backup);
+    h.RegisterMember("is_system_slot", &SaveSlotItem::is_system_slot);
+    h.RegisterMember("sound_flag_ok", &SaveSlotItem::sound_flag_ok);
+  }
+  c.RegisterArray<std::vector<SaveSlotItem>>();
+
+  if (auto h = c.RegisterStruct<SaveBackupItem>()) {
+    h.RegisterMember("id", &SaveBackupItem::id);
+    h.RegisterMember("label", &SaveBackupItem::label);
+    h.RegisterMember("path", &SaveBackupItem::path);
+    h.RegisterMember("date_str", &SaveBackupItem::date_str);
+    h.RegisterMember("details_str", &SaveBackupItem::details_str);
+  }
+  c.RegisterArray<std::vector<SaveBackupItem>>();
 
   // Bind every storable Game Setting & Launcher Setting dynamically from SettingsSchema.
   for (const auto& def : core_.Schema().Items()) {
@@ -148,10 +174,23 @@ void LauncherModel::BindModel() {
   c.BindFunc("trophy_progress_pct", [this](Rml::Variant& v) { v = core_.TrophySummary().progress_pct; });
   c.BindFunc("trophy_progress_text", [this](Rml::Variant& v) { v = core_.TrophyProgressText(); });
 
+  // Save Data Management projections.
+  c.BindFunc("save_has_saves", [this](Rml::Variant& v) { v = core_.SaveInfo().has_saves; });
+  c.BindFunc("save_active_title_id", [this](Rml::Variant& v) { v = core_.SaveInfo().active_title_id; });
+  c.BindFunc("save_total_size", [this](Rml::Variant& v) { v = core_.SaveInfo().total_size_str; });
+  c.BindFunc("save_last_modified", [this](Rml::Variant& v) { v = core_.SaveInfo().last_modified; });
+  c.BindFunc("save_character_slots", [this](Rml::Variant& v) { v = core_.SaveInfo().character_slots; });
+  c.BindFunc("save_backup_count", [this](Rml::Variant& v) { v = core_.SaveInfo().backup_count; });
+  c.BindFunc("save_sound_ok", [this](Rml::Variant& v) { v = core_.SaveInfo().sound_flag_ok; });
+  c.BindFunc("save_status_line", [this](Rml::Variant& v) { v = core_.SaveInfo().status_line; });
+  c.BindFunc("save_action_feedback", [this](Rml::Variant& v) { v = core_.SaveFeedback(); });
+
   // Vector views synced on dirty delta.
   c.Bind("mods_list", &mods_view_);
   c.Bind("patches_list", &patches_view_);
   c.Bind("trophies_list", &trophies_view_);
+  c.Bind("save_slots_list", &save_slots_view_);
+  c.Bind("save_backups_list", &save_backups_view_);
 
   // Translations.
   c.Bind("tr_tab_play", &tr_tab_play_);
@@ -159,6 +198,7 @@ void LauncherModel::BindModel() {
   c.Bind("tr_tab_effects", &tr_tab_effects_);
   c.Bind("tr_tab_controls", &tr_tab_controls_);
   c.Bind("tr_tab_mods", &tr_tab_mods_);
+  c.Bind("tr_tab_saves", &tr_tab_saves_);
   c.Bind("tr_tab_trophies", &tr_tab_trophies_);
   c.Bind("tr_tab_online", &tr_tab_online_);
   c.Bind("tr_tab_log", &tr_tab_log_);
@@ -170,6 +210,7 @@ void LauncherModel::BindModel() {
     if (args.empty()) return;
     active_tab_ = args[0].Get<Rml::String>();
     if (active_tab_ == "mods") ApplyDelta(core_.RefreshContent().delta);
+    else if (active_tab_ == "saves") ApplyDelta(core_.RefreshSaves().delta);
     else if (active_tab_ == "trophies") ApplyDelta(core_.RefreshTrophies().delta);
     model_handle_.DirtyVariable("active_tab");
   });
@@ -209,6 +250,28 @@ void LauncherModel::BindModel() {
     if (!args.empty()) ApplyDelta(core_.TogglePatch(args[0].Get<Rml::String>()).delta);
   });
 
+  // Save Data Management callbacks.
+  c.BindEventCallback("create_save_backup", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    const std::string tag = args.empty() ? "manual" : std::string(args[0].Get<Rml::String>());
+    ApplyDelta(core_.CreateBackup(tag).delta);
+  });
+  c.BindEventCallback("restore_save_backup", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.RestoreBackup(args[0].Get<Rml::String>()).delta);
+  });
+  c.BindEventCallback("delete_save_backup", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.DeleteBackup(args[0].Get<Rml::String>()).delta);
+  });
+  c.BindEventCallback("restore_slot_backup", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList& args) {
+    if (!args.empty()) ApplyDelta(core_.RestoreSlotFromInternalBackup(args[0].Get<Rml::String>()).delta);
+  });
+  c.BindEventCallback("repair_save_audio", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+    ApplyDelta(core_.RepairSavesAudioFlag().delta);
+  });
+  c.BindEventCallback("refresh_saves", [this](Rml::DataModelHandle, Rml::Event&, const Rml::VariantList&) {
+    ApplyDelta(core_.RefreshSaves().delta);
+  });
+  c.BindEventCallback("import_save_folder", [this](auto, auto&, auto&) { ChooseSaveFolderToImport(); });
+
   c.BindEventCallback("clear_log", [this](auto, auto&, auto&) {
     copy_btn_text_ = "COPY";
     model_handle_.DirtyVariable("copy_btn_text");
@@ -235,10 +298,13 @@ void LauncherModel::ApplyDelta(const StateDelta& delta) {
   if (delta.Contains("trophies_list")) {
     SyncTrophies();
   }
+  if (delta.Contains("save_slots_list") || delta.Contains("save_backups_list")) {
+    SyncSaves();
+  }
   if (delta.Contains("translations")) {
     SyncTranslations();
     for (const char* k : {"tr_tab_play", "tr_tab_graphics", "tr_tab_effects", "tr_tab_controls",
-                          "tr_tab_mods", "tr_tab_trophies", "tr_tab_online", "tr_tab_log",
+                          "tr_tab_mods", "tr_tab_saves", "tr_tab_trophies", "tr_tab_online", "tr_tab_log",
                           "tr_launch_game", "tr_stop_game"}) {
       model_handle_.DirtyVariable(k);
     }
@@ -265,12 +331,18 @@ void LauncherModel::SyncTrophies() {
   trophies_view_ = core_.Trophies();
 }
 
+void LauncherModel::SyncSaves() {
+  save_slots_view_ = core_.SaveSlots();
+  save_backups_view_ = core_.SaveBackups();
+}
+
 void LauncherModel::SyncTranslations() {
   tr_tab_play_ = core_.Translate("tab_play");
   tr_tab_graphics_ = core_.Translate("tab_graphics");
   tr_tab_effects_ = core_.Translate("tab_effects");
   tr_tab_controls_ = core_.Translate("tab_controls");
   tr_tab_mods_ = core_.Translate("tab_mods");
+  tr_tab_saves_ = core_.Translate("tab_saves");
   tr_tab_trophies_ = core_.Translate("tab_trophies");
   tr_tab_online_ = core_.Translate("tab_online");
   tr_tab_log_ = core_.Translate("tab_log");
@@ -332,6 +404,16 @@ void LauncherModel::ChooseSaveLogPath() {
         }
       },
       &core_, window_, nullptr, 0, "bbport_log.txt");
+}
+
+void LauncherModel::ChooseSaveFolderToImport() {
+  SDL_ShowOpenFolderDialog(
+      [](void* userdata, const char* const* filelist, int) {
+        if (filelist && *filelist && **filelist) {
+          static_cast<LauncherCore*>(userdata)->PostImportSaveFolder(*filelist);
+        }
+      },
+      &core_, window_, nullptr, false);
 }
 
 } // namespace bbport

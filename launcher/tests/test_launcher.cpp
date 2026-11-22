@@ -638,6 +638,96 @@ void TestPosixProcessRunnerSmoke() {
   std::cout << "PASS: TestPosixProcessRunnerSmoke\n";
 }
 
+// ============================================================================
+// Test 8: Bloodborne Save Data Management (InspectSaves, Backups, Restore, Slot Recovery, 0x204E Audio Fix, Import)
+// ============================================================================
+void TestSaveDataManagementContracts() {
+  TempWorkspace ws("saves");
+  const fs::path saves_dir = ws.paths.data_dir / "user";
+  const fs::path sprj = saves_dir / "savedata" / "1" / "CUSA00207" / "SPRJ0005";
+  fs::create_directories(sprj);
+
+  // Seed userdata0000 + backup0000, and userdata0010 + backup0010 with muted 0x204E (0)
+  {
+    std::vector<char> slot0(16384, 'A');
+    std::ofstream(sprj / "userdata0000", std::ios::binary).write(slot0.data(), static_cast<std::streamsize>(slot0.size()));
+    std::vector<char> bslot0(16384, 'B');
+    std::ofstream(sprj / "backup0000", std::ios::binary).write(bslot0.data(), static_cast<std::streamsize>(bslot0.size()));
+
+    std::vector<char> sys10(16384, 0);
+    sys10[0x204E] = 0; // Muted sound bug state
+    std::ofstream(sprj / "userdata0010", std::ios::binary).write(sys10.data(), static_cast<std::streamsize>(sys10.size()));
+    std::ofstream(sprj / "backup0010", std::ios::binary).write(sys10.data(), static_cast<std::streamsize>(sys10.size()));
+  }
+
+  std::vector<SaveSlotItem> slots;
+  std::vector<SaveBackupItem> backups;
+  SaveSummary summary = InspectSaves(saves_dir, slots, backups);
+  assert(summary.has_saves);
+  assert(summary.active_title_id == "CUSA00207");
+  assert(summary.character_slots == 1);
+  assert(summary.system_slots == 1);
+  assert(!summary.sound_flag_ok); // 0x204E is 0
+  assert(slots.size() == 2);
+  assert(slots[0].file_name == "userdata0000" && slots[0].has_internal_backup);
+  assert(slots[1].file_name == "userdata0010" && slots[1].is_system_slot && !slots[1].sound_flag_ok);
+
+  // Repair 0x204E sound flag
+  const int patched = RepairSaveSoundFlags(saves_dir);
+  assert(patched == 2);
+  summary = InspectSaves(saves_dir, slots, backups);
+  assert(summary.sound_flag_ok);
+  assert(slots[1].sound_flag_ok);
+
+  // Create a timestamped backup snapshot
+  std::string backup_id;
+  std::string err;
+  assert(CreateSaveBackup(saves_dir, "before_boss", &backup_id, &err));
+  assert(!backup_id.empty());
+  summary = InspectSaves(saves_dir, slots, backups);
+  assert(summary.backup_count == 1);
+  assert(backups[0].id == backup_id);
+
+  // Recover slot 0 from internal backup0000 ('B')
+  assert(RestoreInternalSlotBackup(saves_dir, slots[0].id, &err));
+  {
+    std::ifstream in(sprj / "userdata0000", std::ios::binary);
+    char first = 0;
+    in.read(&first, 1);
+    assert(first == 'B');
+  }
+
+  // Restore full snapshot ('A') and verify automatic pre_restore snapshot is created
+  assert(RestoreSaveBackup(saves_dir, backup_id, &err));
+  {
+    std::ifstream in(sprj / "userdata0000", std::ios::binary);
+    char first = 0;
+    in.read(&first, 1);
+    assert(first == 'A');
+  }
+  summary = InspectSaves(saves_dir, slots, backups);
+  assert(summary.backup_count >= 2);
+
+  // Delete backup snapshot
+  assert(DeleteSaveBackup(saves_dir, backup_id, &err));
+  summary = InspectSaves(saves_dir, slots, backups);
+  for (const auto& b : backups) {
+    assert(b.id != backup_id);
+  }
+
+  // Import external flat SPRJ0005 folder
+  const fs::path ext_dir = ws.root / "external_save";
+  fs::create_directories(ext_dir);
+  {
+    std::vector<char> ext_slot(16384, 'Z');
+    std::ofstream(ext_dir / "userdata0001", std::ios::binary).write(ext_slot.data(), static_cast<std::streamsize>(ext_slot.size()));
+  }
+  assert(ImportExternalSaveFolder(saves_dir, ext_dir, "CUSA03173", &err));
+  assert(fs::is_regular_file(saves_dir / "savedata" / "1" / "CUSA03173" / "SPRJ0005" / "userdata0001"));
+
+  std::cout << "PASS: TestSaveDataManagementContracts\n";
+}
+
 } // namespace
 
 int main() {
@@ -649,6 +739,7 @@ int main() {
   TestTrophiesRealContract();
   TestLauncherCoreLifecycleAndSafety();
   TestPosixProcessRunnerSmoke();
-  std::cout << "=== All 7 Deep Interface Test Suites Passed ===\n";
+  TestSaveDataManagementContracts();
+  std::cout << "=== All 8 Deep Interface Test Suites Passed ===\n";
   return 0;
 }

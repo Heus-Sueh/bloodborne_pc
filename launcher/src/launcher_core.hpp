@@ -93,14 +93,24 @@ public:
   ActionResult RefreshGameStatus();
   ActionResult RefreshContent();
   ActionResult RefreshTrophies();
+  ActionResult RefreshSaves();
   ActionResult ClearLog();
   ActionResult SaveLog(const std::filesystem::path& dest_path);
+
+  // Save Data Management (active slots, timestamped backups, internal slot recovery, 0x204E audio fix).
+  ActionResult CreateBackup(std::string_view tag = "");
+  ActionResult RestoreBackup(std::string_view backup_id);
+  ActionResult DeleteBackup(std::string_view backup_id);
+  ActionResult RestoreSlotFromInternalBackup(std::string_view slot_id);
+  ActionResult RepairSavesAudioFlag();
+  ActionResult ImportSaveFolder(const std::filesystem::path& external_dir);
 
   // Thread-safe cross-thread inbox (safe from SDL file/folder dialog callbacks).
   void PostSetting(std::string key, SettingValue value);
   void PostExtraction(std::filesystem::path dump_path, std::filesystem::path output_dir);
   void PostUpdateInstall(std::filesystem::path update_pkg_path);
   void PostSaveLog(std::filesystem::path dest_path);
+  void PostImportSaveFolder(std::filesystem::path external_dir);
 
   // Per-frame UI-thread pump: drains inbox, child output, and non-blocking process exits.
   StateDelta Poll();
@@ -113,6 +123,10 @@ public:
   const std::vector<TrophyItem>& Trophies() const noexcept;
   const TrophyStats& TrophySummary() const noexcept;
   std::string TrophyProgressText() const;
+  const SaveSummary& SaveInfo() const noexcept;
+  const std::vector<SaveSlotItem>& SaveSlots() const noexcept;
+  const std::vector<SaveBackupItem>& SaveBackups() const noexcept;
+  const std::string& SaveFeedback() const noexcept;
   const ProcessState& GameProcess() const noexcept;
   const ExtractionState& Extraction() const noexcept;
   const std::string& ConsoleLog() const noexcept;

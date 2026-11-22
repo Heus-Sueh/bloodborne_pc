@@ -91,4 +91,68 @@ bool SaveExternalPatchesConfig(const std::filesystem::path& patches_config_path,
 // Real on-disk Trophies contract (BbTrophy XML parser + PS4 TROP_XX.XML + unlocked.txt + trophies.jsonl).
 TrophyCatalog LoadTrophies(const std::filesystem::path& saves_dir, std::string_view ps4_language_id);
 
+struct SaveSlotItem {
+  std::string id;             // "<user_id>/<title_id>/<file_name>", e.g. "1/CUSA00207/userdata0000"
+  std::string user_id;        // e.g. "1"
+  std::string title_id;       // e.g. "CUSA00207"
+  std::string slot_label;     // e.g. "Character Slot 0" or "System Profile"
+  std::string file_name;      // e.g. "userdata0000"
+  std::string backup_name;    // e.g. "backup0000"
+  std::string size_str;       // e.g. "1.25 MB"
+  std::string modified_str;   // e.g. "2026-11-22 14:54:12"
+  std::string backup_status;  // e.g. "Internal backup0000 ready (2026-11-22 14:53:09)"
+  bool has_internal_backup = false;
+  bool is_system_slot = false;
+  bool sound_flag_ok = true;
+};
+
+struct SaveBackupItem {
+  std::string id;             // directory name under savedata-backups/, e.g. "20261122-172500"
+  std::string label;          // human-readable label
+  std::string path;           // full path on disk
+  std::string date_str;       // formatted timestamp
+  std::string details_str;    // e.g. "CUSA00207 • 2 character slots • 2.75 MB"
+};
+
+struct SaveSummary {
+  bool has_saves = false;
+  std::string active_title_id;
+  std::string total_size_str = "0 B";
+  std::string last_modified = "Never";
+  int character_slots = 0;
+  int system_slots = 0;
+  int backup_count = 0;
+  bool sound_flag_ok = true;
+  std::string status_line = "No active save profile found";
+};
+
+// Real on-disk Bloodborne Save Data Management contract (<saves_dir>/savedata/<uid>/<CUSA*>/SPRJ0005).
+SaveSummary InspectSaves(const std::filesystem::path& saves_dir,
+                         std::vector<SaveSlotItem>& out_slots,
+                         std::vector<SaveBackupItem>& out_backups);
+
+bool CreateSaveBackup(const std::filesystem::path& saves_dir,
+                      std::string_view tag,
+                      std::string* out_backup_id = nullptr,
+                      std::string* out_error = nullptr);
+
+bool RestoreSaveBackup(const std::filesystem::path& saves_dir,
+                       std::string_view backup_id,
+                       std::string* out_error = nullptr);
+
+bool DeleteSaveBackup(const std::filesystem::path& saves_dir,
+                      std::string_view backup_id,
+                      std::string* out_error = nullptr);
+
+bool RestoreInternalSlotBackup(const std::filesystem::path& saves_dir,
+                               std::string_view slot_id,
+                               std::string* out_error = nullptr);
+
+int RepairSaveSoundFlags(const std::filesystem::path& saves_dir);
+
+bool ImportExternalSaveFolder(const std::filesystem::path& saves_dir,
+                              const std::filesystem::path& external_dir,
+                              std::string_view default_title_id,
+                              std::string* out_error = nullptr);
+
 } // namespace bbport

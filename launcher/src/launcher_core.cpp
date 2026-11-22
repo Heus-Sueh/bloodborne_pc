@@ -33,8 +33,11 @@ struct PostUpdateInstallCmd {
 struct PostSaveLogCmd {
   fs::path dest_path;
 };
+struct PostImportSaveFolderCmd {
+  fs::path external_dir;
+};
 
-using InboxCommand = std::variant<PostSetSettingCmd, PostExtractionCmd, PostUpdateInstallCmd, PostSaveLogCmd>;
+using InboxCommand = std::variant<PostSetSettingCmd, PostExtractionCmd, PostUpdateInstallCmd, PostSaveLogCmd, PostImportSaveFolderCmd>;
 
 } // namespace
 
@@ -67,6 +70,11 @@ struct LauncherCore::Impl {
   std::vector<ModItem> mods;
   std::vector<PatchItem> patches;
   TrophyCatalog trophy_catalog;
+
+  SaveSummary save_summary;
+  std::vector<SaveSlotItem> save_slots;
+  std::vector<SaveBackupItem> save_backups;
+  std::string save_feedback;
 
   ProcessState game_state;
   std::unique_ptr<ProcessSession> game_session;
@@ -111,6 +119,20 @@ struct LauncherCore::Impl {
     delta.Mark("trophy_progress_text");
   }
 
+  void MarkSavesDirty(StateDelta& delta) {
+    delta.Mark("save_has_saves");
+    delta.Mark("save_active_title_id");
+    delta.Mark("save_total_size");
+    delta.Mark("save_last_modified");
+    delta.Mark("save_character_slots");
+    delta.Mark("save_backup_count");
+    delta.Mark("save_sound_ok");
+    delta.Mark("save_status_line");
+    delta.Mark("save_action_feedback");
+    delta.Mark("save_slots_list");
+    delta.Mark("save_backups_list");
+  }
+
   void MarkExtractionDirty(StateDelta& delta) {
     delta.Mark("is_extracting");
     delta.Mark("extract_progress_pct");
@@ -132,6 +154,11 @@ struct LauncherCore::Impl {
   void RefreshTrophiesInternal(StateDelta& delta) {
     trophy_catalog = LoadTrophies(store->ResolvedSavesDir(), store->GetString("language", "1"));
     MarkTrophiesDirty(delta);
+  }
+
+  void RefreshSavesInternal(StateDelta& delta) {
+    save_summary = InspectSaves(store->ResolvedSavesDir(), save_slots, save_backups);
+    MarkSavesDirty(delta);
   }
 
   void SyncLanguage() {
@@ -162,6 +189,8 @@ struct LauncherCore::Impl {
     game_state.last_exit_code = exit_code;
     AppendLog("=== Process exited with code " + std::to_string(exit_code) + " ===", delta);
     delta.Mark("is_game_running");
+    RefreshTrophiesInternal(delta);
+    RefreshSavesInternal(delta);
 
     if (exit_code != 0 && exit_code != kRestartExitCode &&
         (clock->Now() - game_launch_time) < kQuickCrashThreshold) {
@@ -224,6 +253,7 @@ ActionResult LauncherCore::Open(PortPaths paths,
   impl->RefreshGameStatusInternal(initial_delta);
   impl->RefreshContentInternal(initial_delta);
   impl->RefreshTrophiesInternal(initial_delta);
+  impl->RefreshSavesInternal(initial_delta);
 
   out.reset(new LauncherCore(std::move(impl)));
   return {true, {}, std::move(initial_delta)};
@@ -250,6 +280,7 @@ ActionResult LauncherCore::SetSetting(std::string_view key, SettingValue value) 
     impl_->RefreshGameStatusInternal(delta);
   } else if (key == "user_dir" || key == "language") {
     impl_->RefreshTrophiesInternal(delta);
+    impl_->RefreshSavesInternal(delta);
   } else if (key == "mods_dir" || key == "patches_dir") {
     impl_->RefreshContentInternal(delta);
   } else if (key == "ui_language") {
@@ -543,6 +574,128 @@ ActionResult LauncherCore::RefreshTrophies() {
   return {true, {}, std::move(delta)};
 }
 
+ActionResult LauncherCore::RefreshSaves() {
+  StateDelta delta;
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::CreateBackup(std::string_view tag) {
+  StateDelta delta;
+  std::string backup_id;
+  std::string err;
+  if (!CreateSaveBackup(impl_->store->ResolvedSavesDir(), tag, &backup_id, &err)) {
+    impl_->save_feedback = "Backup failed: " + err;
+    impl_->AppendLog("ERROR: " + impl_->save_feedback, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  impl_->save_feedback = "Created backup snapshot: " + backup_id;
+  impl_->AppendLog("Savedata backup created: " + backup_id, delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::RestoreBackup(std::string_view backup_id) {
+  StateDelta delta;
+  if (impl_->game_state.running) {
+    const std::string err = "Cannot restore save backup while Bloodborne is running";
+    impl_->save_feedback = err;
+    impl_->AppendLog("ERROR: " + err, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  std::string err;
+  if (!RestoreSaveBackup(impl_->store->ResolvedSavesDir(), backup_id, &err)) {
+    impl_->save_feedback = "Restore failed: " + err;
+    impl_->AppendLog("ERROR: " + impl_->save_feedback, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  impl_->save_feedback = "Restored snapshot: " + std::string(backup_id);
+  impl_->AppendLog("Restored savedata snapshot: " + std::string(backup_id), delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::DeleteBackup(std::string_view backup_id) {
+  StateDelta delta;
+  std::string err;
+  if (!DeleteSaveBackup(impl_->store->ResolvedSavesDir(), backup_id, &err)) {
+    impl_->save_feedback = "Delete failed: " + err;
+    impl_->AppendLog("ERROR: " + impl_->save_feedback, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  impl_->save_feedback = "Deleted backup snapshot: " + std::string(backup_id);
+  impl_->AppendLog("Deleted savedata snapshot: " + std::string(backup_id), delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::RestoreSlotFromInternalBackup(std::string_view slot_id) {
+  StateDelta delta;
+  if (impl_->game_state.running) {
+    const std::string err = "Cannot restore character slot while Bloodborne is running";
+    impl_->save_feedback = err;
+    impl_->AppendLog("ERROR: " + err, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  std::string err;
+  if (!RestoreInternalSlotBackup(impl_->store->ResolvedSavesDir(), slot_id, &err)) {
+    impl_->save_feedback = "Slot recovery failed: " + err;
+    impl_->AppendLog("ERROR: " + impl_->save_feedback, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  impl_->save_feedback = "Restored slot from internal backup: " + std::string(slot_id);
+  impl_->AppendLog(impl_->save_feedback, delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::RepairSavesAudioFlag() {
+  StateDelta delta;
+  if (impl_->game_state.running) {
+    const std::string err = "Cannot patch save audio flag while Bloodborne is running";
+    impl_->save_feedback = err;
+    impl_->AppendLog("ERROR: " + err, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  const int count = RepairSaveSoundFlags(impl_->store->ResolvedSavesDir());
+  impl_->save_feedback = count > 0
+                             ? ("Verified & patched 0x204E audio flag in " + std::to_string(count) + " system save file(s)")
+                             : "No system save files (userdata0010) found to patch";
+  impl_->AppendLog(impl_->save_feedback, delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
+ActionResult LauncherCore::ImportSaveFolder(const fs::path& external_dir) {
+  StateDelta delta;
+  if (impl_->game_state.running) {
+    const std::string err = "Cannot import saves while Bloodborne is running";
+    impl_->save_feedback = err;
+    impl_->AppendLog("ERROR: " + err, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  std::string err;
+  const std::string default_tid = impl_->game_inspection.title_id.empty() ? "CUSA03173" : impl_->game_inspection.title_id;
+  if (!ImportExternalSaveFolder(impl_->store->ResolvedSavesDir(), external_dir, default_tid, &err)) {
+    impl_->save_feedback = "Import failed: " + err;
+    impl_->AppendLog("ERROR: " + impl_->save_feedback, delta);
+    impl_->MarkSavesDirty(delta);
+    return {false, err, std::move(delta)};
+  }
+  impl_->save_feedback = "Imported save data from: " + external_dir.filename().string();
+  impl_->AppendLog("Imported save data from: " + external_dir.string(), delta);
+  impl_->RefreshSavesInternal(delta);
+  return {true, {}, std::move(delta)};
+}
+
 ActionResult LauncherCore::ClearLog() {
   impl_->console_log.clear();
   StateDelta delta;
@@ -581,6 +734,11 @@ void LauncherCore::PostSaveLog(fs::path dest_path) {
   impl_->inbox.push_back(PostSaveLogCmd{std::move(dest_path)});
 }
 
+void LauncherCore::PostImportSaveFolder(fs::path external_dir) {
+  std::lock_guard<std::mutex> lock(impl_->inbox_mutex);
+  impl_->inbox.push_back(PostImportSaveFolderCmd{std::move(external_dir)});
+}
+
 StateDelta LauncherCore::Poll() {
   StateDelta delta;
 
@@ -599,6 +757,8 @@ StateDelta LauncherCore::Poll() {
       delta.Merge(StartUpdateInstall(c->update_pkg_path).delta);
     } else if (auto* c = std::get_if<PostSaveLogCmd>(&cmd)) {
       delta.Merge(SaveLog(c->dest_path).delta);
+    } else if (auto* c = std::get_if<PostImportSaveFolderCmd>(&cmd)) {
+      delta.Merge(ImportSaveFolder(c->external_dir).delta);
     }
   }
 
@@ -668,6 +828,11 @@ std::string LauncherCore::TrophyProgressText() const {
   const auto& s = impl_->trophy_catalog.stats;
   return std::to_string(s.unlocked) + " / " + std::to_string(s.total) + " (" + std::to_string(s.progress_pct) + "%)";
 }
+
+const SaveSummary& LauncherCore::SaveInfo() const noexcept { return impl_->save_summary; }
+const std::vector<SaveSlotItem>& LauncherCore::SaveSlots() const noexcept { return impl_->save_slots; }
+const std::vector<SaveBackupItem>& LauncherCore::SaveBackups() const noexcept { return impl_->save_backups; }
+const std::string& LauncherCore::SaveFeedback() const noexcept { return impl_->save_feedback; }
 
 const ProcessState& LauncherCore::GameProcess() const noexcept { return impl_->game_state; }
 const ExtractionState& LauncherCore::Extraction() const noexcept { return impl_->extraction_state; }

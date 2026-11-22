@@ -375,14 +375,18 @@ public:
         } record{};
 
 
-        template <class Self>
-        auto& Alias(this Self& self, PointerType alias) {
-            return self.aliases[u32(alias)];
+        BufferSpv& Alias(PointerType alias) {
+            return aliases[u32(alias)];
+        }
+        const BufferSpv& Alias(PointerType alias) const {
+            return aliases[u32(alias)];
         }
 
-        template <class Self>
-        auto& Offset(this Self& self, PointerSize size) {
-            return self.offsets[u32(size)];
+        Id& Offset(PointerSize size) {
+            return offsets[u32(size)];
+        }
+        const Id& Offset(PointerSize size) const {
+            return offsets[u32(size)];
         }
     };
     /// BB_LAYER_MEMORY: an access of `access_bytes` at `byte_offset` of a paged buffer:

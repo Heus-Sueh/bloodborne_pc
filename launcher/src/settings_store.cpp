@@ -5,14 +5,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <fcntl.h>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <sstream>
+#include <unordered_set>
+
+#ifndef _WIN32
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <unordered_set>
+#endif
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -157,6 +160,35 @@ bool WriteFileAtomic(const fs::path& target, const std::string& content, bool mo
     }
   }
 
+#ifdef _WIN32
+  (void)mode_0600;
+  const fs::path tmp = target.string() + ".tmp";
+  {
+    std::ofstream ofs(tmp, std::ios::binary | std::ios::trunc);
+    if (!ofs.is_open()) {
+      if (error) *error = "Failed to open temporary file for writing: " + tmp.string();
+      return false;
+    }
+    if (!content.empty() && !ofs.write(content.data(), static_cast<std::streamsize>(content.size()))) {
+      ofs.close();
+      fs::remove(tmp, ec);
+      if (error) *error = "Failed writing file: " + target.string();
+      return false;
+    }
+  }
+  fs::rename(tmp, target, ec);
+  if (ec) {
+    fs::remove(target, ec);
+    ec.clear();
+    fs::rename(tmp, target, ec);
+    if (ec) {
+      fs::remove(tmp, ec);
+      if (error) *error = "Failed renaming temporary file to: " + target.string();
+      return false;
+    }
+  }
+  return true;
+#else
   const fs::path tmp = target.string() + ".tmp." + std::to_string(::getpid());
   const int flags = O_WRONLY | O_CREAT | O_TRUNC;
   const mode_t mode = mode_0600 ? 0600 : 0644;
@@ -195,6 +227,7 @@ bool WriteFileAtomic(const fs::path& target, const std::string& content, bool mo
     return false;
   }
   return true;
+#endif
 }
 
 // Non-schema auxiliary keys used by GTK/WPF/C++ launchers for complete parity.
