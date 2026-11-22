@@ -261,7 +261,7 @@ jobs:
       - name: Build Windows Port (bb-probe.exe, bbnet20.dll) & Native C++ RmlUi Launcher (Bloodborne.exe)
         run: |
           set -euo pipefail
-          cmake --no-warn-unused-cli -Wno-deprecated -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
+          cmake -Wno-deprecated \
             -S gpu -B out/win-gpu -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DBB_LTO=OFF \
